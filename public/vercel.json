@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/api/across/swap/chains", "destination": "https://app.across.to/api/swap/chains" },
+    { "source": "/api/across/available-routes", "destination": "https://app.across.to/api/available-routes" },
+    { "source": "/api/across/swap/approval", "destination": "https://app.across.to/api/swap/approval" },
+    { "source": "/api/across/deposit/status", "destination": "https://app.across.to/api/deposit/status" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
