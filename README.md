@@ -49,6 +49,7 @@ Public (shipped to the browser, so never put secrets here):
 
 - `VITE_EURC_ADDRESS` EURC token address on Arc, enables EURC in Swap
 - `VITE_QUICKPAY_REGISTRY_ADDRESS` Address of your deployed QuickPayRegistry. Leave unset until a real deployment exists
+- `VITE_QUICKPAY_ROUTER_ADDRESS` Address of your deployed QuickPayRouter. When set and confirmed on Arc, sends go through it (the explorer shows the Quick Pay contract); otherwise sends are plain USDC transfers
 - `VITE_WALLETCONNECT_PROJECT_ID` Optional, enables WalletConnect
 
 ### Scripts
@@ -80,5 +81,7 @@ export USDC=<official USDC address on Arc>
 export REGISTRY_OWNER=<pause-rights address, ideally a multisig>
 forge script contracts/script/DeployQuickPayRegistry.s.sol --rpc-url <Arc RPC> --account <keystore> --sender <deployer> --broadcast
 ```
+
+To route ordinary sends through the Quick Pay contract, deploy `contracts/QuickPayRouter.sol` the same way with `contracts/script/DeployQuickPayRouter.s.sol` (set `USDC` and `ROUTER_OWNER`), then set `VITE_QUICKPAY_ROUTER_ADDRESS`.
 
 Then set `VITE_QUICKPAY_REGISTRY_ADDRESS` and restart the frontend. The Smart Contracts page marks it deployed only after reading it from the chain and checking it uses the official USDC.

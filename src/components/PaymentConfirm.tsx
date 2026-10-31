@@ -7,7 +7,9 @@ import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TxProgress } from '@/components/TxProgress'
 import { Notice, Row, Spinner } from '@/components/ui'
 import { useArcWallet } from '@/hooks/useArcWallet'
+import { useRouter } from '@/hooks/useRouter'
 import { useSendUsdc } from '@/hooks/useSendUsdc'
+import { estimateRouterSendGas } from '@/lib/routerSend'
 import { ARC_CHAIN_ID, ARC_USDC, arcTxUrl } from '@/lib/arc'
 import { arcFeeParams, gasCostToUsdc } from '@/lib/fees'
 import { displayUsdc, shortAddress } from '@/lib/format'
@@ -31,16 +33,19 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
   const wallet = useArcWallet()
   const publicClient = usePublicClient({ chainId: ARC_CHAIN_ID })
   const { state, send, reset, busy } = useSendUsdc()
+  const { address: router, isLoading: routerLoading } = useRouter()
 
   const fee = useQuery({
-    queryKey: ['fee-estimate', address, to, amount.toString()],
-    enabled: open && Boolean(address && publicClient && wallet.onArc),
+    queryKey: ['fee-estimate', address, to, amount.toString(), router],
+    enabled: open && Boolean(address && publicClient && wallet.onArc) && !routerLoading,
     retry: false,
     refetchInterval: open ? 20_000 : false,
     queryFn: async () => {
       if (!publicClient || !address) throw new Error('no client')
       const [gas, fees] = await Promise.all([
-        publicClient.estimateContractGas({ account: address, address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount] }),
+        router
+          ? estimateRouterSendGas(publicClient, address, router, to, amount)
+          : publicClient.estimateContractGas({ account: address, address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount] }),
         arcFeeParams(publicClient),
       ])
       return { gas, usdc: gasCostToUsdc(gas, fees.maxFeePerGas) }
@@ -66,12 +71,14 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
       <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
         <Row label="From">{address ? <span className="mono">{shortAddress(address)}</span> : '—'}</Row>
         <Row label="To"><span className="mono break-all">{to}</span></Row>
+        {router && <Row label="Via"><span className="mono break-all text-xs">Quick Pay contract {shortAddress(router)}</span></Row>}
         <Row label="Network fee">
           {!wallet.onArc ? 'Switch to Arc' : fee.isLoading ? 'Estimating…' : fee.data ? `≈ ${displayUsdc(fee.data.usdc, 4, 6)} USDC` : 'Unavailable'}
         </Row>
         <Row label="Total debited">{total !== undefined ? `${displayUsdc(total, 2, 6)} USDC` : '—'}</Row>
       </div>
       {note && <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>{note}</p>}
+      {router && <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>This payment goes through the Quick Pay contract, which sends your USDC straight to the recipient and never holds it. If it needs permission first, your wallet asks you to approve exactly this amount, then to pay.</p>}
 
       <div className="mt-3 space-y-2">
         {fee.isError && wallet.onArc && (

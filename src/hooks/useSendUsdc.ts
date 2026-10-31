@@ -1,7 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
-import { erc20Abi, type Address } from 'viem'
+import { erc20Abi, zeroHash, type Address } from 'viem'
 import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
+import { quickPayRouterAbi } from '@/contracts/quickPayRouterAbi'
+import { useRouter } from '@/hooks/useRouter'
+import { routerAllowance } from '@/lib/routerSend'
 import { ARC_CHAIN_ID, ARC_USDC } from '@/lib/arc'
 import { api } from '@/lib/api'
 import { arcFeeParams } from '@/lib/fees'
@@ -18,6 +21,7 @@ export function useSendUsdc() {
   const publicClient = usePublicClient({ chainId: ARC_CHAIN_ID })
   const { writeContractAsync } = useWriteContract()
   const queryClient = useQueryClient()
+  const { address: router } = useRouter()
   const [state, setState] = useState<SendState>({ stage: 'idle' })
   const flight = useRef(new SingleFlight())
 
@@ -33,7 +37,16 @@ export function useSendUsdc() {
           onState: setState,
           submit: async () => {
             const fees = await arcFeeParams(publicClient)
-            return writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees })
+            if (!router) {
+              return writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees })
+            }
+            // Through the Quick Pay router: approve the exact amount only (never unlimited), wait for it, then pay.
+            if ((await routerAllowance(publicClient, address, router)) < amount) {
+              const approveHash = await writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [router, amount], chainId: ARC_CHAIN_ID, ...fees })
+              const approval = await publicClient.waitForTransactionReceipt({ hash: approveHash })
+              if (approval.status !== 'success') throw new Error('The approval failed on-chain. No funds moved.')
+            }
+            return writeContractAsync({ address: router, abi: quickPayRouterAbi, functionName: 'payTo', args: [to, amount, zeroHash], chainId: ARC_CHAIN_ID, ...fees })
           },
           waitForReceipt: (h) => publicClient.waitForTransactionReceipt({ hash: h }),
         }),
@@ -45,7 +58,7 @@ export function useSendUsdc() {
       }
       return hash ?? null
     },
-    [address, publicClient, queryClient, writeContractAsync],
+    [address, publicClient, queryClient, router, writeContractAsync],
   )
 
   return { state, send, reset, busy: state.stage === 'wallet' || state.stage === 'confirming' }
