@@ -23,70 +23,70 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract QuickPayRouter is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable usdc;
+        IERC20 public immutable usdc;
 
-    error ZeroAddress();
-    error TokenHasNoCode(address token);
-    error ZeroAmount();
-    error SelfPayment();
-    error InvalidRecipient(address recipient);
-    error OwnershipRenunciationDisabled();
+            error ZeroAddress();
+                error TokenHasNoCode(address token);
+                    error ZeroAmount();
+                        error SelfPayment();
+                            error InvalidRecipient(address recipient);
+                                error OwnershipRenunciationDisabled();
 
-    event PaymentSent(
-        address indexed payer,
-        address indexed recipient,
-        uint256 amount,
-        bytes32 indexed reference_
-    );
+                                    event PaymentSent(
+                                            address indexed payer,
+                                                    address indexed recipient,
+                                                            uint256 amount,
+                                                                    bytes32 indexed reference_
+                                                                        );
 
-    /// @notice Deploys a router for the supplied USDC and initial pause administrator.
-    /// @param usdc_ ERC-20 USDC contract address (six decimals).
-    /// @param initialOwner Nonzero initial owner; subsequent transfers require acceptance.
-    constructor(address usdc_, address initialOwner) Ownable(initialOwner) {
-        // Ownable also rejects a zero initialOwner with its own custom error.
-        if (usdc_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
-        if (usdc_.code.length == 0) revert TokenHasNoCode(usdc_);
-        usdc = IERC20(usdc_);
-    }
+                                                                            /// @notice Deploys a router for the supplied USDC and initial pause administrator.
+                                                                                /// @param usdc_ ERC-20 USDC contract address (six decimals).
+                                                                                    /// @param initialOwner Nonzero initial owner; subsequent transfers require acceptance.
+                                                                                        constructor(address usdc_, address initialOwner) Ownable(initialOwner) {
+                                                                                                // Ownable also rejects a zero initialOwner with its own custom error.
+                                                                                                        if (usdc_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
+                                                                                                                if (usdc_.code.length == 0) revert TokenHasNoCode(usdc_);
+                                                                                                                        usdc = IERC20(usdc_);
+                                                                                                                            }
 
-    /// @notice Sends approved USDC directly from the caller to the recipient.
-    /// @dev Payers should approve this router for the exact payment amount only.
-    /// A failed transfer reverts the entire call; the router never takes custody
-    /// during payment. References are caller-supplied metadata, not unique IDs.
-    /// @param recipient Nonzero recipient, distinct from caller, router, and USDC.
-    /// @param amount Positive amount in USDC base units (1 USDC = 1,000,000 units).
-    /// @param reference_ Public payment reference; zero and repeated values are allowed.
-    function payTo(address recipient, uint256 amount, bytes32 reference_)
-        external
-        nonReentrant
-        whenNotPaused
-    {
-        if (recipient == address(0)) revert ZeroAddress();
-        if (amount == 0) revert ZeroAmount();
-        if (recipient == msg.sender) revert SelfPayment();
-        if (recipient == address(this) || recipient == address(usdc)) {
-            revert InvalidRecipient(recipient);
-        }
+                                                                                                                                /// @notice Sends approved USDC directly from the caller to the recipient.
+                                                                                                                                    /// @dev Payers should approve this router for the exact payment amount only.
+                                                                                                                                        /// A failed transfer reverts the entire call; the router never takes custody
+                                                                                                                                            /// during payment. References are caller-supplied metadata, not unique IDs.
+                                                                                                                                                /// @param recipient Nonzero recipient, distinct from caller, router, and USDC.
+                                                                                                                                                    /// @param amount Positive amount in USDC base units (1 USDC = 1,000,000 units).
+                                                                                                                                                        /// @param reference_ Public payment reference; zero and repeated values are allowed.
+                                                                                                                                                            function payTo(address recipient, uint256 amount, bytes32 reference_)
+                                                                                                                                                                    external
+                                                                                                                                                                            nonReentrant
+                                                                                                                                                                                    whenNotPaused
+                                                                                                                                                                                        {
+                                                                                                                                                                                                if (recipient == address(0)) revert ZeroAddress();
+                                                                                                                                                                                                        if (amount == 0) revert ZeroAmount();
+                                                                                                                                                                                                                if (recipient == msg.sender) revert SelfPayment();
+                                                                                                                                                                                                                        if (recipient == address(this) || recipient == address(usdc)) {
+                                                                                                                                                                                                                                    revert InvalidRecipient(recipient);
+                                                                                                                                                                                                                                            }
 
-        usdc.safeTransferFrom(msg.sender, recipient, amount);
-        emit PaymentSent(msg.sender, recipient, amount, reference_);
-    }
+                                                                                                                                                                                                                                                    usdc.safeTransferFrom(msg.sender, recipient, amount);
+                                                                                                                                                                                                                                                            emit PaymentSent(msg.sender, recipient, amount, reference_);
+                                                                                                                                                                                                                                                                }
 
-    /// @notice Pauses payments.
-    /// @dev Only the owner may call; emits OpenZeppelin's Paused event.
-    function pause() external onlyOwner {
-        _pause();
-    }
+                                                                                                                                                                                                                                                                    /// @notice Pauses payments.
+                                                                                                                                                                                                                                                                        /// @dev Only the owner may call; emits OpenZeppelin's Paused event.
+                                                                                                                                                                                                                                                                            function pause() external onlyOwner {
+                                                                                                                                                                                                                                                                                    _pause();
+                                                                                                                                                                                                                                                                                        }
 
-    /// @notice Resumes payments.
-    /// @dev Only the owner may call; emits OpenZeppelin's Unpaused event.
-    function unpause() external onlyOwner {
-        _unpause();
-    }
+                                                                                                                                                                                                                                                                                            /// @notice Resumes payments.
+                                                                                                                                                                                                                                                                                                /// @dev Only the owner may call; emits OpenZeppelin's Unpaused event.
+                                                                                                                                                                                                                                                                                                    function unpause() external onlyOwner {
+                                                                                                                                                                                                                                                                                                            _unpause();
+                                                                                                                                                                                                                                                                                                                }
 
-    /// @notice Always reverts to preserve an owner capable of pausing the router.
-    /// @dev Transfer ownership through the inherited two-step process instead.
-    function renounceOwnership() public view override onlyOwner {
-        revert OwnershipRenunciationDisabled();
-    }
-}
+                                                                                                                                                                                                                                                                                                                    /// @notice Always reverts to preserve an owner capable of pausing the router.
+                                                                                                                                                                                                                                                                                                                        /// @dev Transfer ownership through the inherited two-step process instead.
+                                                                                                                                                                                                                                                                                                                            function renounceOwnership() public view override onlyOwner {
+                                                                                                                                                                                                                                                                                                                                    revert OwnershipRenunciationDisabled();
+                                                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                                                        }
