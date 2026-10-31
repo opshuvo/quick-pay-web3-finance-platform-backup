@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.*
+contracts
+lib
+tests
+docs
+traces.jsonl
+console.jsonl
+*.log
+.git

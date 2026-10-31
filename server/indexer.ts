@@ -10,6 +10,7 @@ import { sql, requireDb, HttpError } from './db'
 import { client, rpc, rpcPausedForMs, classifyRpcError } from './rpc'
 import { adaptRange, dedupeRows, planStep, type RangeState } from './scanPlan'
 import { evaluateCoverage } from './coverageState'
+import { enqueueTxs, shouldVerify } from './txqueue'
 import { SharedValue, TipGate, waitAtMost } from './tipGate'
 import type { Coverage } from '../shared/api-types'
 
@@ -76,6 +77,7 @@ async function scanRange(address: string, from: bigint, to: bigint): Promise<voi
   const blocks = [...new Set(logs.map((log) => BigInt(log.blockNumber)))]
   for (const number of blocks) await blockTime(number)
   const rows = dedupeRows(logs.map((log) => ({
+    chain_id: config.chainId,
     tx_hash: log.transactionHash.toLowerCase(),
     log_index: Number(BigInt(log.logIndex)),
     block_number: BigInt(log.blockNumber).toString(),
@@ -87,6 +89,9 @@ async function scanRange(address: string, from: bigint, to: bigint): Promise<voi
   })))
   const db = requireDb()
   await db`insert into transfers ${db(rows)} on conflict (tx_hash, log_index) do nothing`
+  // Queue the wallet's own outgoing transactions for receipt verification (swap discovery). Done before the
+  // checkpoint moves, so a failure here retries the whole chunk instead of skipping it.
+  await enqueueTxs(address, rows.filter((r) => shouldVerify(address, r.from_addr, r.to_addr)).map((r) => r.tx_hash))
 }
 
 const errorMessage = {
@@ -135,8 +140,8 @@ export async function registerWallet(address: string): Promise<void> {
   }
   const head = await getHead()
   await db`
-    insert into wallets (address, newest_scanned, oldest_scanned)
-    values (${address}, ${head.toString()}::bigint, ${(head + 1n).toString()}::bigint)
+    insert into wallets (address, chain_id, newest_scanned, oldest_scanned)
+    values (${address}, ${config.chainId}, ${head.toString()}::bigint, ${(head + 1n).toString()}::bigint)
     on conflict (address) do update set last_activity = now()`
 }
 

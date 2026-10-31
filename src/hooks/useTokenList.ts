@@ -3,6 +3,7 @@ import { erc20Abi, isAddress, zeroAddress, type Address } from 'viem'
 import { useAccount, useReadContracts } from 'wagmi'
 import { PRESET_TOKENS } from '@/components/TokenSelect'
 import { ARC_CHAIN_ID } from '@/lib/arc'
+import { OFFICIAL_ARC_TOKENS, type OfficialToken } from '@/lib/arcTokens'
 
 export interface ListedToken {
   address: Address
@@ -12,6 +13,12 @@ export interface ListedToken {
   /** Undefined when no wallet is connected or the balance read failed. Never a guess. */
   balance?: bigint
   preset: boolean
+}
+
+/** A listed token that cannot be offered right now, and why. `unreachable` is temporary; `mismatch` means the contract did not match the published token. */
+export interface UnavailableToken {
+  token: OfficialToken
+  reason: 'unreachable' | 'mismatch'
 }
 
 const KEY = 'quickpay.swap.customTokens.v1'
@@ -56,6 +63,9 @@ export function useTokenList() {
     return addresses.flatMap((address, i): ListedToken[] => {
       const [symbol, name, decimals, balance] = data.slice(i * stride, i * stride + stride)
       if (symbol?.status !== 'success' || decimals?.status !== 'success') return []
+      const official = OFFICIAL_ARC_TOKENS.find((t) => t.address.toLowerCase() === address.toLowerCase())
+      // A listed token must answer with the published symbol and decimals, otherwise it is not offered.
+      if (official && (String(symbol.result) !== official.expectedSymbol || Number(decimals.result) !== official.expectedDecimals)) return []
       return [{
         address,
         symbol: String(symbol.result),
@@ -92,7 +102,18 @@ export function useTokenList() {
     })
   }, [])
 
-  const failedPresets = PRESET_TOKENS.filter((t) => !tokens.some((x) => x.address.toLowerCase() === t.address.toLowerCase())).length
+  const unavailable = useMemo<UnavailableToken[]>(() => {
+    if (!read.data) return read.isError ? OFFICIAL_ARC_TOKENS.map((token) => ({ token, reason: 'unreachable' as const })) : []
+    return OFFICIAL_ARC_TOKENS.flatMap((token): UnavailableToken[] => {
+      if (tokens.some((x) => x.address.toLowerCase() === token.address.toLowerCase())) return []
+      const i = addresses.findIndex((a) => a.toLowerCase() === token.address.toLowerCase())
+      const symbol = i >= 0 ? read.data[i * stride] : undefined
+      const decimals = i >= 0 ? read.data[i * stride + 2] : undefined
+      const answered = symbol?.status === 'success' && decimals?.status === 'success'
+      return [{ token, reason: answered ? 'mismatch' : 'unreachable' }]
+    })
+  }, [tokens, read.data, read.isError, addresses, stride])
+  const failedPresets = unavailable.length
   const balanceFailed = Boolean(owner) && tokens.length > 0 && tokens.some((t) => t.balance === undefined)
-  return { tokens, isLoading: read.isLoading, add, remove, refetch: read.refetch, isFetching: read.isFetching, readFailed: read.isError || (!read.isLoading && failedPresets > 0), balanceFailed }
+  return { tokens, unavailable, isLoading: read.isLoading, add, remove, refetch: read.refetch, isFetching: read.isFetching, readFailed: read.isError || (!read.isLoading && failedPresets > 0), balanceFailed }
 }

@@ -10,6 +10,8 @@ import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { DEFAULT_FILTERS, historyQuery, useHistory, type HistoryFilters, type HistoryRow } from '@/hooks/useHistory'
 import { isServiceDown } from '@/lib/api'
+import { chainCsv } from '@/lib/chainHistory/read'
+import { historyServerUsable } from '@/lib/chainHistory/mode'
 import { formatNumber } from '@/lib/format'
 
 export type ExplorerTab = 'all' | 'out' | 'in' | 'swap' | 'bridge'
@@ -58,9 +60,15 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
     if (!address) return
     setExporting(true)
     try {
-      const response = await fetch(`/api/history/${address}?${historyQuery(filters, { format: 'csv' })}`)
-      if (!response.ok) throw new Error('export failed')
-      const url = URL.createObjectURL(await response.blob())
+      let blob: Blob
+      if (await historyServerUsable()) {
+        const response = await fetch(`/api/history/${address}?${historyQuery(filters, { format: 'csv' })}`)
+        if (!response.ok) throw new Error('export failed')
+        blob = await response.blob()
+      } else {
+        blob = new Blob([await chainCsv(address, { ...filters, page: 1, pageSize: 1 })], { type: 'text/csv;charset=utf-8' })
+      }
+      const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = `quickpay-${lockedTab ?? tab}-${address.slice(0, 8)}.csv`
@@ -98,6 +106,13 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
         }
       />
       {data && <div className="mb-3"><HistoryHint coverage={data.coverage} /></div>}
+      {data?.coverage.source === 'browser' && (
+        <div className="mb-3">
+          <Notice tone="info">
+            <strong>Read straight from Arc.</strong> No history server is connected, so this device scans Arc's public RPC for your wallet, newest first, and checks each swap or bridge against its receipt. Older activity appears as the scan moves back through the chain{data.coverage.status === 'complete' ? '' : ` (${data.coverage.percent.toFixed(1)}% scanned)`}. Each new browser or device repeats the scan, and only USDC transfers and the swaps and bridges they belong to are covered.
+          </Notice>
+        </div>
+      )}
 
       <div className="card mb-4 space-y-3 p-3 sm:p-4">
         {!lockedTab && (

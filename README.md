@@ -47,7 +47,7 @@ Server only (never exposed to the browser):
 
 Public (shipped to the browser, so never put secrets here):
 
-- `VITE_EURC_ADDRESS` EURC token address on Arc, enables EURC in Swap
+- `VITE_EURC_ADDRESS` Optional override for the EURC address in Swap. By default Swap lists USDC, EURC, cirBTC and WETH using Circle's published Arc Mainnet addresses, each checked against its own contract
 - `VITE_QUICKPAY_REGISTRY_ADDRESS` Address of your deployed QuickPayRegistry. Leave unset until a real deployment exists
 - `VITE_QUICKPAY_ROUTER_ADDRESS` Address of your deployed QuickPayRouter. When set and confirmed on Arc, sends go through it (the explorer shows the Quick Pay contract); otherwise sends are plain USDC transfers
 - `VITE_WALLETCONNECT_PROJECT_ID` Optional, enables WalletConnect
@@ -61,6 +61,7 @@ Public (shipped to the browser, so never put secrets here):
 - `bun run test` unit tests
 - `bun run test:render` renders every screen in a DOM
 - `bun run test:smoke` live checks against a running backend (uses the real Arc RPC and Across API)
+- `bun run backend:url https://your-backend` points the production `/api/*` at your hosted backend (see `docs/history-deployment.md`)
 - `bun run contracts:build`, `bun run contracts:test` build and test the contract
 - `bun run contracts:abi` export the contract ABI to the frontend
 
@@ -71,6 +72,10 @@ bunx vite build
 ```
 
 Serve `dist/` with a host that rewrites unknown paths to `index.html`, and run the backend separately with the same `/api` path routed to it.
+
+## Hosting the backend (permanent history)
+
+Without a backend, History, Activity and the totals are read straight from Arc by the browser: newest first, with a local cache on that device. The public Arc RPC rate-limits, so scanning back through the whole chain from a browser takes hours, and each new device repeats it. A backend with a persistent PostgreSQL database stores the history once for every device and is much faster. A `Dockerfile` for the backend is included. Setup steps, environment variables and checks are in `docs/history-deployment.md`.
 
 ## Contract deployment
 

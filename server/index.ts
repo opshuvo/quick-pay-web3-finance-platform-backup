@@ -10,14 +10,16 @@ import { config } from './env'
 import { exportCsv, queryAnalytics, queryHistory, type HistoryFilters } from './history'
 import { errorResponse, json, parseAddress, rateLimit, readJson } from './http'
 import { coverage, getHead, registerWallet, startIndexer, syncTip, touchWallet } from './indexer'
+import { queueStats, startTxWorker } from './txqueue'
 import { checkApproval, createSwap, getQuote, uniswapStatus } from './uniswap'
 import { cancelRequest, createRequest, getRequest, listRequests, verifyPayment } from './requests'
 
 await migrate()
 startIndexer()
+startTxWorker()
 
 const intParam = (value: string | null, fallback: number, min: number, max: number) => {
-  const n = Number(value)
+  const n = value === null || value.trim() === '' ? Number.NaN : Number(value)
   return Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : fallback
 }
 
@@ -49,7 +51,8 @@ async function route(req: Request, ip: string): Promise<Response> {
     const head = await getHead().catch(() => null)
     let db: 'ok' | 'unconfigured' | 'error' = sql ? 'ok' : 'unconfigured'
     if (sql) await sql`select 1`.catch(() => { db = 'error' })
-    return json({ ok: true, database: db, rpc: head === null ? 'error' : 'ok', rpcSource: config.rpcSource, headBlock: head === null ? null : Number(head), chainId: config.chainId })
+    const queue = sql && db === 'ok' ? await queueStats().catch(() => null) : null
+    return json({ ok: true, database: db, verification: queue, rpc: head === null ? 'error' : 'ok', rpcSource: config.rpcSource, headBlock: head === null ? null : Number(head), chainId: config.chainId })
   }
 
   if (parts[0] === 'across' && method === 'GET') return proxyAcross(`/${parts.slice(1).join('/')}`, url.searchParams)

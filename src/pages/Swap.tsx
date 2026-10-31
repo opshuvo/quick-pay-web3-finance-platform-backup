@@ -17,7 +17,7 @@ import { useSwapExecution } from '@/hooks/useSwapExecution'
 import { useTokenList } from '@/hooks/useTokenList'
 import { ApiError } from '@/lib/api'
 import { ARC_CHAIN_ID, ARC_USDC } from '@/lib/arc'
-import { env } from '@/lib/env'
+import { DEFAULT_RECEIVE_TOKEN } from '@/lib/arcTokens'
 import { displayUnits } from '@/lib/format'
 import { formatPercent, formatRate, formatTokenAmount, parseTokenAmount, type AmountParse } from '@/lib/swapAmount'
 import { reviewState } from '@/lib/swapState'
@@ -35,7 +35,7 @@ export default function Swap() {
   const { data: walletClient } = useWalletClient({ chainId: ARC_CHAIN_ID })
   const list = useTokenList()
   const [tokenIn, setTokenIn] = useState<string>(ARC_USDC)
-  const [tokenOut, setTokenOut] = useState<string>(env.eurcAddress ?? '')
+  const [tokenOut, setTokenOut] = useState<string>(DEFAULT_RECEIVE_TOKEN)
   const [amount, setAmount] = useState('')
   const [slippageBps, setSlippageBps] = useState(SLIPPAGE_DEFAULT_BPS)
   const [slippageText, setSlippageText] = useState('')
@@ -202,14 +202,14 @@ export default function Swap() {
         )}
         {deploymentState === 'missing' && <div className="mt-3"><Notice tone="danger">Swapping is disabled. These Uniswap contracts were not found on Arc: {deployment.data?.filter((c) => c.status === 'missing').map((c) => c.name).join(', ')}.</Notice></div>}
         {!list.isLoading && (list.readFailed || list.balanceFailed) && (
-          <div className="mt-3"><Notice tone="warn" action={<button className="btn btn-ghost !min-h-[36px]" onClick={() => void list.refetch()} disabled={list.isFetching}>Retry</button>}>{list.tokens.length === 0 ? 'Could not read token details from Arc, so no tokens are listed.' : 'Some token details or balances could not be read from Arc and are shown as unavailable.'} No values are guessed.</Notice></div>
+          <div className="mt-3"><Notice tone="warn" action={<button className="btn btn-ghost !min-h-[36px]" onClick={() => void list.refetch()} disabled={list.isFetching}>Retry</button>}>{list.tokens.length === 0 ? 'Could not read token details from Arc right now, so no tokens can be selected. This is temporary.' : list.unavailable.length > 0 ? `${list.unavailable.map((u) => u.token.label).join(', ')} could not be verified on Arc right now and cannot be selected until it is.` : 'Some balances could not be read from Arc and are shown as unavailable.'} No values are guessed.</Notice></div>
         )}
       </div>
 
       <div className="card space-y-3 p-5">
         <div>
           <span className="label mb-1.5 block">You pay</span>
-          <TokenPicker label="Pay token" value={tokenIn} tokens={list.tokens} loading={list.isLoading} exclude={tokenOut} onChange={(a) => { setTokenIn(a); setAmount(''); setAcceptLoss(false) }} onAdd={list.add} onRemove={list.remove} />
+          <TokenPicker label="Pay token" value={tokenIn} tokens={list.tokens} unavailable={list.unavailable} loading={list.isLoading} exclude={tokenOut} onChange={(a) => { setTokenIn(a); setAmount(''); setAcceptLoss(false) }} onAdd={list.add} onRemove={list.remove} />
           <div className="mt-2">
             <AmountInput value={amount} onChange={(v) => { setAmount(v); setAcceptLoss(false) }} symbol={inTok?.symbol ?? ''} balance={inTok?.balance} decimals={inTok?.decimals} balanceLoading={list.isLoading} onMax={inTok?.balance !== undefined ? setMax : undefined} />
           </div>
@@ -225,7 +225,7 @@ export default function Swap() {
 
         <div>
           <span className="label mb-1.5 block">You receive (estimated)</span>
-          <TokenPicker label="Receive token" value={tokenOut} tokens={list.tokens} loading={list.isLoading} exclude={tokenIn} onChange={(a) => { setTokenOut(a); setAcceptLoss(false) }} onAdd={list.add} onRemove={list.remove} />
+          <TokenPicker label="Receive token" value={tokenOut} tokens={list.tokens} unavailable={list.unavailable} loading={list.isLoading} exclude={tokenIn} onChange={(a) => { setTokenOut(a); setAcceptLoss(false) }} onAdd={list.add} onRemove={list.remove} />
           <div className="inner mt-2 p-4">
             <p className="display text-3xl font-bold tabular-nums" aria-live="polite">
               {fetchingQuote ? <Skeleton className="h-9 w-40" /> : shownQuote && outTok ? formatTokenAmount(shownQuote.amountOut, outTok.decimals) : <span style={{ color: 'var(--subtle)' }} title="No live quote yet">—</span>}

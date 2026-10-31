@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Analytics, Coverage, HistoryRow } from '../../shared/api-types'
 import { api } from '@/lib/api'
+import { chainAnalytics, chainHistoryPage } from '@/lib/chainHistory/read'
+import { historyServerUsable } from '@/lib/chainHistory/mode'
 
 const REGISTER_RETRY_MS = 30_000
 const registrations = new Map<string, Promise<void>>()
@@ -73,8 +75,9 @@ export function useHistory(address: string | undefined, filters: HistoryFilters)
     placeholderData: (previous) => previous,
     retry: 1,
     // Poll faster while the indexer is still catching up so progress is visible.
-    refetchInterval: (query) => pollMs(query.state.data?.coverage.status, 6_000, 30_000),
-    queryFn: ({ signal }) => readWithRegistration<HistoryResponse>(address ?? '', `/history/${address}?${historyQuery(filters)}`, signal),
+    refetchInterval: (query) => pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 4_000 : 6_000, 30_000),
+    // With a history server the server answers. Without one, this device reads Arc directly.
+    queryFn: async ({ signal }) => ((await historyServerUsable()) ? readWithRegistration<HistoryResponse>(address ?? '', `/history/${address}?${historyQuery(filters)}`, signal) : chainHistoryPage(address ?? '', filters)),
   })
 }
 
@@ -83,7 +86,7 @@ export function useAnalytics(address: string | undefined) {
     queryKey: ['history', 'analytics', address],
     enabled: Boolean(address),
     retry: 1,
-    refetchInterval: (query) => pollMs(query.state.data?.coverage.status, 10_000, 60_000),
-    queryFn: ({ signal }) => readWithRegistration<Analytics & { coverage: Coverage }>(address ?? '', `/analytics/${address}`, signal),
+    refetchInterval: (query) => pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 5_000 : 10_000, 60_000),
+    queryFn: async ({ signal }) => ((await historyServerUsable()) ? readWithRegistration<Analytics & { coverage: Coverage }>(address ?? '', `/analytics/${address}`, signal) : chainAnalytics(address ?? '')),
   })
 }

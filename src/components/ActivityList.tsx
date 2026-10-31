@@ -10,6 +10,8 @@ import { chainLabel, explorerTxUrl } from '@/lib/chains'
 
 export function activityState(a: ActivityDto): { label: string; tone: 'success' | 'warn' | 'danger' | 'neutral' } {
   if (a.kind === 'swap') return { label: 'Confirmed on-chain', tone: 'success' }
+  // Read from the Arc receipt only: the destination chain was not checked, so it is never called complete.
+  if (a.kind === 'bridge' && a.destinationChainId === 0) return { label: 'Deposit confirmed on Arc', tone: 'neutral' }
   if (a.status === 'filled' && a.destinationVerified) return { label: 'Complete', tone: 'success' }
   if (a.status === 'filled') return { label: 'Filled, verifying destination', tone: 'warn' }
   if (a.status === 'expired') return { label: 'Expired', tone: 'danger' }
@@ -30,7 +32,7 @@ function Item({ a, chains }: { a: ActivityDto; chains?: Parameters<typeof chainL
       <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl" style={{ background: 'var(--surface-strong)' }}><Icon className="size-[18px]" aria-hidden /></span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">
-          {a.kind === 'swap' ? 'Swap' : `Bridge ${chainLabel(chains, a.sourceChainId)} → ${chainLabel(chains, a.destinationChainId)}`}
+          {a.kind === 'swap' ? 'Swap' : a.destinationChainId === 0 ? `Bridge from ${chainLabel(chains, a.sourceChainId)}` : `Bridge ${chainLabel(chains, a.sourceChainId)} → ${chainLabel(chains, a.destinationChainId)}`}
         </p>
         <p className="text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
           {spent}{got ? ` → ${got}` : a.expectedAmountOut ? ` → expected ${amount(a.expectedAmountOut, a.tokenOutDecimals, a.tokenOutSymbol)} (not yet received)` : ''}

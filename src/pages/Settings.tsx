@@ -69,7 +69,7 @@ export default function Settings() {
         <h2 className="display mb-2 text-lg font-semibold">Service status</h2>
         {health.isLoading ? <Skeleton className="h-24" /> : (
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            <Row label="Quick Pay API">{health.isError ? <StatusBadge tone="danger">Unreachable</StatusBadge> : <StatusBadge tone="success">Online</StatusBadge>}</Row>
+            <Row label="Quick Pay API">{health.isError ? <StatusBadge tone="danger">Unreachable</StatusBadge> : health.data?.mode === 'browser' ? <StatusBadge tone="warn">Not connected (reading Arc directly)</StatusBadge> : <StatusBadge tone="success">Online</StatusBadge>}</Row>
             <Row label="Database">{health.data?.database === 'ok' ? <StatusBadge tone="success">Connected</StatusBadge> : health.data?.database === 'unconfigured' ? <StatusBadge tone="warn">Not configured</StatusBadge> : <StatusBadge tone="danger">Error</StatusBadge>}</Row>
             <Row label="Arc RPC">{health.data?.rpc === 'ok' ? <StatusBadge tone="success">Online ({health.data.rpcSource === 'proxy' ? 'keyed' : 'public'})</StatusBadge> : <StatusBadge tone="danger">Unreachable</StatusBadge>}</Row>
             <Row label="Latest block">{health.data?.headBlock ? formatNumber(health.data.headBlock) : '—'}</Row>

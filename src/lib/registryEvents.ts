@@ -94,12 +94,12 @@ export async function fetchPayments(client: PublicClient, registry: Address, who
   const logs = await scanRange(from, to, (fromBlock, toBlock) =>
     client.getContractEvents({ address: registry, abi: quickPayRegistryAbi, eventName: 'PaymentReceived', args: who, fromBlock, toBlock, strict: true }),
   )
-  return registryPaymentsFromLogs(logs as unknown as Log[], registry)
+  return registryPaymentsFromLogs(logs, registry)
 }
 
 export async function fetchCreated(client: PublicClient, registry: Address, merchant: Address, from: bigint, to: bigint): Promise<RegistryRequestCreated[]> {
   const logs = await scanRange(from, to, (fromBlock, toBlock) =>
     client.getContractEvents({ address: registry, abi: quickPayRegistryAbi, eventName: 'RequestCreated', args: { merchant }, fromBlock, toBlock, strict: true }),
   )
-  return registryCreatedFromLogs(logs as unknown as Log[], registry)
+  return registryCreatedFromLogs(logs, registry)
 }

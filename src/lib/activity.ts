@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ActivityDto } from '../../shared/api-types'
 import { api } from '@/lib/api'
+import { chainActivity } from '@/lib/chainHistory/read'
+import { historyServerUsable } from '@/lib/chainHistory/mode'
 
 export type { ActivityDto }
 
@@ -31,9 +33,11 @@ export function useActivity(address: string | undefined, kind?: 'swap' | 'bridge
     queryKey: ['activity', address, kind],
     enabled: Boolean(address),
     retry: false,
-    refetchInterval: 20_000,
+    refetchInterval: 8_000,
     queryFn: async ({ signal }) => {
-      const { activity } = await activityApi.list((address as string).toLowerCase(), signal)
+      const wallet = (address as string).toLowerCase()
+      // Without a history server, swaps and bridges are rebuilt from verified receipts read straight from Arc.
+      const activity = (await historyServerUsable()) ? (await activityApi.list(wallet, signal)).activity : await chainActivity(wallet)
       return kind ? activity.filter((a) => a.kind === kind) : activity
     },
   })

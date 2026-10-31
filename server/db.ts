@@ -45,6 +45,12 @@ export async function migrate(): Promise<void> {
       amount numeric(78,0) not null,
       primary key (tx_hash, log_index)
     )`
+  // Chain scoping: every record carries its chain id (Arc Mainnet 5042). Additive and idempotent, so existing rows are kept.
+  await sql`alter table wallets add column if not exists chain_id bigint not null default 5042`
+  await sql`alter table transfers add column if not exists chain_id bigint not null default 5042`
+  await sql`create unique index if not exists transfers_chain_tx_log_uidx on transfers (chain_id, tx_hash, log_index)`
+  await sql`create index if not exists transfers_chain_from_idx on transfers (chain_id, from_addr, block_number desc)`
+  await sql`create index if not exists transfers_chain_to_idx on transfers (chain_id, to_addr, block_number desc)`
   await sql`create index if not exists transfers_from_idx on transfers (from_addr, block_number desc)`
   await sql`create index if not exists transfers_to_idx on transfers (to_addr, block_number desc)`
   await sql`
@@ -88,6 +94,42 @@ export async function migrate(): Promise<void> {
   for (const column of ['token_in_symbol text', 'token_out_symbol text', 'token_in_decimals integer', 'token_out_decimals integer']) {
     await sql.unsafe(`alter table defi_activity add column if not exists ${column}`)
   }
+  // Verified facts about each transaction the indexer looked at (sender, target contract, receipt status).
+  await sql`
+    create table if not exists tx_meta (
+      chain_id bigint not null,
+      tx_hash text not null,
+      block_number bigint not null,
+      tx_from text not null,
+      tx_to text,
+      status text not null check (status in ('success','reverted')),
+      checked_at timestamptz not null default now(),
+      primary key (chain_id, tx_hash)
+    )`
+  // Durable work list: survives restarts, retried with backoff, never duplicated.
+  await sql`
+    create table if not exists tx_queue (
+      chain_id bigint not null,
+      tx_hash text not null,
+      wallet text not null,
+      attempts integer not null default 0,
+      last_error text,
+      next_attempt_at timestamptz not null default now(),
+      created_at timestamptz not null default now(),
+      primary key (chain_id, tx_hash, wallet)
+    )`
+  await sql`create index if not exists tx_queue_due_idx on tx_queue (chain_id, next_attempt_at, created_at)`
+  // Rows stored before the queue existed: verify the registered wallets' outgoing transactions too. Idempotent.
+  await sql`
+    insert into tx_queue (chain_id, tx_hash, wallet)
+    select distinct t.chain_id, t.tx_hash, w.address from transfers t
+      join wallets w on w.address = t.from_addr
+        or (w.address = t.to_addr and t.from_addr = any(array[
+          '0x8366a39cc670b4001a1121b8f6a443a643e40951', '0x8702463e73f74d0b6765abceb314ef07acb92650',
+          '0x53bf6b0684ec7ef91e1387da3d1a1769bc5a6f77', '0x1f7d7550b1b028f7571e69a784071f0205fd2efa',
+          '0x9b4a302a548c7e313c2b74c461db7b84d3074a84']::text[]))
+    where not exists (select 1 from tx_meta m where m.chain_id = t.chain_id and m.tx_hash = t.tx_hash)
+    on conflict do nothing`
   await sql`create index if not exists defi_activity_wallet_idx on defi_activity (wallet, block_time desc)`
   await sql`create index if not exists defi_activity_dest_idx on defi_activity (destination_tx_hash)`
   await sql`create index if not exists payment_requests_recipient_idx on payment_requests (recipient, created_at desc)`

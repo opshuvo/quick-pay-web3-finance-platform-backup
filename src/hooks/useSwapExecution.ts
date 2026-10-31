@@ -1,8 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAccount } from 'wagmi'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { activityApi } from '@/lib/activity'
 import { ApiError } from '@/lib/api'
+import { historyServerUsable } from '@/lib/chainHistory/mode'
+import { chainTrackConfirmed } from '@/lib/chainHistory/read'
 import { parseTxError } from '@/lib/errors'
 import { executeSwap, type SwapStep } from '@/lib/uniswap/execute'
 import { executeApiSwap, type ApiSwapStep } from '@/lib/uniswap/executeApi'
@@ -42,10 +45,27 @@ export function useSwapExecution() {
   const [run, setRun] = useState<SwapRun>({ stage: 'idle' })
   const lock = useRef(false)
   const queryClient = useQueryClient()
+  const { address } = useAccount()
 
   const save = useCallback(
     async (hash: `0x${string}`) => {
       setRun((r) => ({ ...r, saved: 'saving' }))
+      if (!(await historyServerUsable()) && address) {
+        // No history server: read the confirmed transaction's receipt from Arc and keep the verified swap on this device's history.
+        for (let attempt = 0; attempt < 4; attempt++) {
+          try {
+            await chainTrackConfirmed(address, hash)
+            setRun((r) => ({ ...r, saved: 'saved' }))
+            void queryClient.invalidateQueries({ queryKey: ['activity'] })
+            void queryClient.invalidateQueries({ queryKey: ['history'] })
+            return
+          } catch {
+            await sleep(2500)
+          }
+        }
+        setRun((r) => ({ ...r, saved: 'failed' }))
+        return
+      }
       for (let attempt = 0; attempt < 4; attempt++) {
         try {
           await activityApi.recordSwap(hash)
@@ -61,7 +81,7 @@ export function useSwapExecution() {
       }
       setRun((r) => ({ ...r, saved: 'failed' }))
     },
-    [queryClient],
+    [queryClient, address],
   )
 
   const execute = useCallback(

@@ -5,7 +5,7 @@ import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TokenIcon } from '@/components/TokenIcon'
 import { Notice, Skeleton } from '@/components/ui'
 import { useToken } from '@/hooks/useToken'
-import type { ListedToken } from '@/hooks/useTokenList'
+import type { ListedToken, UnavailableToken } from '@/hooks/useTokenList'
 import { shortAddress } from '@/lib/format'
 import { formatTokenAmount } from '@/lib/swapAmount'
 
@@ -13,6 +13,8 @@ interface Props {
   label: string
   value: string
   tokens: ListedToken[]
+  /** Listed tokens whose data could not be read or did not match the published token. Shown, never selectable. */
+  unavailable?: UnavailableToken[]
   loading?: boolean
   /** Token that must not be chosen on this side (the other side of the pair). */
   exclude?: string
@@ -22,7 +24,7 @@ interface Props {
 }
 
 /** Token selector: real icons, names, symbols and on-chain balances. Anything else is added by address and verified first. */
-export function TokenPicker({ label, value, tokens, loading, exclude, onChange, onAdd, onRemove }: Props) {
+export function TokenPicker({ label, value, tokens, unavailable = [], loading, exclude, onChange, onAdd, onRemove }: Props) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const selected = tokens.find((t) => t.address.toLowerCase() === value.toLowerCase())
@@ -52,7 +54,7 @@ export function TokenPicker({ label, value, tokens, loading, exclude, onChange, 
       </button>
 
       <ConfirmSheet open={open} onClose={() => setOpen(false)} title={label}>
-        {loading && tokens.length === 0 ? (
+        {loading && tokens.length === 0 && unavailable.length === 0 ? (
           <Skeleton className="h-32" />
         ) : (
           <ul className="space-y-1" aria-label="Tokens">
@@ -84,6 +86,18 @@ export function TokenPicker({ label, value, tokens, loading, exclude, onChange, 
                 </li>
               )
             })}
+            {unavailable.map(({ token, reason }) => (
+              <li key={token.address} className="flex min-h-[56px] items-center gap-3 rounded-2xl px-2 opacity-70" aria-disabled="true">
+                <TokenIcon symbol={token.label} address={token.address} size={34} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold">{token.label}</span>
+                  <span className="block truncate text-xs" style={{ color: 'var(--muted)' }}>{shortAddress(token.address, 6, 4)}</span>
+                </span>
+                <span className="text-right text-xs" style={{ color: reason === 'mismatch' ? 'var(--danger)' : 'var(--muted)' }}>
+                  {reason === 'mismatch' ? 'Contract did not match. Not offered.' : 'Token data temporarily unavailable'}
+                </span>
+              </li>
+            ))}
           </ul>
         )}
 

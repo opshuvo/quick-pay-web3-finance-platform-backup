@@ -1,4 +1,5 @@
 import { requireDb, HttpError } from './db'
+import { config } from './env'
 import { TYPE_SQL } from './protocols'
 import { getHead } from './indexer'
 import type { Analytics, HistoryRow } from '../shared/api-types'
@@ -30,7 +31,7 @@ const HEX_PREFIX = /^0x[0-9a-f]{1,64}$/
 /** Builds a parameterized WHERE clause. Values are never interpolated into SQL text. */
 export function buildWhere(f: HistoryFilters): { text: string; params: unknown[] } {
   const params: unknown[] = [f.address]
-  const clauses = ['(t.from_addr = $1 or t.to_addr = $1)', SCANNED_SQL('t.block_number', '$1')]
+  const clauses = [`t.chain_id = ${config.chainId}`, '(t.from_addr = $1 or t.to_addr = $1)', SCANNED_SQL('t.block_number', '$1')]
   const add = (value: unknown) => {
     params.push(value)
     return `$${params.length}`
@@ -60,7 +61,8 @@ export async function queryHistory(f: HistoryFilters): Promise<{ rows: HistoryRo
   const raw = (await db.unsafe(
     `select t.tx_hash, t.log_index, t.block_number::text as block_number, t.block_time, t.from_addr, t.to_addr, t.token, t.amount::text as amount,
             case when t.from_addr = t.to_addr then 'self' when t.from_addr = $1 then 'out' else 'in' end as direction,
-            ${TYPE_SQL('$1')} as type, r.id as request_id
+            ${TYPE_SQL('$1')} as type, r.id as request_id,
+            (select m.tx_to from tx_meta m where m.chain_id = t.chain_id and m.tx_hash = t.tx_hash) as contract
      ${FROM} where ${w.text}
      order by t.block_number desc, t.log_index desc limit ${limit} offset ${offset}`,
     [...w.params, f.pageSize, (f.page - 1) * f.pageSize],
@@ -79,6 +81,7 @@ export async function queryHistory(f: HistoryFilters): Promise<{ rows: HistoryRo
       direction: r.direction as HistoryRow['direction'],
       type: r.type as HistoryRow['type'],
       requestId: (r.request_id as string | null) ?? null,
+      contract: (r.contract as string | null) ?? null,
       confirmations: Math.max(0, Number(head) - Number(r.block_number)),
       status: 'confirmed',
     }),
@@ -117,14 +120,14 @@ export async function queryAnalytics(address: string): Promise<Analytics> {
       count(*) filter (where from_addr = ${address} and to_addr <> ${address})::text as sent_n,
       count(*) filter (where to_addr = ${address} and from_addr <> ${address})::text as received_n,
       min(block_time) as first_at, max(block_time) as last_at
-    from transfers where (from_addr = ${address} or to_addr = ${address})
+    from transfers where chain_id = ${config.chainId} and (from_addr = ${address} or to_addr = ${address})
       and block_number between (select oldest_scanned from wallets where address = ${address}) and (select newest_scanned from wallets where address = ${address})`) as Record<string, string | Date | null>[]
   const monthly = (await db`
     select to_char(date_trunc('month', block_time at time zone 'UTC'), 'YYYY-MM') as month,
       coalesce(sum(amount) filter (where from_addr = ${address} and to_addr <> ${address}), 0)::text as sent,
       coalesce(sum(amount) filter (where to_addr = ${address} and from_addr <> ${address}), 0)::text as received,
       count(*)::int as count
-    from transfers where (from_addr = ${address} or to_addr = ${address})
+    from transfers where chain_id = ${config.chainId} and (from_addr = ${address} or to_addr = ${address})
       and block_number between (select oldest_scanned from wallets where address = ${address}) and (select newest_scanned from wallets where address = ${address})
     group by 1 order by 1 desc limit 12`) as Analytics['monthly']
   const breakdown = (await db.unsafe(
@@ -132,14 +135,14 @@ export async function queryAnalytics(address: string): Promise<Analytics> {
        case when t.from_addr = t.to_addr then 'self' when t.from_addr = $1 then 'out' else 'in' end as direction,
        count(*)::int as count, coalesce(sum(t.amount), 0)::text as amount
      from transfers t left join payment_requests r on r.paid_tx_hash = t.tx_hash
-     where (t.from_addr = $1 or t.to_addr = $1) and ${SCANNED_SQL('t.block_number', '$1')}
+     where t.chain_id = ${config.chainId} and (t.from_addr = $1 or t.to_addr = $1) and ${SCANNED_SQL('t.block_number', '$1')}
      group by 1, 2 order by 3 desc`,
     [address],
   )) as Analytics['breakdown']
   const top = (await db`
     select case when from_addr = ${address} then to_addr else from_addr end as address,
       count(*)::int as count, coalesce(sum(amount), 0)::text as amount
-    from transfers where (from_addr = ${address} or to_addr = ${address}) and from_addr <> to_addr
+    from transfers where chain_id = ${config.chainId} and (from_addr = ${address} or to_addr = ${address}) and from_addr <> to_addr
       and block_number between (select oldest_scanned from wallets where address = ${address}) and (select newest_scanned from wallets where address = ${address})
     group by 1 order by sum(amount) desc limit 5`) as Analytics['topCounterparties']
   const t = totals[0] ?? {}

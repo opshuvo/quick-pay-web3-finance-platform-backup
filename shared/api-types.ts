@@ -13,6 +13,8 @@ export interface HistoryRow {
   direction: 'in' | 'out' | 'self'
   type: 'transfer' | 'request_payment' | 'swap' | 'bridge'
   requestId: string | null
+  /** Contract the transaction was sent to, once the transaction was verified from its receipt. */
+  contract?: string | null
   confirmations: number
   status: 'confirmed'
 }
@@ -49,6 +51,8 @@ export interface Coverage {
   stalled: boolean
   /** Milliseconds since the last scan progress (null once complete or while unregistered). */
   msSinceProgress: number | null
+  /** Where the history comes from. `browser`: read straight from Arc by this device because no history server is connected. */
+  source?: 'server' | 'browser'
 }
 
 export interface RequestDto {

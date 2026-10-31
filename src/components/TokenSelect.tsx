@@ -2,15 +2,11 @@ import { useState } from 'react'
 import type { Address } from 'viem'
 import { Field } from '@/components/ui'
 import { useToken } from '@/hooks/useToken'
-import { ARC_USDC } from '@/lib/arc'
-import { env } from '@/lib/env'
+import { OFFICIAL_ARC_TOKENS } from '@/lib/arcTokens'
 
 const CUSTOM = 'custom'
 
-export const PRESET_TOKENS: { id: string; label: string; address: Address }[] = [
-  { id: 'usdc', label: 'USDC', address: ARC_USDC },
-  ...(env.eurcAddress ? [{ id: 'eurc', label: 'EURC', address: env.eurcAddress }] : []),
-]
+export const PRESET_TOKENS: { id: string; label: string; address: Address }[] = OFFICIAL_ARC_TOKENS.map(({ id, label, address }) => ({ id, label, address }))
 
 interface Props {
   label: string
