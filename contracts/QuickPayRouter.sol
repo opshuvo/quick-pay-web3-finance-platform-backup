@@ -8,96 +8,85 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @title Quick Pay request and receipt registry
-/// @notice Non-custodial and unaudited: no escrow, no fees, and no upgradeability.
-/// Descriptions are stored off-chain and only their hash is on-chain.
-/// @dev Payments transfer the constructor-configured USDC directly from payer to merchant.
-/// Amounts use USDC's six-decimal base units. The deployment must supply genuine USDC;
-/// checking for code does not authenticate a token. No payable entry point or fund
-/// recovery mechanism exists. Unsolicited ERC-20 transfers or forced native transfers
-/// cannot be prevented and would be stranded; never send funds to this registry.
-/// Ownership uses OpenZeppelin's two-step transfer; renunciation is disabled.
-/// Owner administration is limited to pausing/unpausing and transferring ownership.
-contract QuickPayRegistry is Ownable2Step, Pausable, ReentrancyGuard {
+/// @title Quick Pay direct USDC payment router
+/// @notice Non-custodial: no escrow, no fees, and no upgradeability.
+/// @dev Payments transfer the constructor-configured USDC directly from payer to
+/// recipient. Call this router as the transaction destination to route a payment.
+/// Amounts use USDC's six-decimal base units. Arc Mainnet's ERC-20 USDC address is
+/// 0x3600000000000000000000000000000000000000. The deployment must supply genuine
+/// USDC; checking for code does not authenticate a token. No payable entry point
+/// or fund recovery mechanism exists. Unsolicited ERC-20 transfers or forced
+/// native transfers cannot be prevented and would be stranded; never send funds
+/// to this router. Ownership uses OpenZeppelin's two-step transfer; renunciation
+/// is disabled. Owner administration is limited to pausing/unpausing and
+/// transferring ownership.
+contract QuickPayRouter is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-        enum Status { None, Open, Paid, Cancelled }
-            enum EffectiveStatus { None, Open, Paid, Cancelled, Expired }
+    IERC20 public immutable usdc;
 
-                /// @dev Fields are reordered for storage packing; timestamps are Unix seconds.
-                    struct Request {
-                            address merchant;
-                                    uint64 createdAt;
-                                            address payer;
-                                                    uint64 expiresAt;
-                                                            uint128 amount;
-                                                                    uint64 paidAt;
-                                                                            address paidBy;
-                                                                                    Status status;
-                                                                                            bytes32 descriptionHash;
-                                                                                                }
+    error ZeroAddress();
+    error TokenHasNoCode(address token);
+    error ZeroAmount();
+    error SelfPayment();
+    error InvalidRecipient(address recipient);
+    error OwnershipRenunciationDisabled();
 
-                                                                                                    IERC20 public immutable usdc;
-                                                                                                        uint256 private _requestCount;
-                                                                                                            mapping(uint256 id => Request request) private _requests;
+    event PaymentSent(
+        address indexed payer,
+        address indexed recipient,
+        uint256 amount,
+        bytes32 indexed reference_
+    );
 
-                                                                                                                error ZeroAddress();
-                                                                                                                    error TokenHasNoCode(address token);
-                                                                                                                        error ZeroAmount();
-                                                                                                                            error InvalidExpiry(uint64 expiresAt);
-                                                                                                                                error RequestNotOpen(uint256 id);
-                                                                                                                                    error NotMerchant(uint256 id, address caller);
-                                                                                                                                        error RequestExpired(uint256 id);
-                                                                                                                                            error NotDesignatedPayer(uint256 id, address caller);
-                                                                                                                                                error SelfPayment(uint256 id);
-                                                                                                                                                    error OwnershipRenunciationDisabled();
+    /// @notice Deploys a router for the supplied USDC and initial pause administrator.
+    /// @param usdc_ ERC-20 USDC contract address (six decimals).
+    /// @param initialOwner Nonzero initial owner; subsequent transfers require acceptance.
+    constructor(address usdc_, address initialOwner) Ownable(initialOwner) {
+        // Ownable also rejects a zero initialOwner with its own custom error.
+        if (usdc_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
+        if (usdc_.code.length == 0) revert TokenHasNoCode(usdc_);
+        usdc = IERC20(usdc_);
+    }
 
-                                                                                                                                                        event RequestCreated(
-                                                                                                                                                                uint256 indexed id,
-                                                                                                                                                                        address indexed merchant,
-                                                                                                                                                                                address indexed payer,
-                                                                                                                                                                                        uint128 amount,
-                                                                                                                                                                                                uint64 expiresAt,
-                                                                                                                                                                                                        bytes32 descriptionHash
-                                                                                                                                                                                                            );
-                                                                                                                                                                                                                event RequestCancelled(uint256 indexed id, address indexed merchant);
-                                                                                                                                                                                                                    event PaymentReceived(
-                                                                                                                                                                                                                            uint256 indexed id,
-                                                                                                                                                                                                                                    address indexed merchant,
-                                                                                                                                                                                                                                            address indexed payer,
-                                                                                                                                                                                                                                                    uint128 amount,
-                                                                                                                                                                                                                                                            uint64 paidAt
-                                                                                                                                                                                                                                                                );
+    /// @notice Sends approved USDC directly from the caller to the recipient.
+    /// @dev Payers should approve this router for the exact payment amount only.
+    /// A failed transfer reverts the entire call; the router never takes custody
+    /// during payment. References are caller-supplied metadata, not unique IDs.
+    /// @param recipient Nonzero recipient, distinct from caller, router, and USDC.
+    /// @param amount Positive amount in USDC base units (1 USDC = 1,000,000 units).
+    /// @param reference_ Public payment reference; zero and repeated values are allowed.
+    function payTo(address recipient, uint256 amount, bytes32 reference_)
+        external
+        nonReentrant
+        whenNotPaused
+    {
+        if (recipient == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
+        if (recipient == msg.sender) revert SelfPayment();
+        if (recipient == address(this) || recipient == address(usdc)) {
+            revert InvalidRecipient(recipient);
+        }
 
-                                                                                                                                                                                                                                                                    /// @notice Deploys a registry for the supplied USDC and initial pause administrator.
-                                                                                                                                                                                                                                                                        /// @param usdc_ ERC-20 USDC contract address (six decimals, not a native-token sentinel).
-                                                                                                                                                                                                                                                                            /// @param initialOwner Nonzero initial owner; subsequent transfers require acceptance.
-                                                                                                                                                                                                                                                                                constructor(address usdc_, address initialOwner) Ownable(initialOwner) {
-                                                                                                                                                                                                                                                                                        // Ownable also rejects a zero initialOwner with its own custom error.
-                                                                                                                                                                                                                                                                                                if (usdc_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
-                                                                                                                                                                                                                                                                                                        if (usdc_.code.length == 0) revert TokenHasNoCode(usdc_);
-                                                                                                                                                                                                                                                                                                                usdc = IERC20(usdc_);
-                                                                                                                                                                                                                                                                                                                    }
+        usdc.safeTransferFrom(msg.sender, recipient, amount);
+        emit PaymentSent(msg.sender, recipient, amount, reference_);
+    }
 
-                                                                                                                                                                                                                                                                                                                        /// @notice Creates an open request belonging to the caller without moving funds.
-                                                                                                                                                                                                                                                                                                                            /// @param amount Positive amount in USDC base units (1 USDC = 1,000,000 units).
-                                                                                                                                                                                                                                                                                                                                /// @param payer Designated payer, or zero to allow anyone except the merchant.
-                                                                                                                                                                                                                                                                                                                                    /// @param expiresAt Future Unix timestamp, or zero for no expiry.
-                                                                                                                                                                                                                                                                                                                                        /// @param descriptionHash Hash of an off-chain description; no plaintext is stored.
-                                                                                                                                                                                                                                                                                                                                            /// @return id Sequential identifier, starting at one.
-                                                                                                                                                                                                                                                                                                                                                function createRequest(
-                                                                                                                                                                                                                                                                                                                                                        uint128 amount,
-                                                                                                                                                                                                                                                                                                                                                                address payer,
-                                                                                                                                                                                                                                                                                                                                                                        uint64 expiresAt,
-                                                                                                                                                                                                                                                                                                                                                                                bytes32 descriptionHash
-                                                                                                                                                                                                                                                                                                                                                                                    ) external whenNotPaused returns (uint256 id) {
-                                                                                                                                                                                                                                                                                                                                                                                            if (amount == 0) revert ZeroAmount();
-                                                                                                                                                                                                                                                                                                                                                                                                    if (expiresAt != 0 && expiresAt <= block.timestamp) revert InvalidExpiry(expiresAt);
+    /// @notice Pauses payments.
+    /// @dev Only the owner may call; emits OpenZeppelin's Paused event.
+    function pause() external onlyOwner {
+        _pause();
+    }
 
-                                                                                                                                                                                                                                                                                                                                                                                                            id = ++_requestCount;
-                                                                                                                                                                                                                                                                                                                                                                                                                    _requests[id] = Request({
-                                                                                                                                                                                                                                                                                                                                                                                                                                merchant: msg.sender,
-                                                                                                                                                                                                                                                                                                                                                                                                                                            createdAt: uint64(block.timestamp),
-                                                                                                                                                                                                                                                                                                                                                                                                                                                        payer: payer,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                    expiresAt: expiresAt,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+    /// @notice Resumes payments.
+    /// @dev Only the owner may call; emits OpenZeppelin's Unpaused event.
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /// @notice Always reverts to preserve an owner capable of pausing the router.
+    /// @dev Transfer ownership through the inherited two-step process instead.
+    function renounceOwnership() public view override onlyOwner {
+        revert OwnershipRenunciationDisabled();
+    }
+}
