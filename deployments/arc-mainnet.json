@@ -1,0 +1,7 @@
+{
+"network": "Arc Mainnet",
+"chainId": 5042,
+"contracts": {
+"QuickPayRegistry": "0x3920870225841408E5bfcADA83d1b50F5fcCa58b"
+}
+}
