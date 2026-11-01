@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { getChain, getUsdc } from '../src/onchain-facts'
 import { EDGE_CHUNK, fetchEdgeChunk, resetEdgeCache } from '../src/lib/chainHistory/edge'
 import { ChainHistory } from '../src/lib/chainHistory/engine'
+import { NATIVE_TRANSFER_EMITTER } from '../shared/swapLegs'
 
 const W = '0x' + '26'.repeat(20)
 const OTHER = '0x' + '5b'.repeat(20)
@@ -16,7 +17,7 @@ function wire(over: Record<string, unknown> = {}) {
   const block = CHUNK * EDGE_CHUNK + 777
   return {
     chunk: CHUNK, from: CHUNK * EDGE_CHUNK, to: CHUNK * EDGE_CHUNK + EDGE_CHUNK - 1,
-    logs: [{ transactionHash: hash(1), logIndex: '0x2', blockNumber: '0x' + block.toString(16), topics: [TRANSFER, pad(W), pad(OTHER)], data: '0x2710' }],
+    logs: [{ transactionHash: hash(1), logIndex: '0x2', blockNumber: '0x' + block.toString(16), topics: [TRANSFER, pad(W), pad(OTHER)], data: '0x' + (10_000n * 10n ** 12n).toString(16) }],
     times: [[block, 1_793_000_000]],
     ...over,
   }
@@ -126,6 +127,20 @@ describe('the serverless relay (public/api/arc-logs.js)', () => {
   test('uses the same RPC URL and USDC address as the Arc Mainnet registry', () => {
     expect(source).toContain(`const RPC = '${getChain(5042)?.rpcUrls[0]}'`)
     expect(source).toContain(`const USDC = '${getUsdc(5042)?.address.toLowerCase()}'`)
+    expect(source).toContain(`const SYSTEM = '${NATIVE_TRANSFER_EMITTER}'`)
+  })
+  test('v=2 reads Arc\'s system Transfer log (it also carries plain native sends); without v the USDC contract log is read', async () => {
+    const addresses = async (query: Record<string, string>) => {
+      const used = new Set<string>()
+      await call(query, (m, params) => {
+        if (m === 'eth_blockNumber') return '0x' + ((CHUNK + 3) * EDGE_CHUNK).toString(16)
+        if (m === 'eth_getLogs') used.add((params[0] as { address: string }).address)
+        return []
+      })
+      return [...used]
+    }
+    expect(await addresses({ address: W, chunk: String(CHUNK), v: '2' })).toEqual([NATIVE_TRANSFER_EMITTER])
+    expect(await addresses({ address: W, chunk: String(CHUNK) })).toEqual(['0x3600000000000000000000000000000000000000'])
   })
   test('rejects bad input without calling the RPC', async () => {
     let called = false

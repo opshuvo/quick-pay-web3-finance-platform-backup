@@ -1,5 +1,5 @@
 /**
- * Reads a wallet's USDC transfer logs for a fixed 10,000-block window from the Quick Pay relay (`/api/arc-logs`, a
+ * Reads a wallet's USDC movements (Arc's system Transfer logs, see native.ts) for a fixed 10,000-block window from the Quick Pay relay (`/api/arc-logs`, a
  * serverless function in `public/api/arc-logs.js`). The relay asks the official Arc RPC and its answer for a finished
  * window never changes, so it is cached for everyone: the first reader pays the RPC calls, later readers (other
  * devices, a cleared cache) get it instantly with no RPC call and no rate limit. Only logs that name this wallet and
@@ -8,6 +8,7 @@
  */
 import { TRANSFER_TOPIC } from '../../../shared/swapLegs'
 import type { RawTransfer } from './derive'
+import { systemAmountToUsdc } from './native'
 
 export const EDGE_CHUNK = 10_000
 
@@ -39,7 +40,9 @@ function parse(address: string, chunk: number, body: unknown): EdgeChunk | undef
     const toAddr = topicAddress(topics[2] as string)
     // A log that does not involve this wallet, or lies outside the window, means the answer cannot be trusted.
     if (block < from || block > to || (fromAddr !== address && toAddr !== address)) return undefined
-    const row: RawTransfer = { txHash: entry.transactionHash, logIndex: Number(BigInt(entry.logIndex)), block, from: fromAddr, to: toAddr, amount: BigInt(entry.data).toString() }
+    const amount = systemAmountToUsdc(entry.data)
+    if (amount === 0n) continue
+    const row: RawTransfer = { txHash: entry.transactionHash, logIndex: Number(BigInt(entry.logIndex)), block, from: fromAddr, to: toAddr, amount: amount.toString() }
     rows.set(`${row.txHash}:${row.logIndex}`, row)
   }
   const times = new Map<number, number>()
@@ -79,7 +82,7 @@ export function fetchEdgeChunk(address: string, chunk: number, fetcher: typeof f
 async function load(address: string, chunk: number, fetcher: typeof fetch): Promise<EdgeResult> {
   let response: Response
   try {
-    response = await fetcher(`/api/arc-logs?address=${address}&chunk=${chunk}`, { signal: AbortSignal.timeout(20_000) })
+    response = await fetcher(`/api/arc-logs?address=${address}&chunk=${chunk}&v=2`, { signal: AbortSignal.timeout(20_000) })
   } catch {
     return { ok: false, reason: 'busy' }
   }

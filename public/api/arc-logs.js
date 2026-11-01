@@ -2,7 +2,7 @@
 /**
  * Quick Pay history relay (Vercel serverless function, served at /api/arc-logs).
  *
- * Returns one wallet's USDC Transfer logs for ONE fixed block window, read from the official Arc Mainnet RPC.
+ * Returns one wallet's USDC Transfer logs for ONE fixed block window (v=2: Arc's system Transfer log, which also covers plain native sends; without v the USDC contract's own log, kept for older app versions), read from the official Arc Mainnet RPC.
  * The window is a fixed grid (chunk number x 10,000 blocks), and a window that is entirely in the past never changes
  * (Arc has instant finality), so the answer is cached by the CDN and by the browser for a year. The first device that
  * reads a window pays for the RPC calls; everyone after that gets it from the cache with no RPC call and no rate limit.
@@ -16,6 +16,8 @@
  */
 const RPC = 'https://rpc.mainnet.arc.io'
 const USDC = '0x3600000000000000000000000000000000000000'
+/** Arc announces every movement of USDC, native sends included, with a Transfer from this system address (v=2). */
+const SYSTEM = '0xfffffffffffffffffffffffffffffffffffffffe'
 const TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 const CHUNK = 10_000
 /** The node refuses eth_getLogs ranges above 5,001 blocks (measured), so a chunk is read as two halves. */
@@ -67,6 +69,7 @@ module.exports = async (req, res) => {
 
   const from = chunk * CHUNK
   const to = from + CHUNK - 1
+  const source = req.query.v === '2' ? SYSTEM : USDC
   const deadline = Date.now() + BUDGET_MS
   try {
     const head = parseInt(await rpc('eth_blockNumber', [], deadline), 16)
@@ -77,7 +80,7 @@ module.exports = async (req, res) => {
     const logs = new Map()
     for (const start of [from, from + HALF]) {
       for (const topics of [[TRANSFER, w], [TRANSFER, null, w]]) {
-        const found = await rpc('eth_getLogs', [{ address: USDC, fromBlock: hex(start), toBlock: hex(start + HALF - 1), topics }], deadline)
+        const found = await rpc('eth_getLogs', [{ address: source, fromBlock: hex(start), toBlock: hex(start + HALF - 1), topics }], deadline)
         for (const log of found) {
           if (log.topics.length === 3) logs.set(`${log.transactionHash}:${log.logIndex}`, { transactionHash: log.transactionHash, logIndex: log.logIndex, blockNumber: log.blockNumber, topics: log.topics, data: log.data })
         }

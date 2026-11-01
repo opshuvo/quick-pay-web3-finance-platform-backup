@@ -57,6 +57,10 @@ Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, 
 
 `.env` (gitignored) sets `VITE_QUICKPAY_ROUTER_ADDRESS` and `VITE_QUICKPAY_REGISTRY_ADDRESS` to the owner's deployments listed above, so the production build routes payments through the router. Vite bakes them in at build time: a build made without `.env` sends plain USDC transfers. Restart the dev server after changing `.env`.
 
+## History reads Arc's system Transfer log
+
+Plain native sends of USDC (a wallet's "send" with a value) emit only a Transfer from the system address `0xfff…fffe` in the 18-decimal native view, with no log from the USDC contract. ERC-20 transfers emit both. History therefore reads the system log and converts the amount to 6 decimals (`src/lib/chainHistory/native.ts`), which also removes double counting. The relay uses it with `v=2` (older app versions without `v` still get the USDC contract log). The history cache is version 2 so every device rescans once. The optional Postgres indexer in `server/` still reads the USDC contract log only.
+
 ## Instant history for in-app transactions
 
 After Send, Pay request, Split, Registry actions, Swap and a bridge deposit on Arc are confirmed, `recordConfirmedTx` (`src/lib/chainHistory/record.ts`) reads the receipt and lists its USDC transfers, swap or bridge immediately (`ChainHistory.ingestConfirmed`). A bridge delivered to Arc is marked as a bridge fill from `BridgeTracker`. Swaps and bridges in another token get one History row with their own token (`symbol`, `decimals`) that is left out of the USDC totals. In tests call `ingestConfirmed`, never `trackConfirmed`: it starts the background scan.

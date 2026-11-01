@@ -7,6 +7,7 @@
 import { createPublicClient, erc20Abi, http, toHex, type Hex, type PublicClient } from 'viem'
 import { netFlows, pickSwapLegs, TRANSFER_TOPIC } from '../../../shared/swapLegs'
 import { ARC_RPC_URL, ARC_USDC, arcMainnet } from '@/lib/arc'
+import { SYSTEM_TRANSFER_EMITTER, systemAmountToUsdc } from './native'
 import { arcLogsLane, arcReadLane, classifyRpcFailure } from '@/lib/arcRpc'
 import { EDGE_CHUNK, fetchEdgeChunk } from './edge'
 import { env } from '@/lib/env'
@@ -18,7 +19,7 @@ const PARALLEL = 3
 const HEAD_TTL_MS = 2_000
 /** Following the chain tip costs two log calls each time. Newer blocks are picked up at most this often, so the rate-limited call budget goes to older history. */
 const TIP_SCAN_MIN_MS = 10_000
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2  // 2: history reads Arc's system Transfer log, so plain native sends are included
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const pad = (a: string): Hex => `0x${a.slice(2).toLowerCase().padStart(64, '0')}`
 const topicAddress = (t: string) => `0x${t.slice(26)}`.toLowerCase()
@@ -151,7 +152,7 @@ export class ChainHistory {
   /** eth_getLogs for one range. A range the node refuses is split in halves, and the engine remembers the smaller size. */
   private async logs(topics: (Hex | null)[], from: number, to: number): Promise<RawLog[]> {
     try {
-      return await arcLogsLane.run(() => this.client.request({ method: 'eth_getLogs', params: [{ address: ARC_USDC, fromBlock: toHex(from), toBlock: toHex(to), topics }] }), { onNote: (n) => this.setNote('logs', n) })
+      return await arcLogsLane.run(() => this.client.request({ method: 'eth_getLogs', params: [{ address: SYSTEM_TRANSFER_EMITTER, fromBlock: toHex(from), toBlock: toHex(to), topics }] }), { onNote: (n) => this.setNote('logs', n) })
     } catch (error) {
       const size = to - from + 1
       if (classifyRpcFailure(error) !== 'range' || size <= MIN_CHUNK) throw error
@@ -201,7 +202,9 @@ export class ChainHistory {
     const rows = new Map<string, RawTransfer>()
     for (const l of [...sent, ...received]) {
       if (l.topics.length !== 3) continue
-      const t: RawTransfer = { txHash: l.transactionHash.toLowerCase(), logIndex: Number(BigInt(l.logIndex)), block: Number(BigInt(l.blockNumber)), from: topicAddress(l.topics[1]), to: topicAddress(l.topics[2]), amount: BigInt(l.data).toString() }
+      const amount = systemAmountToUsdc(l.data)
+      if (amount === 0n) continue
+      const t: RawTransfer = { txHash: l.transactionHash.toLowerCase(), logIndex: Number(BigInt(l.logIndex)), block: Number(BigInt(l.blockNumber)), from: topicAddress(l.topics[1]), to: topicAddress(l.topics[2]), amount: amount.toString() }
       rows.set(`${t.txHash}:${t.logIndex}`, t)
     }
     const times = new Map<number, number>()
@@ -292,18 +295,19 @@ export class ChainHistory {
   }
 
   /**
-   * Lists this wallet's USDC transfers from a confirmed receipt. Only logs emitted by the official USDC contract count
-   * (Arc's 18-decimal native mirror logs come from another address and are ignored), and the block time is read first,
-   * so a row never appears with an invented date.
+   * Lists this wallet's USDC movements from a confirmed receipt, read from Arc's system Transfer log (see native.ts), and
+   * the block time is read first, so a row never appears with an invented date.
    */
   private async addReceiptTransfers(hash: Hex, block: number, logs: readonly { address: string; topics: readonly string[]; data: string; logIndex: number | bigint | null }[]) {
     const rows: RawTransfer[] = []
     for (const log of logs) {
-      if (log.address.toLowerCase() !== ARC_USDC.toLowerCase() || log.topics.length !== 3 || log.topics[0] !== TRANSFER_TOPIC || log.logIndex === null) continue
+      if (log.address.toLowerCase() !== SYSTEM_TRANSFER_EMITTER || log.topics.length !== 3 || log.topics[0] !== TRANSFER_TOPIC || log.logIndex === null) continue
       const from = topicAddress(log.topics[1])
       const to = topicAddress(log.topics[2])
       if (from !== this.address && to !== this.address) continue
-      rows.push({ txHash: hash, logIndex: Number(log.logIndex), block, from, to, amount: BigInt(log.data === '0x' ? 0 : log.data).toString() })
+      const amount = systemAmountToUsdc(log.data)
+      if (amount === 0n) continue
+      rows.push({ txHash: hash, logIndex: Number(log.logIndex), block, from, to, amount: amount.toString() })
     }
     if (rows.length === 0) return
     if (!this.times.has(block)) {

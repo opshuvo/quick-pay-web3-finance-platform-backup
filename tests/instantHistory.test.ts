@@ -14,6 +14,10 @@ const BRIDGE = BRIDGE_COUNTERPARTIES[0]
 const pad = (a: string) => '0x' + a.slice(2).padStart(64, '0')
 const hash = (n: number) => '0x' + n.toString(16).padStart(64, '0')
 const f: Filters = { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 25 }
+/** Arc announces every USDC movement with a Transfer from the system address, in the 18-decimal native view. */
+const sys = (from: string, to: string, usdcUnits: bigint, logIndex: number) => log(NATIVE_TRANSFER_EMITTER, from, to, usdcUnits * 10n ** 12n, logIndex)
+/** What a token transfer looks like on Arc: the system log plus the USDC contract's own log. */
+const move = (from: string, to: string, usdcUnits: bigint, logIndex: number) => [sys(from, to, usdcUnits, logIndex), log(USDC, from, to, usdcUnits, logIndex + 1)]
 const log = (token: string, from: string, to: string, amount: bigint, logIndex: number) => ({ address: token, topics: [TRANSFER_TOPIC, pad(from), pad(to)], data: '0x' + amount.toString(16), logIndex })
 
 function engine(txs: Record<string, { from: string; to: string | null; status?: 'success' | 'reverted'; logs: ReturnType<typeof log>[] }>) {
@@ -31,7 +35,7 @@ const view = (e: ChainHistory) => buildHistory(e.snapshot(), f, 1)
 
 describe('a transaction the app just confirmed is in History at once', () => {
   test('a payment: its USDC transfer is listed from the receipt, mirror logs and other tokens are not', async () => {
-    const e = engine({ [hash(1)]: { from: W, to: '0x1593c6fdeab15228c90da354913a919fda08b7e4', logs: [log(USDC, W, OTHER, 10_000n, 3), log(NATIVE_TRANSFER_EMITTER, W, OTHER, 10_000n * 10n ** 12n, 2), log(EURC, OTHER, '0x' + '33'.repeat(20), 5n, 4)] } })
+    const e = engine({ [hash(1)]: { from: W, to: '0x1593c6fdeab15228c90da354913a919fda08b7e4', logs: [sys(W, OTHER, 10_000n, 2), log(USDC, W, OTHER, 10_000n, 3), log(EURC, OTHER, '0x' + '33'.repeat(20), 5n, 4)] } })
     await e.ingestConfirmed(hash(1))
     const page = view(e)
     expect(page.total).toBe(1)
@@ -41,7 +45,7 @@ describe('a transaction the app just confirmed is in History at once', () => {
   })
 
   test('a swap: shows as a swap in History and in Activity, including a swap that never touches USDC in the list', async () => {
-    const e = engine({ [hash(2)]: { from: W, to: UNISWAP_UNIVERSAL_ROUTER, logs: [log(USDC, W, OTHER, 1_000_000n, 1), log(EURC, OTHER, W, 860_000n, 2)] } })
+    const e = engine({ [hash(2)]: { from: W, to: UNISWAP_UNIVERSAL_ROUTER, logs: [...move(W, OTHER, 1_000_000n, 1), log(EURC, OTHER, W, 860_000n, 2)] } })
     await e.ingestConfirmed(hash(2))
     expect(view(e).rows[0]).toMatchObject({ txHash: hash(2), type: 'swap', direction: 'out' })
     const swaps = buildActivity(e.snapshot(), 5042)
@@ -74,14 +78,14 @@ describe('a transaction the app just confirmed is in History at once', () => {
   })
 
   test('a bridge deposit made on Arc shows as a bridge in History and Activity', async () => {
-    const e = engine({ [hash(4)]: { from: W, to: BRIDGE, logs: [log(USDC, W, BRIDGE, 2_000_000n, 1)] } })
+    const e = engine({ [hash(4)]: { from: W, to: BRIDGE, logs: [...move(W, BRIDGE, 2_000_000n, 1)] } })
     await e.ingestConfirmed(hash(4))
     expect(view(e).rows[0]).toMatchObject({ type: 'bridge', direction: 'out', amount: '2000000' })
     expect(buildActivity(e.snapshot(), 5042)[0]).toMatchObject({ kind: 'bridge', sourceTxHash: hash(4), amountIn: '2000000', destinationVerified: false })
   })
 
   test('a bridge that arrived on Arc is a bridge delivery, not a plain receipt; without the mark it is a receipt', async () => {
-    const txs = { [hash(5)]: { from: RELAYER, to: '0x' + '77'.repeat(20), logs: [log(USDC, RELAYER, W, 3_000_000n, 1)] } }
+    const txs = { [hash(5)]: { from: RELAYER, to: '0x' + '77'.repeat(20), logs: [...move(RELAYER, W, 3_000_000n, 1)] } }
     const marked = engine(txs)
     await marked.ingestConfirmed(hash(5), { bridgeFill: true })
     expect(view(marked).rows[0]).toMatchObject({ type: 'bridge', direction: 'in', amount: '3000000' })
@@ -91,13 +95,13 @@ describe('a transaction the app just confirmed is in History at once', () => {
   })
 
   test('a failed transaction is never listed', async () => {
-    const e = engine({ [hash(6)]: { from: W, to: OTHER, status: 'reverted', logs: [log(USDC, W, OTHER, 9n, 1)] } })
+    const e = engine({ [hash(6)]: { from: W, to: OTHER, status: 'reverted', logs: [...move(W, OTHER, 9n, 1)] } })
     await e.ingestConfirmed(hash(6))
     expect(view(e).total).toBe(0)
   })
 
   test('the same transfer found later by the block scan is not counted twice', async () => {
-    const e = engine({ [hash(7)]: { from: W, to: OTHER, logs: [log(USDC, W, OTHER, 42n, 3)] } })
+    const e = engine({ [hash(7)]: { from: W, to: OTHER, logs: [...move(W, OTHER, 42n, 3)] } })
     await e.ingestConfirmed(hash(7))
     ;(e as unknown as { commit: (r: unknown[], t: Map<number, number>) => void }).commit([{ txHash: hash(7), logIndex: 3, block: 28_999_990, from: W, to: OTHER, amount: '42' }], new Map([[28_999_990, 1_793_500_000]]))
     expect(view(e).total).toBe(1)
@@ -106,10 +110,10 @@ describe('a transaction the app just confirmed is in History at once', () => {
 
   test('sent, received, swap and bridge all appear together and the totals add up', async () => {
     const e = engine({
-      [hash(10)]: { from: W, to: OTHER, logs: [log(USDC, W, OTHER, 100n, 1)] },
-      [hash(11)]: { from: OTHER, to: W, logs: [log(USDC, OTHER, W, 250n, 1)] },
-      [hash(12)]: { from: W, to: UNISWAP_UNIVERSAL_ROUTER, logs: [log(USDC, W, OTHER, 400n, 1), log(EURC, OTHER, W, 1n, 2)] },
-      [hash(13)]: { from: W, to: BRIDGE, logs: [log(USDC, W, BRIDGE, 500n, 1)] },
+      [hash(10)]: { from: W, to: OTHER, logs: [...move(W, OTHER, 100n, 1)] },
+      [hash(11)]: { from: OTHER, to: W, logs: [...move(OTHER, W, 250n, 1)] },
+      [hash(12)]: { from: W, to: UNISWAP_UNIVERSAL_ROUTER, logs: [...move(W, OTHER, 400n, 1), log(EURC, OTHER, W, 1n, 2)] },
+      [hash(13)]: { from: W, to: BRIDGE, logs: [...move(W, BRIDGE, 500n, 1)] },
     })
     for (const n of [10, 11, 12, 13]) await e.ingestConfirmed(hash(n))
     const page = view(e)
@@ -118,5 +122,29 @@ describe('a transaction the app just confirmed is in History at once', () => {
     expect(stats.totalSent).toBe('1000')
     expect(stats.totalReceived).toBe('250')
     expect(stats.transactionCount).toBe(4)
+  })
+
+  test('a plain native send to this wallet (no USDC contract log) is listed as Received', async () => {
+    const e = engine({ [hash(20)]: { from: OTHER, to: W, logs: [sys(OTHER, W, 2_500_000n, 0)] } })
+    await e.ingestConfirmed(hash(20))
+    const rows = view(e).rows
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ direction: 'in', amount: '2500000', type: 'transfer' })
+    expect(buildAnalytics(e.snapshot(), 1).totalReceived).toBe('2500000')
+  })
+
+  test('a token transfer that is announced twice (system log and USDC log) is counted once', async () => {
+    const e = engine({ [hash(21)]: { from: OTHER, to: W, logs: [...move(OTHER, W, 7_000n, 0)] } })
+    await e.ingestConfirmed(hash(21))
+    expect(view(e).rows).toHaveLength(1)
+    expect(buildAnalytics(e.snapshot(), 1).totalReceived).toBe('7000')
+  })
+
+  test('an amount below one USDC unit is not listed, and a fraction rounds down', async () => {
+    const dust = { address: NATIVE_TRANSFER_EMITTER, topics: [TRANSFER_TOPIC, pad(OTHER), pad(W)], data: '0x' + (999_999_999_999n).toString(16), logIndex: 0 }
+    const part = { address: NATIVE_TRANSFER_EMITTER, topics: [TRANSFER_TOPIC, pad(OTHER), pad(W)], data: '0x' + (3_999_999_999_999n).toString(16), logIndex: 1 }
+    const e = engine({ [hash(22)]: { from: OTHER, to: W, logs: [dust, part] } })
+    await e.ingestConfirmed(hash(22))
+    expect(view(e).rows.map((r) => r.amount)).toEqual(['3'])
   })
 })
