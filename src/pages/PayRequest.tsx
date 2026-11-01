@@ -9,7 +9,7 @@ import { useArcWallet } from '@/hooks/useArcWallet'
 import { ApiError } from '@/lib/api'
 import { arcTxUrl } from '@/lib/arc'
 import { displayUsdc, formatDateTime } from '@/lib/format'
-import { requestsApi, STATUS_LABEL, STATUS_TONE } from '@/lib/requests'
+import { requestsApi, STATUS_LABEL, STATUS_TONE, verifyWithRetry } from '@/lib/requests'
 import { getAddress } from 'viem'
 
 export default function PayRequest() {
@@ -18,6 +18,8 @@ export default function PayRequest() {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [manualHash, setManualHash] = useState('')
+  // Set once this wallet's payment is confirmed on Arc, so the request can never be paid a second time from this page.
+  const [paidHash, setPaidHash] = useState<string>()
 
   const request = useQuery({
     queryKey: ['request', id],
@@ -27,7 +29,7 @@ export default function PayRequest() {
   })
 
   const verify = useMutation({
-    mutationFn: (hash: string) => requestsApi.verify(id, hash),
+    mutationFn: (hash: string) => verifyWithRetry(() => requestsApi.verify(id, hash)),
     onSuccess: (r) => {
       queryClient.setQueryData(['request', id], r)
       if (r.status === 'paid') toast.success('Payment verified on Arc')
@@ -82,7 +84,18 @@ export default function PayRequest() {
         {r.status === 'cancelled' && <div className="mt-4"><Notice tone="danger">The sender cancelled this request. Do not pay it.</Notice></div>}
         {isRecipient && r.status === 'unpaid' && <div className="mt-4"><Notice tone="info">This is your own request. Share its link from <Link to="/requests" className="font-semibold underline">Payment Requests</Link>.</Notice></div>}
 
-        {r.status === 'unpaid' && !isRecipient && (
+        {r.status === 'unpaid' && paidHash && (
+          <div className="mt-4">
+            {verify.isPending ? (
+              <Notice tone="info">Your payment is confirmed on Arc. Marking this request as paid…</Notice>
+            ) : (
+              <Notice tone="warn" action={<button className="btn btn-ghost !min-h-[36px]" onClick={() => verify.mutate(paidHash)}>Retry</button>}>
+                Your payment is confirmed on Arc ({<ExplorerLink href={arcTxUrl(paidHash)}>view</ExplorerLink>}), but Quick Pay could not mark this request paid yet. Do not pay again. Retry in a moment.
+              </Notice>
+            )}
+          </div>
+        )}
+        {r.status === 'unpaid' && !isRecipient && !paidHash && (
           <div className="mt-4">
             {wallet.isConnected ? (
               <button className="btn btn-primary w-full" disabled={!canPay} onClick={() => setOpen(true)}>Review and pay</button>
@@ -107,7 +120,7 @@ export default function PayRequest() {
         </details>
       )}
 
-      {canPay && (
+      {(canPay || paidHash) && (
         <PaymentConfirm
           open={open}
           onClose={() => setOpen(false)}
@@ -115,7 +128,10 @@ export default function PayRequest() {
           amount={amount}
           title="Pay request"
           note="After your payment confirms, Quick Pay checks it on Arc and marks the request paid."
-          onSuccess={(hash) => verify.mutate(hash)}
+          onSuccess={(hash) => {
+            setPaidHash(hash)
+            verify.mutate(hash)
+          }}
         />
       )}
     </div>

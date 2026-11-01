@@ -1,3 +1,4 @@
+import { TxFlowError, TxReplacedError } from '@/lib/confirmTx'
 import { parseTxError } from '@/lib/errors'
 
 export type SendStage = 'idle' | 'wallet' | 'confirming' | 'success' | 'error'
@@ -29,7 +30,11 @@ export class SingleFlight {
 export interface SendDeps {
   /** Asks the wallet to sign and broadcast. Resolves with the hash once the wallet submitted it. */
   submit: () => Promise<`0x${string}`>
-  waitForReceipt: (hash: `0x${string}`) => Promise<{ status: 'success' | 'reverted' }>
+  /**
+   * `hash` is set when the wallet sped the transaction up under a new hash. `verified: false` means the receipt
+   * succeeded but does not contain the transfer that was asked for, which is never reported as success.
+   */
+  waitForReceipt: (hash: `0x${string}`) => Promise<{ status: 'success' | 'reverted'; hash?: `0x${string}`; verified?: boolean }>
   onState: (state: SendState) => void
 }
 
@@ -45,17 +50,30 @@ export async function runUsdcSend({ submit, waitForReceipt, onState }: SendDeps)
     submitted = hash
     onState({ stage: 'confirming', hash })
     const receipt = await waitForReceipt(hash)
+    const mined = receipt.hash ?? hash
     if (receipt.status !== 'success') {
-      onState({ stage: 'error', hash, error: 'The transaction was mined but failed on-chain. No funds moved.' })
+      onState({ stage: 'error', hash: mined, error: 'The transaction was mined but failed on-chain. No funds moved.' })
       return null
     }
-    onState({ stage: 'success', hash })
-    return hash
+    if (receipt.verified === false) {
+      onState({ stage: 'error', hash: mined, error: 'The transaction was mined, but the expected USDC transfer is not in it. Check the transaction on the explorer before sending again.' })
+      return null
+    }
+    onState({ stage: 'success', hash: mined })
+    return mined
   } catch (error) {
     if (submitted) {
+      if (error instanceof TxReplacedError) {
+        onState({ stage: 'error', hash: submitted, error: error.message })
+        return null
+      }
       // The wallet already broadcast this payment; only its confirmation is unknown. Never present that as a
       // plain failure, or the user may pay twice.
       onState({ stage: 'error', hash: submitted, error: 'We could not confirm this payment. It may still complete. Check the transaction on the explorer before sending again.' })
+      return null
+    }
+    if (error instanceof TxFlowError) {
+      onState({ stage: 'error', error: error.message })
       return null
     }
     const parsed = parseTxError(error)

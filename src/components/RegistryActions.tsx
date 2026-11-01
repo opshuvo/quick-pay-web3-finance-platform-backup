@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { erc20Abi, isAddress, keccak256, stringToHex, zeroAddress, type Address } from 'viem'
+import { useRef, useState } from 'react'
+import { erc20Abi, isAddress, keccak256, stringToHex, zeroAddress, type Address, type Hash, type TransactionReceipt } from 'viem'
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from 'wagmi'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AmountInput } from '@/components/AmountInput'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TxProgress } from '@/components/TxProgress'
@@ -9,16 +9,27 @@ import { Field, Notice, Row, Spinner } from '@/components/ui'
 import { quickPayRegistryAbi } from '@/contracts/quickPayRegistryAbi'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { ARC_CHAIN_ID, ARC_USDC, arcTxUrl } from '@/lib/arc'
+import { confirmTx, TxFlowError } from '@/lib/confirmTx'
 import { parseTxError } from '@/lib/errors'
 import { arcFeeParams } from '@/lib/fees'
 import { displayUsdc, formatDateTime } from '@/lib/format'
 import { PaymentParseError, validateAmount } from '@/lib/payments'
+import { confirmCreated, confirmPaid } from '@/lib/registryEvents'
 
 const STATUS = ['None', 'Open', 'Paid', 'Cancelled', 'Expired']
 
 type Stage = 'idle' | 'wallet' | 'confirming' | 'success' | 'error'
 
-/** Runs one or more contract writes in order and reports honest status. */
+interface Step {
+  write: () => Promise<Hash>
+  /** Returns a problem description when the mined receipt does not contain what this step was meant to do. */
+  verify?: (receipt: TransactionReceipt) => string | null
+}
+
+/**
+ * Runs contract writes in order and reports honest status. One run at a time (a ref guards double clicks, not just
+ * React state). A step counts only when its receipt is for the submitted transaction, succeeded, and passes `verify`.
+ */
 function useTxSequence() {
   const client = usePublicClient({ chainId: ARC_CHAIN_ID })
   const { writeContractAsync } = useWriteContract()
@@ -26,31 +37,42 @@ function useTxSequence() {
   const [hash, setHash] = useState<`0x${string}`>()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const lock = useRef(false)
 
-  const run = async (writes: (() => Promise<`0x${string}`>)[]) => {
-    if (busy || !client) return false
+  const fail = (message: string) => {
+    setError(message)
+    setStage('error')
+  }
+
+  const run = async (steps: Step[]) => {
+    if (lock.current || !client) return false
+    lock.current = true
     setBusy(true)
     setError(undefined)
+    setHash(undefined)
     try {
-      for (const write of writes) {
+      for (const step of steps) {
         setStage('wallet')
-        const h = await write()
-        setHash(h)
+        const submitted = await step.write()
+        setHash(submitted)
         setStage('confirming')
-        const receipt = await client.waitForTransactionReceipt({ hash: h })
-        if (receipt.status !== 'success') throw new Error('reverted')
+        const { hash: mined, receipt } = await confirmTx(client, submitted)
+        setHash(mined)
+        if (receipt.status !== 'success') throw new TxFlowError('The transaction was mined but failed on-chain. No funds moved.')
+        const problem = step.verify?.(receipt)
+        if (problem) throw new TxFlowError(problem)
       }
       setStage('success')
       return true
     } catch (e) {
-      setError(parseTxError(e).message)
-      setStage('error')
+      fail(e instanceof TxFlowError ? e.message : parseTxError(e).message)
       return false
     } finally {
+      lock.current = false
       setBusy(false)
     }
   }
-  return { stage, hash, error, busy, run, reset: () => setStage('idle'), writeContractAsync, client }
+  return { stage, hash, error, busy, run, fail, reset: () => setStage('idle'), writeContractAsync, client }
 }
 
 export function RegistryActions({ registry }: { registry: Address }) {
@@ -63,12 +85,15 @@ export function RegistryActions({ registry }: { registry: Address }) {
 }
 
 function CreateRequest({ registry }: { registry: Address }) {
+  const { address } = useAccount()
+  const queryClient = useQueryClient()
   const wallet = useArcWallet()
   const tx = useTxSequence()
   const [amount, setAmount] = useState('')
   const [payer, setPayer] = useState('')
   const [hours, setHours] = useState('')
   const [ref, setRef] = useState('')
+  const [createdId, setCreatedId] = useState<bigint>()
 
   let raw: bigint | undefined
   let amountError: string | null = null
@@ -92,27 +117,40 @@ function CreateRequest({ registry }: { registry: Address }) {
       <Field label="Restrict to payer (optional)" error={payerOk ? null : 'Enter a valid address.'}><input className="field mono" placeholder="0x… (leave empty for anyone)" value={payer} onChange={(e) => setPayer(e.target.value.trim())} /></Field>
       <Field label="Expires in hours (optional)" error={hoursOk ? null : 'Whole hours, 1 to 8760.'}><input className="field" inputMode="numeric" placeholder="No expiry" value={hours} onChange={(e) => setHours(e.target.value.trim())} /></Field>
       <Field label="Reference (optional)" hint="Only its hash is stored on-chain."><input className="field" maxLength={140} value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
-      <TxProgress stage={tx.stage} hash={tx.hash} error={tx.error} txUrl={arcTxUrl} successText="Request created on-chain" />
+      <TxProgress stage={tx.stage} hash={tx.hash} error={tx.error} txUrl={arcTxUrl} successText={createdId !== undefined ? `Request #${createdId.toString()} created on-chain` : 'Request created on-chain'} />
       <button
         className="btn btn-primary w-full"
         disabled={!ready}
         onClick={() => {
-          if (raw === undefined || !tx.client) return
+          if (raw === undefined || !tx.client || !address) return
           const client = tx.client
+          const amountRaw = raw
           void (async () => {
-          const expiresAt = hours ? BigInt(Math.floor(Date.now() / 1000) + Number(hours) * 3600) : 0n
-          const fees = await arcFeeParams(client)
-          await tx.run([
-            () =>
-              tx.writeContractAsync({
-                address: registry,
-                abi: quickPayRegistryAbi,
-                functionName: 'createRequest',
-                args: [raw, (payer || zeroAddress) as Address, expiresAt, ref ? keccak256(stringToHex(ref)) : `0x${'0'.repeat(64)}`],
-                chainId: ARC_CHAIN_ID,
-                ...fees,
-              }),
-          ])
+            const expiresAt = hours ? BigInt(Math.floor(Date.now() / 1000) + Number(hours) * 3600) : 0n
+            setCreatedId(undefined)
+            const ok = await tx.run([
+              {
+                write: async () => {
+                  const fees = await arcFeeParams(client)
+                  return tx.writeContractAsync({
+                    address: registry,
+                    abi: quickPayRegistryAbi,
+                    functionName: 'createRequest',
+                    args: [amountRaw, (payer || zeroAddress) as Address, expiresAt, ref ? keccak256(stringToHex(ref)) : `0x${'0'.repeat(64)}`],
+                    chainId: ARC_CHAIN_ID,
+                    ...fees,
+                  })
+                },
+                // Only a RequestCreated event from this registry, for this wallet and amount, proves the request exists.
+                verify: (receipt) => {
+                  const created = confirmCreated(receipt.logs, registry, address, amountRaw)
+                  if (!created) return 'The transaction was mined, but no matching request was created. Check the explorer before trying again.'
+                  setCreatedId(created.id)
+                  return null
+                },
+              },
+            ])
+            if (ok) void queryClient.invalidateQueries({ queryKey: ['readContract'] })
           })()
         }}
       >
@@ -124,6 +162,7 @@ function CreateRequest({ registry }: { registry: Address }) {
 
 function PayRequest({ registry }: { registry: Address }) {
   const { address } = useAccount()
+  const queryClient = useQueryClient()
   const wallet = useArcWallet()
   const tx = useTxSequence()
   const [idText, setIdText] = useState('')
@@ -135,23 +174,42 @@ function PayRequest({ registry }: { registry: Address }) {
   const allowance = useReadContract({ address: ARC_USDC, abi: erc20Abi, functionName: 'allowance', args: address ? [address, registry] : undefined, chainId: ARC_CHAIN_ID, query: { enabled: Boolean(address) } })
 
   const r = request.data
-  const payable = Boolean(r && status.data === 1 && r.merchant !== zeroAddress)
+  const restrictedToOther = Boolean(r && r.payer !== zeroAddress && address && r.payer.toLowerCase() !== address.toLowerCase())
+  const payable = Boolean(r && status.data === 1 && r.merchant !== zeroAddress && !restrictedToOther)
   const needsApproval = r !== undefined && (allowance.data ?? 0n) < r.amount
   const enoughBalance = r !== undefined && wallet.balanceRaw !== undefined && wallet.balanceRaw >= r.amount
   const send = useMutation({
     mutationFn: async () => {
-      if (!r || id === undefined || !tx.client) return
-      const fees = await arcFeeParams(tx.client)
-      const writes: (() => Promise<`0x${string}`>)[] = []
+      const client = tx.client
+      if (!r || id === undefined || !client || !address) return
+      // Re-read the chain right before signing: the request, its status and the allowance may have changed since the review.
+      const [fresh, freshStatus, freshAllowance] = await Promise.all([
+        client.readContract({ address: registry, abi: quickPayRegistryAbi, functionName: 'getRequest', args: [id] }),
+        client.readContract({ address: registry, abi: quickPayRegistryAbi, functionName: 'statusOf', args: [id] }),
+        client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: 'allowance', args: [address, registry] }),
+      ]).catch(() => [undefined, undefined, undefined] as const)
+      if (!fresh || freshStatus === undefined || freshAllowance === undefined) return tx.fail('Could not re-check this request on Arc. Nothing was sent. Try again.')
+      if (freshStatus !== 1) return tx.fail('This request is no longer open, so nothing was sent.')
+      if (fresh.amount !== r.amount || fresh.merchant.toLowerCase() !== r.merchant.toLowerCase()) return tx.fail('This request changed since you reviewed it. Nothing was sent. Review it again.')
+      if (fresh.payer !== zeroAddress && fresh.payer.toLowerCase() !== address.toLowerCase()) return tx.fail('This request is restricted to a different payer. Nothing was sent.')
+      const steps: Step[] = []
       // Approve only the exact amount, never an unlimited allowance.
-      if (needsApproval) writes.push(() => tx.writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [registry, r.amount], chainId: ARC_CHAIN_ID, ...fees }))
-      writes.push(() => tx.writeContractAsync({ address: registry, abi: quickPayRegistryAbi, functionName: 'pay', args: [id], chainId: ARC_CHAIN_ID, ...fees }))
-      const ok = await tx.run(writes)
-      if (ok) {
-        void request.refetch()
-        void status.refetch()
-        void allowance.refetch()
+      if (freshAllowance < fresh.amount) {
+        steps.push({ write: async () => tx.writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [registry, fresh.amount], chainId: ARC_CHAIN_ID, ...(await arcFeeParams(client)) }) })
       }
+      steps.push({
+        write: async () => tx.writeContractAsync({ address: registry, abi: quickPayRegistryAbi, functionName: 'pay', args: [id], chainId: ARC_CHAIN_ID, ...(await arcFeeParams(client)) }),
+        // Only a PaymentReceived event from this registry for this request, payer, merchant and amount proves it was paid.
+        verify: (receipt) =>
+          confirmPaid(receipt.logs, registry, { id, payer: address, merchant: fresh.merchant, amount: fresh.amount })
+            ? null
+            : 'The transaction was mined, but this request was not marked paid. Check the explorer before trying again.',
+      })
+      const ok = await tx.run(steps)
+      void request.refetch()
+      void status.refetch()
+      void allowance.refetch()
+      if (ok) void queryClient.invalidateQueries({ queryKey: ['readContract'] })
     },
   })
 
@@ -173,6 +231,7 @@ function PayRequest({ registry }: { registry: Address }) {
       <button className="btn btn-primary w-full" disabled={!payable || !wallet.onArc || !enoughBalance} onClick={() => { tx.reset(); setOpen(true) }}>
         {wallet.onArc ? 'Review and pay' : 'Switch to Arc first'}
       </button>
+      {restrictedToOther && <Notice tone="warn">This request is restricted to a different payer, so your wallet cannot pay it.</Notice>}
       {payable && !enoughBalance && <p className="text-xs" style={{ color: 'var(--danger)' }}>Your USDC balance is lower than the request amount.</p>}
       <ConfirmSheet open={open && Boolean(r)} onClose={() => setOpen(false)} title="Confirm on-chain payment" locked={tx.busy}>
         {r && (

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
-import { erc20Abi, isAddress, parseUnits, type Address } from 'viem'
+import { erc20Abi, isAddress, zeroAddress, type Address } from 'viem'
 import { usePublicClient, useReadContract, useSendTransaction, useSwitchChain, useWriteContract } from 'wagmi'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ExternalLink, RefreshCw } from 'lucide-react'
 import { ActivityList } from '@/components/ActivityList'
 import { AmountInput } from '@/components/AmountInput'
@@ -19,11 +19,13 @@ import { ACROSS_URL, acrossApi, type AcrossQuote, type FeeLine } from '@/lib/acr
 import { ApiError } from '@/lib/api'
 import { ARC_CHAIN_ID } from '@/lib/arc'
 import { assertBridgeQuote, BridgeGuardError, describeFillTime, isQuoteStale } from '@/lib/bridgeGuard'
-import { loadBridges, saveBridge, type StoredBridge } from '@/lib/bridgeStore'
+import { loadBridges, removeBridge, saveBridge, type StoredBridge } from '@/lib/bridgeStore'
+import { confirmTx, TxFlowError, TxReplacedError, TxUnconfirmedError } from '@/lib/confirmTx'
 import { chainLabel } from '@/lib/chains'
 import { parseTxError } from '@/lib/errors'
 import { arcFeeParams } from '@/lib/fees'
 import { displayUnits, shortAddress } from '@/lib/format'
+import { parseUnitsExact } from '@/onchain-money'
 
 const fallbackLink = (
   <a className="btn btn-ghost" href={ACROSS_URL} target="_blank" rel="noopener noreferrer">across.to <ExternalLink className="size-4" aria-hidden /></a>
@@ -39,6 +41,7 @@ export default function Bridge() {
   const { writeContractAsync } = useWriteContract()
   const { sendTransactionAsync } = useSendTransaction()
   const now = useNow()
+  const queryClient = useQueryClient()
 
   const [origin, setOrigin] = useState<number>(ARC_CHAIN_ID)
   const [destination, setDestination] = useState<number>(1)
@@ -46,7 +49,7 @@ export default function Bridge() {
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('')
   const [open, setOpen] = useState(false)
-  const [run, setRun] = useState<{ stage: 'idle' | 'wallet' | 'confirming' | 'success' | 'error'; hash?: `0x${string}`; error?: string; note?: string }>({ stage: 'idle' })
+  const [run, setRun] = useState<{ stage: 'idle' | 'wallet' | 'confirming' | 'success' | 'error'; hash?: `0x${string}`; error?: string; note?: string; unconfirmed?: boolean }>({ stage: 'idle' })
   const [storeVersion, setStoreVersion] = useState(0)
   const lock = useRef(false)
 
@@ -76,15 +79,17 @@ export default function Bridge() {
   const amountRaw = useMemo(() => {
     if (decimals.data === undefined || !/^\d*\.?\d+$/.test(amount)) return undefined
     try {
-      const v = parseUnits(amount, decimals.data)
+      // Exact: an amount with more decimals than the token has is refused, never silently rounded.
+      const v = parseUnitsExact(amount, decimals.data)
       return v > 0n ? v : undefined
     } catch {
       return undefined
     }
   }, [amount, decimals.data])
+  const tooManyDecimals = decimals.data !== undefined && (amount.split('.')[1]?.length ?? 0) > decimals.data
   const debounced = useDebounced(amountRaw?.toString(), 600)
   const recipientAddress = (recipient || wallet.address) as Address | undefined
-  const recipientError = recipient && !isAddress(recipient) ? 'Enter a valid EVM address.' : null
+  const recipientError = recipient && !isAddress(recipient) ? 'Enter a valid EVM address.' : recipient && recipient.toLowerCase() === zeroAddress ? 'The zero address cannot receive funds.' : null
   const overBalance = amountRaw !== undefined && balance.data !== undefined && amountRaw > balance.data
 
   const quote = useQuery({
@@ -115,6 +120,7 @@ export default function Bridge() {
     if (lock.current || !wallet.address || !originClient || !route) return
     lock.current = true
     setRun({ stage: 'wallet', note: 'Checking your quote…' })
+    let deposit: { hash: `0x${string}`; entry: StoredBridge } | undefined
     try {
       if (isQuoteStale(current, Date.now())) {
         void quote.refetch()
@@ -132,8 +138,13 @@ export default function Bridge() {
         // Exact-amount approval to the spender Across named; never an unlimited allowance.
         const approveHash = await writeContractAsync({ address: current.checks.allowance.token, abi: erc20Abi, functionName: 'approve', args: [current.checks.allowance.spender, BigInt(current.checks.allowance.expected)], chainId: origin, ...fees })
         setRun({ stage: 'confirming', hash: approveHash, note: 'Waiting for the approval to confirm…' })
-        const approval = await originClient.waitForTransactionReceipt({ hash: approveHash })
-        if (approval.status !== 'success') throw new BridgeGuardError('The approval transaction failed. Nothing was bridged.')
+        const approval = await confirmTx(originClient, approveHash)
+        if (approval.receipt.status !== 'success') throw new BridgeGuardError('The approval transaction failed. Nothing was bridged.')
+        // The approval can take a while; never deposit against a quote that expired in the meantime.
+        if (isQuoteStale(current, Date.now())) {
+          void quote.refetch()
+          throw new BridgeGuardError('Your approval confirmed, but the quote expired while waiting. Review the refreshed quote and confirm again. Nothing was bridged.')
+        }
       }
       setRun({ stage: 'wallet', note: 'Confirm the bridge transfer in your wallet…' })
       const hash = await sendTransactionAsync({ to: tx.to, data: tx.data, value: tx.value ? BigInt(tx.value) : 0n, chainId: origin, ...(tx.gas ? { gas: BigInt(tx.gas) } : {}), ...fees })
@@ -145,12 +156,41 @@ export default function Bridge() {
       saveBridge(wallet.address, entry)
       setStoreVersion((v) => v + 1)
       setRun({ stage: 'confirming', hash, note: 'Waiting for the deposit to confirm on the source chain…' })
-      const receipt = await originClient.waitForTransactionReceipt({ hash })
-      if (receipt.status !== 'success') throw new BridgeGuardError('The deposit transaction failed on-chain. Nothing was bridged.')
-      setRun({ stage: 'success', hash, note: 'Deposit confirmed on the source chain. Delivery is tracked below and is complete only once verified on the destination.' })
+      deposit = { hash, entry }
+      const confirmed = await confirmTx(originClient, hash)
+      if (confirmed.hash !== hash) {
+        // The wallet sped the deposit up: track the transaction that actually mined.
+        removeBridge(wallet.address, hash)
+        saveBridge(wallet.address, { ...entry, hash: confirmed.hash })
+        setStoreVersion((v) => v + 1)
+      }
+      if (confirmed.receipt.status !== 'success') {
+        removeBridge(wallet.address, confirmed.hash)
+        setStoreVersion((v) => v + 1)
+        throw new BridgeGuardError('The deposit transaction failed on-chain. Nothing was bridged.')
+      }
+      setRun({ stage: 'success', hash: confirmed.hash, note: 'Deposit confirmed on the source chain. Delivery is tracked below and is complete only once verified on the destination.' })
       void balance.refetch()
+      for (const key of ['readContract', 'readContracts', 'balance']) void queryClient.invalidateQueries({ queryKey: [key] })
     } catch (error) {
-      setRun({ stage: 'error', error: error instanceof BridgeGuardError ? error.message : parseTxError(error).message })
+      if (deposit && error instanceof TxReplacedError && wallet.address) {
+        if (error.reason === 'cancelled') {
+          removeBridge(wallet.address, deposit.hash)
+          setStoreVersion((v) => v + 1)
+        }
+        setRun({ stage: 'error', hash: deposit.hash, error: error.message, unconfirmed: error.reason === 'replaced' })
+      } else if (deposit) {
+        // The deposit was broadcast; only its outcome is unknown (or it reverted). A blind retry could bridge twice.
+        const reverted = error instanceof BridgeGuardError
+        setRun({
+          stage: 'error',
+          hash: deposit.hash,
+          unconfirmed: !reverted,
+          error: reverted ? error.message : error instanceof TxUnconfirmedError ? 'The deposit was sent but we could not confirm it. It may still go through. Do not send it again: follow its progress below or check the explorer.' : parseTxError(error).message,
+        })
+      } else {
+        setRun({ stage: 'error', error: error instanceof BridgeGuardError || error instanceof TxFlowError ? error.message : parseTxError(error).message })
+      }
     } finally {
       lock.current = false
     }
@@ -207,6 +247,7 @@ export default function Bridge() {
                 balanceLoading={balance.isLoading}
                 onMax={balance.data !== undefined && decimals.data !== undefined ? () => setAmount(displayUnits(balance.data, decimals.data, 0, decimals.data).replace(/,/g, '')) : undefined}
               />
+ {tooManyDecimals && <p role="alert" className="mt-1.5 text-xs" style={{ color: 'var(--danger)' }}>{route?.originTokenSymbol} supports at most {decimals.data} decimal places.</p>}
               {overBalance && <p role="alert" className="mt-1.5 text-xs" style={{ color: 'var(--danger)' }}>Amount is larger than your balance on {name(origin)}.</p>}
               {origin === ARC_CHAIN_ID && route?.originTokenSymbol === 'USDC' && <p className="mt-1.5 text-xs" style={{ color: 'var(--muted)' }}>USDC is also Arc's gas token. Leave a little for the network fee.</p>}
             </div>
@@ -282,8 +323,9 @@ export default function Bridge() {
             <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>Irreversible. If Across cannot fill the transfer it is refunded to your address on the source chain. Nothing is sent until you confirm in your wallet.</p>
             <TxProgress stage={run.stage} hash={run.hash} error={run.error} walletText={run.note} successText={run.note ?? 'Deposit confirmed'} />
             {run.stage === 'confirming' && run.note && <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{run.note}</p>}
-            {run.stage === 'success' ? (
-              <button className="btn btn-primary mt-4 w-full" onClick={() => { setOpen(false); setAmount('') }}>Done</button>
+            {run.stage === 'success' || run.unconfirmed ? (
+              // An unconfirmed deposit may still complete, so the only action is to close; retrying could bridge twice.
+              <button className="btn btn-primary mt-4 w-full" onClick={() => { setOpen(false); setAmount('') }}>{run.unconfirmed ? 'Close' : 'Done'}</button>
             ) : (
               <button className="btn btn-primary mt-4 w-full" disabled={busy} onClick={() => void confirm(q)}>{busy && <Spinner />} {run.stage === 'error' ? 'Try again' : 'Confirm bridge'}</button>
             )}

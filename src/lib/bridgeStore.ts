@@ -39,3 +39,14 @@ export function saveBridge(address: string, entry: StoredBridge): void {
     /* storage unavailable: tracking simply will not persist */
   }
 }
+
+/** Forgets a transfer whose source transaction did not succeed, so it is never tracked as if it were in flight. */
+export function removeBridge(address: string, hash: string): void {
+  try {
+    const all = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, StoredBridge[]>
+    const key = address.toLowerCase()
+    localStorage.setItem(KEY, JSON.stringify({ ...all, [key]: (all[key] ?? []).filter((b) => b.hash.toLowerCase() !== hash.toLowerCase()) }))
+  } catch {
+    /* storage unavailable: nothing to remove */
+  }
+}

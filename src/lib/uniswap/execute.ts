@@ -1,5 +1,6 @@
 import { erc20Abi, type Address, type PublicClient, type WalletClient } from 'viem'
 import { arcMainnet } from '@/lib/arc'
+import { confirmTx, TxFlowError } from '@/lib/confirmTx'
 import { arcFeeParams } from '@/lib/fees'
 import {
   assertSlippage, assertWithinBalance, bestQuote, buildSwap, maxIn, permitNeeded, PERMIT2, PERMIT2_DOMAIN, PERMIT2_TYPES,
@@ -50,8 +51,8 @@ export async function executeSwap(
       account: owner, chain: arcMainnet, address: tokenIn, abi: erc20Abi, functionName: 'approve', args: [PERMIT2, spend], ...fees,
     })
     onStep('approve-confirm', approveHash)
-    const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveHash })
-    if (approveReceipt.status !== 'success') throw new Error('The approval transaction failed.')
+    const approveReceipt = await confirmTx(publicClient, approveHash)
+    if (approveReceipt.receipt.status !== 'success') throw new TxFlowError('The approval transaction failed. Nothing was swapped.')
   }
 
   const now = BigInt((await publicClient.getBlock()).timestamp)
@@ -70,6 +71,6 @@ export async function executeSwap(
     account: owner, chain: arcMainnet, to: tx.to, data: tx.data, value: 0n, gas: (gas * 12n) / 10n, ...fees,
   })
   onStep('swap-confirm', hash)
-  const receipt = await publicClient.waitForTransactionReceipt({ hash })
-  return { hash, quote, success: receipt.status === 'success' }
+  const { hash: mined, receipt } = await confirmTx(publicClient, hash)
+  return { hash: mined, quote, success: receipt.status === 'success' }
 }

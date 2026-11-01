@@ -1,6 +1,6 @@
 import type { RequestDto } from '../../shared/api-types'
 import type { SessionToken } from '../../shared/session'
-import { api } from '@/lib/api'
+import { api, ApiError, isServiceDown } from '@/lib/api'
 
 export type { RequestDto }
 
@@ -25,4 +25,24 @@ export const STATUS_TONE: Record<RequestDto['status'], 'success' | 'danger' | 'w
   paid: 'success',
   expired: 'neutral',
   cancelled: 'danger',
+}
+
+/**
+ * Asks the server to verify a payment, retrying while it cannot see the transaction yet (a different RPC node
+ * may lag the one the wallet used) or is briefly unreachable. Definite answers (wrong amount, failed transaction,
+ * cancelled request) are never retried.
+ */
+export async function verifyWithRetry<T>(
+  verify: () => Promise<T>,
+  { attempts = 5, delayMs = 2_500, sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)) }: { attempts?: number; delayMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await verify()
+    } catch (error) {
+      const retriable = isServiceDown(error) || (error instanceof ApiError && (error.code === 'tx_not_found' || error.code === 'rpc_error'))
+      if (!retriable || i >= attempts - 1) throw error
+      await sleep(delayMs)
+    }
+  }
 }

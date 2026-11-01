@@ -18,6 +18,12 @@ export function parseTxError(error: unknown): ParsedError {
   if (text.includes('underpriced')) {
     return { kind: 'network', message: 'The network fee was too low. Please try again.' }
   }
+  if (text.includes('chain mismatch') || text.includes('does not match the target chain') || text.includes('wrong chain') || text.includes('unrecognized chain')) {
+    return { kind: 'network', message: 'Your wallet is on a different network than this payment. Switch networks in your wallet and try again.' }
+  }
+  if (text.includes('nonce')) {
+    return { kind: 'network', message: 'Your wallet has another transaction pending or out of order. Wait for it to finish, then try again.' }
+  }
   if (text.includes('reverted') || text.includes('execution reverted')) {
     return { kind: 'reverted', message: 'The transaction would fail on-chain, so it was not sent.' }
   }

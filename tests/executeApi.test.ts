@@ -41,7 +41,7 @@ function clients(s: Script = {}) {
   const publicClient = {
     readContract: async ({ functionName }: { functionName: string }) => (functionName === 'balanceOf' ? 5_000_000n : (s.allowance ?? 0n)),
     estimateFeesPerGas: async () => ({ maxFeePerGas: 30_000_000_000n, maxPriorityFeePerGas: 1n }),
-    waitForTransactionReceipt: async ({ hash }: { hash: string }) => ({ status: hash === '0xapprove' ? (s.approveReceipt ?? 'success') : (s.swapReceipt ?? 'success') }),
+    waitForTransactionReceipt: async ({ hash }: { hash: string }) => ({ transactionHash: hash, status: hash === '0xapprove' ? (s.approveReceipt ?? 'success') : (s.swapReceipt ?? 'success') }),
     call: async () => ({}),
     estimateGas: async () => 200_000n,
   }

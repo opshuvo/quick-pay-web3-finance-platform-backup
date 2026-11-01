@@ -44,6 +44,11 @@ Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, 
 
 - QuickPayRouter (`contracts/QuickPayRouter.sol`, `payTo(recipient, amount, reference)`): written and tested. The owner's own deployment on Arc Mainnet (5042) is `0x1593C6fdEAB15228c90da354913a919fDA08b7E4` (read from the chain: uses official USDC `0x3600...0000`, not paused; wired via `VITE_QUICKPAY_ROUTER_ADDRESS` in the gitignored `.env`; not independently audited). When `VITE_QUICKPAY_ROUTER_ADDRESS` is set and `src/hooks/useRouter.ts` confirms it on Arc (code, official USDC, not paused), Send/Pay use approve (exact amount) + `payTo` instead of a direct USDC transfer, so the explorer shows the router as the destination. Unset means plain transfers.
 
+## Transaction confirmation rules
+
+- Never call `waitForTransactionReceipt` directly for a money flow. Use `confirmTx` (`src/lib/confirmTx.ts`): it rejects cancelled or replaced transactions, follows speed-ups and keeps the hash when the outcome is unknown. Audit notes are in `docs/transaction-audit.md`.
+- A broadcast transaction whose outcome is unknown must never offer a blind retry (it could pay, swap or bridge twice).
+
 ## Performance notes
 
 - The wallet picker (ConnectKit) is NOT in the first download: `src/components/WalletButton.tsx` is a plain button, `WalletModalMount` loads `WalletModalHost` on idle/first touch/tap. Do not import `connectkit` anywhere else.

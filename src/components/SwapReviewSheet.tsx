@@ -68,8 +68,9 @@ export function SwapReviewSheet({ open, onClose, view, tokenIn, tokenOut, slippa
               )}
             </div>
           )}
-          {run.stage === 'success' ? (
-            <button className="btn btn-primary mt-4 w-full" onClick={onDone}>Done</button>
+          {run.stage === 'success' || run.unconfirmed ? (
+            // An unconfirmed swap may still complete, so the only action is to close; retrying could swap twice.
+            <button className="btn btn-primary mt-4 w-full" onClick={onDone}>{run.unconfirmed ? 'Close' : 'Done'}</button>
           ) : (
             <button className="btn btn-primary mt-4 w-full" disabled={busy} onClick={onConfirm}>
               {busy && <Spinner />} {run.stage === 'error' ? 'Review again and retry' : 'Confirm swap'}

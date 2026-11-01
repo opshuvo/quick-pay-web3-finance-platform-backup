@@ -6,6 +6,7 @@ import { activityApi } from '@/lib/activity'
 import { ApiError } from '@/lib/api'
 import { historyServerUsable } from '@/lib/chainHistory/mode'
 import { chainTrackConfirmed } from '@/lib/chainHistory/read'
+import { TxFlowError, TxReplacedError, TxUnconfirmedError } from '@/lib/confirmTx'
 import { parseTxError } from '@/lib/errors'
 import { executeSwap, type SwapStep } from '@/lib/uniswap/execute'
 import { executeApiSwap, type ApiSwapStep } from '@/lib/uniswap/executeApi'
@@ -20,6 +21,8 @@ export interface SwapRun {
   error?: string
   /** Whether the verified record was written to Quick Pay history. */
   saved?: 'saving' | 'saved' | 'failed'
+  /** The swap was broadcast but its outcome is unknown. It may still complete, so it must not be sent again. */
+  unconfirmed?: boolean
 }
 
 interface Args {
@@ -89,6 +92,7 @@ export function useSwapExecution() {
       if (lock.current) return
       lock.current = true
       setRun({ stage: 'wallet', step: 'quote' })
+      const progress = { step: 'quote' as ApiSwapStep }
       try {
         const fresh = await a.refresh()
         if (!fresh) throw new Error('No live quote is available right now. Nothing was sent.')
@@ -97,8 +101,10 @@ export function useSwapExecution() {
         }
         if (fresh.priceImpactPct / 100 > PRICE_IMPACT_BLOCK && !a.acceptLoss) throw new Error('Price impact is above the 5% limit and was not accepted.')
 
-        const onStep = (step: ApiSwapStep, hash?: `0x${string}`) =>
+        const onStep = (step: ApiSwapStep, hash?: `0x${string}`) => {
+          progress.step = step
           setRun({ stage: step === 'swap-confirm' || step === 'approve-confirm' || step === 'quote' || step === 'build' ? 'confirming' : 'wallet', step, hash })
+        }
 
         const result =
           fresh.engine === 'uniswap-api' && fresh.api
@@ -110,14 +116,29 @@ export function useSwapExecution() {
         } else {
           setRun({ stage: 'error', hash: result.hash, error: 'The swap transaction failed on-chain. Your tokens were not exchanged.' })
         }
+        // Balances and allowances changed (or gas was spent), so every cached read is stale.
+        for (const key of ['readContract', 'readContracts', 'balance']) void queryClient.invalidateQueries({ queryKey: [key] })
       } catch (error) {
+        if (progress.step === 'swap-confirm' && error instanceof TxUnconfirmedError) {
+          // The swap itself was broadcast. Keep its hash and block a blind retry, which could swap twice.
+          setRun({ stage: 'error', hash: error.hash, error: error.message, unconfirmed: true })
+          return
+        }
+        if (progress.step === 'swap-confirm' && error instanceof TxReplacedError) {
+          setRun({ stage: 'error', hash: error.hash, error: error.message, unconfirmed: error.reason === 'replaced' })
+          return
+        }
+        if (error instanceof TxFlowError) {
+          setRun({ stage: 'error', hash: error instanceof TxUnconfirmedError ? error.hash : undefined, error: error.message })
+          return
+        }
         const known = error instanceof ApiValidationError || error instanceof ApiError || (error instanceof Error && /Price impact|exceeds your|expired|moved|No live quote|approval transaction/.test(error.message))
         setRun({ stage: 'error', error: known ? (error).message : parseTxError(error).message })
       } finally {
         lock.current = false
       }
     },
-    [save],
+    [save, queryClient],
   )
 
   const reset = useCallback(() => setRun({ stage: 'idle' }), [])
