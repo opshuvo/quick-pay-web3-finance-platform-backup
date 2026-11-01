@@ -89,6 +89,6 @@ export REGISTRY_OWNER=<pause-rights address, ideally a multisig>
 forge script contracts/script/DeployQuickPayRegistry.s.sol --rpc-url <Arc RPC> --account <keystore> --sender <deployer> --broadcast
 ```
 
-To route ordinary sends through the FlowPay contract, deploy `contracts/QuickPayRouter.sol` the same way with `contracts/script/DeployQuickPayRouter.s.sol` (set `USDC` and `ROUTER_OWNER`), then set `VITE_QUICKPAY_ROUTER_ADDRESS`.
+To route ordinary sends through the FlowPay contract, deploy `contracts/FlowPayRouter.sol` the same way with `contracts/script/DeployQuickPayRouter.s.sol` (set `USDC` and `ROUTER_OWNER`), then set `VITE_QUICKPAY_ROUTER_ADDRESS`.
 
 Then set `VITE_QUICKPAY_REGISTRY_ADDRESS` and restart the frontend. The Smart Contracts page marks it deployed only after reading it from the chain and checking it uses the official USDC.
