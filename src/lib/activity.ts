@@ -3,6 +3,7 @@ import type { ActivityDto } from '../../shared/api-types'
 import { api } from '@/lib/api'
 import { chainActivity } from '@/lib/chainHistory/read'
 import { historyServerUsable } from '@/lib/chainHistory/mode'
+import { retryDelay } from '@/lib/arcRpc'
 
 export type { ActivityDto }
 
@@ -32,7 +33,8 @@ export function useActivity(address: string | undefined, kind?: 'swap' | 'bridge
   return useQuery({
     queryKey: ['activity', address, kind],
     enabled: Boolean(address),
-    retry: false,
+    retry: 2,
+    retryDelay,
     refetchInterval: 8_000,
     queryFn: async ({ signal }) => {
       const wallet = (address as string).toLowerCase()

@@ -112,6 +112,25 @@ body {
     backdrop-filter: blur(20px) saturate(150%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
   }
+  /* Phones and tablets: a live blur behind every card is re-painted on each scroll frame and is one of the costliest
+     things a mobile GPU does. The page behind a card is a smooth gradient, so without it the cards look the same. */
+  @media (max-width: 1023px) {
+    .card {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+  /* Sticky header: same idea. Slightly more opaque on small screens instead of blurred. */
+  .app-header {
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+  }
+  @media (min-width: 1024px) {
+    .app-header {
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+  }
   .card-hero::before {
     content: '';
     position: absolute;

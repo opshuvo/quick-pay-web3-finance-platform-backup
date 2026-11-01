@@ -21,12 +21,22 @@ export function validateProfile(p: Profile): { displayName?: string; username?: 
   return errors
 }
 
+// Read from storage once, not on every render of the header avatar; another tab saving a profile resets it.
+let cached: Record<string, Profile> | null = null
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === KEY || event.key === null) cached = null
+  })
+}
+
 function readAll(): Record<string, Profile> {
+  if (cached) return cached
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Profile>
+    cached = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Profile>
   } catch {
-    return {}
+    cached = {}
   }
+  return cached
 }
 
 export function loadProfile(address: string | undefined): Profile {
@@ -34,8 +44,9 @@ export function loadProfile(address: string | undefined): Profile {
 }
 
 export function saveProfile(address: string, profile: Profile): void {
-  const all = readAll()
+  const all = { ...readAll() }
   all[address.toLowerCase()] = { displayName: profile.displayName.trim(), username: profile.username.trim() }
+  cached = all
   try {
     localStorage.setItem(KEY, JSON.stringify(all))
   } catch {

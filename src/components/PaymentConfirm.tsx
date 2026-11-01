@@ -33,7 +33,7 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
   const wallet = useArcWallet()
   const publicClient = usePublicClient({ chainId: ARC_CHAIN_ID })
   const { state, send, reset, busy } = useSendUsdc()
-  const { address: router, isLoading: routerLoading } = useRouter()
+  const { address: router, isLoading: routerLoading, problem: routerProblem } = useRouter()
 
   const fee = useQuery({
     queryKey: ['fee-estimate', address, to, amount.toString(), router],
@@ -60,7 +60,9 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
   const total = fee.data ? amount + fee.data.usdc : undefined
   const insufficient = balance !== undefined && total !== undefined && total > balance
   const done = state.stage === 'success'
-  const canConfirm = wallet.onArc && fee.isSuccess && !insufficient && !busy && !done && balance !== undefined
+  // With a Quick Pay contract configured, a payment waits until it is verified instead of silently going direct.
+  const routerHeld = routerLoading || routerProblem === 'unreachable'
+  const canConfirm = wallet.onArc && fee.isSuccess && !insufficient && !busy && !done && balance !== undefined && !routerHeld
 
   return (
     <ConfirmSheet open={open} onClose={onClose} title={title} locked={busy}>
@@ -81,6 +83,10 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
       {router && <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>This payment goes through the Quick Pay contract, which sends your USDC straight to the recipient and never holds it. If it needs permission first, your wallet asks you to approve exactly this amount, then to pay.</p>}
 
       <div className="mt-3 space-y-2">
+        {routerProblem === 'unreachable' && <Notice tone="warn">Could not verify the Quick Pay contract on Arc right now, so this payment is on hold. Retrying automatically.</Notice>}
+        {routerProblem && routerProblem !== 'unreachable' && (
+          <Notice tone="warn">The Quick Pay contract is {routerProblem === 'paused' ? 'paused' : routerProblem === 'wrong-usdc' ? 'not set up for the official USDC' : 'not found on Arc'}, so this payment is sent as a direct USDC transfer.</Notice>
+        )}
         {fee.isError && wallet.onArc && (
           <Notice tone="danger">The network could not simulate this payment, so it was not sent. Check your balance and the recipient, then retry.</Notice>
         )}

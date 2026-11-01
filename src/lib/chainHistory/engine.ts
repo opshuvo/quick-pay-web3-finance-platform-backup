@@ -7,6 +7,8 @@
 import { createPublicClient, erc20Abi, http, toHex, type Hex, type PublicClient } from 'viem'
 import { netFlows, pickSwapLegs, TRANSFER_TOPIC } from '../../../shared/swapLegs'
 import { ARC_RPC_URL, ARC_USDC, arcMainnet } from '@/lib/arc'
+import { arcLogsLane, arcReadLane, classifyRpcFailure } from '@/lib/arcRpc'
+import { EDGE_CHUNK, fetchEdgeChunk } from './edge'
 import { env } from '@/lib/env'
 import { isBridgeCounterparty, isBridgeTarget, isSwapCounterparty, isSwapTarget, type BridgeRec, type RawTransfer, type Snapshot, type SwapRec, type TxMeta } from './derive'
 
@@ -14,21 +16,14 @@ const CHUNK = 5_000
 const MIN_CHUNK = 500
 const PARALLEL = 3
 const HEAD_TTL_MS = 2_000
-const MIN_INTERVAL_MS = 220
+/** Following the chain tip costs two log calls each time. Newer blocks are picked up at most this often, so the rate-limited call budget goes to older history. */
+const TIP_SCAN_MIN_MS = 10_000
 const CACHE_VERSION = 1
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const pad = (a: string): Hex => `0x${a.slice(2).toLowerCase().padStart(64, '0')}`
 const topicAddress = (t: string) => `0x${t.slice(26)}`.toLowerCase()
 
 const asError = (e: unknown): Error => (e instanceof Error ? e : new Error(typeof e === 'string' ? e : 'Arc RPC request failed'))
-
-type Kind = 'rate' | 'range' | 'other'
-const kindOf = (e: unknown): Kind => {
-  const text = `${(e as { details?: string }).details ?? ''} ${(e as Error)?.message ?? ''}`.toLowerCase()
-  if (/rate.?limit|too many requests|429/.test(text)) return 'rate'
-  if (/range|too large|too many (blocks|results)|exceed/.test(text)) return 'range'
-  return 'other'
-}
 
 interface RawLog { transactionHash: Hex; logIndex: Hex; blockNumber: Hex; topics: Hex[]; data: Hex }
 
@@ -67,17 +62,27 @@ export class ChainHistory {
   private running = false
   private loopActive = false
   private tipRun: Promise<void> | undefined
+  private tipAt = 0
   private headAt = 0
   private headInflight: Promise<void> | undefined
   private stopTimer: ReturnType<typeof setTimeout> | undefined
-  private nextSlot = 0
-  private pauseUntil = 0
+  private syncRun: Promise<void> | undefined
+  private verifyRun: Promise<void> | undefined
+  private readonly verifying = new Map<string, Promise<void>>()
+  /** Transactions whose verification failed: when each may be tried again, so one bad hash never blocks the rest. */
+  private readonly verifyRetry = new Map<string, { failures: number; at: number }>()
+  private rpcNote: string | null = null
+  /** The relay (see edge.ts) is used only by the real app; tests that inject a client read that client directly. */
+  private readonly useEdge: boolean
+  private edgeOffUntil = 0
+  private readonly laneNotes: Record<'logs' | 'read', string | null> = { logs: null, read: null }
   private saveTimer: ReturnType<typeof setTimeout> | undefined
   private snapshotCache: { version: number; value: Snapshot } | undefined
 
   constructor(address: string, client?: PublicClient) {
     this.address = address.toLowerCase()
     this.client = client ?? sharedClient()
+    this.useEdge = client === undefined
     this.load()
   }
 
@@ -123,32 +128,74 @@ export class ChainHistory {
   get started() { return this.newest !== null }
   get lastError() { return this.error }
 
-  // ---- RPC with pacing, shared rate-limit pause and retries --------------------------------------
-  private async call<T>(fn: () => Promise<T>): Promise<T> {
-    let last: unknown
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const now = Date.now()
-      const slot = Math.max(now, this.nextSlot, this.pauseUntil)
-      this.nextSlot = slot + MIN_INTERVAL_MS
-      if (slot > now) await sleep(slot - now)
-      try {
-        return await fn()
-      } catch (e) {
-        last = e
-        const kind = kindOf(e)
-        if (kind === 'range') throw e
-        this.pauseUntil = Math.max(this.pauseUntil, Date.now() + Math.min(10_000, 1_500 * 2 ** attempt))
-      }
+  // ---- RPC: paced, retried with backoff and shared across every screen (see src/lib/arcRpc.ts) --------
+  /** Shows what the RPC is doing right now (a rate limit, no answer) and clears it once that lane succeeds again. */
+  private setNote(lane: 'logs' | 'read', note: string | null) {
+    if (this.laneNotes[lane] === note) return
+    this.laneNotes[lane] = note
+    const current = this.laneNotes.logs ?? this.laneNotes.read
+    if (current !== null) {
+      this.error = current
+      this.rpcNote = current
+    } else if (this.rpcNote !== null && this.error === this.rpcNote) {
+      this.error = null
+      this.rpcNote = null
     }
-    throw last
+    this.bump()
   }
 
+  private call<T>(fn: () => Promise<T>): Promise<T> {
+    return arcReadLane.run(fn, { onNote: (n) => this.setNote('read', n) })
+  }
+
+  /** eth_getLogs for one range. A range the node refuses is split in halves, and the engine remembers the smaller size. */
   private async logs(topics: (Hex | null)[], from: number, to: number): Promise<RawLog[]> {
-    return this.call(() => this.client.request({ method: 'eth_getLogs', params: [{ address: ARC_USDC, fromBlock: toHex(from), toBlock: toHex(to), topics }] }))
+    try {
+      return await arcLogsLane.run(() => this.client.request({ method: 'eth_getLogs', params: [{ address: ARC_USDC, fromBlock: toHex(from), toBlock: toHex(to), topics }] }), { onNote: (n) => this.setNote('logs', n) })
+    } catch (error) {
+      const size = to - from + 1
+      if (classifyRpcFailure(error) !== 'range' || size <= MIN_CHUNK) throw error
+      const half = Math.ceil(size / 2)
+      this.range = Math.max(MIN_CHUNK, Math.min(this.range, half))
+      const first = await this.logs(topics, from, from + half - 1)
+      return [...first, ...(await this.logs(topics, from + half, to))]
+    }
   }
 
   /** Reads one block range for this wallet (sent + received) and the timestamps of the blocks involved. */
+  /**
+   * Reads a finished block range from the shared relay instead of the RPC. Returns undefined (and the caller reads the
+   * RPC) when the range reaches the chain tip, or the relay is missing or busy.
+   */
+  private async readViaEdge(from: number, to: number): Promise<{ rows: RawTransfer[]; times: Map<number, number> } | undefined> {
+    if (!this.useEdge || Date.now() < this.edgeOffUntil) return undefined
+    const first = Math.floor(from / EDGE_CHUNK)
+    const last = Math.floor(to / EDGE_CHUNK)
+    if ((last + 1) * EDGE_CHUNK - 1 > this.head) return undefined
+    const results = await Promise.all(Array.from({ length: last - first + 1 }, (_, i) => fetchEdgeChunk(this.address, first + i)))
+    const rows: RawTransfer[] = []
+    const times = new Map<number, number>()
+    for (const result of results) {
+      if (!result.ok) {
+        // No relay on this host: stop asking. Busy: leave it alone for a minute.
+        if (result.reason === 'unavailable') this.edgeOffUntil = Infinity
+        else if (result.reason === 'busy') this.edgeOffUntil = Date.now() + 60_000
+        return undefined
+      }
+      for (const row of result.chunk.rows) {
+        if (row.block >= from && row.block <= to) {
+          rows.push(row)
+          const time = result.chunk.times.get(row.block)
+          if (time !== undefined) times.set(row.block, time)
+        }
+      }
+    }
+    return { rows, times }
+  }
+
   private async readRange(from: number, to: number): Promise<{ rows: RawTransfer[]; times: Map<number, number> }> {
+    const shared = await this.readViaEdge(from, to)
+    if (shared) return shared
     const w = pad(this.address)
     const [sent, received] = [await this.logs([TRANSFER_TOPIC, w], from, to), await this.logs([TRANSFER_TOPIC, null, w], from, to)]
     const rows = new Map<string, RawTransfer>()
@@ -177,7 +224,11 @@ export class ChainHistory {
   // ---- scanning ----------------------------------------------------------------------------------
   /** One tip scan at a time: callers that arrive while it runs share it. */
   private scanTip(): Promise<void> {
-    this.tipRun ??= this.scanTipNow().finally(() => { this.tipRun = undefined })
+    if (this.tipRun) return this.tipRun
+    // A short gap is not worth two log calls yet; a long one (or a first scan) always is.
+    const gap = this.newest === null ? Infinity : this.head - this.newest
+    if (Date.now() - this.tipAt < TIP_SCAN_MIN_MS && gap < this.range) return Promise.resolve()
+    this.tipRun = this.scanTipNow().finally(() => { this.tipRun = undefined })
     return this.tipRun
   }
 
@@ -190,6 +241,7 @@ export class ChainHistory {
       this.newest = to
       this.progress()
     }
+    this.tipAt = Date.now()
   }
 
   private async backfillBatch() {
@@ -210,10 +262,7 @@ export class ChainHistory {
       this.commit(r.value.rows, r.value.times)
       this.oldest = chunks[i][0]
     }
-    if (failure) {
-      if (kindOf(failure) === 'range') this.range = Math.max(MIN_CHUNK, Math.floor(this.range / 2))
-      throw asError(failure)
-    }
+    if (failure) throw asError(failure)
     this.progress()
   }
 
@@ -243,8 +292,17 @@ export class ChainHistory {
   }
 
   /** Reads a transaction and its receipt from Arc. Only a successful receipt can produce a swap or bridge record. */
-  async verifyTx(hash: string): Promise<void> {
-    const h = hash.toLowerCase() as Hex
+  verifyTx(hash: string): Promise<void> {
+    const h = hash.toLowerCase()
+    let run = this.verifying.get(h)
+    if (!run) {
+      run = this.verifyTxNow(h as Hex).finally(() => this.verifying.delete(h))
+      this.verifying.set(h, run)
+    }
+    return run
+  }
+
+  private async verifyTxNow(h: Hex): Promise<void> {
     const [tx, receipt] = await Promise.all([this.call(() => this.client.getTransaction({ hash: h })), this.call(() => this.client.getTransactionReceipt({ hash: h }))])
     const ok = receipt.status === 'success'
     const meta: TxMeta = { from: tx.from.toLowerCase(), to: tx.to ? tx.to.toLowerCase() : null, ok }
@@ -277,15 +335,38 @@ export class ChainHistory {
     }
   }
 
-  private async verifyPending(max: number) {
-    const batch = [...this.pending].slice(0, max)
+  /**
+   * Verifies up to `max` waiting transactions. One run at a time (callers share it), a transaction that fails waits
+   * out its own backoff instead of being retried at once, and failures are reported without stopping the scan.
+   */
+  private verifyPending(max: number): Promise<void> {
+    this.verifyRun ??= this.verifyPendingNow(max).finally(() => { this.verifyRun = undefined })
+    return this.verifyRun
+  }
+
+  private async verifyPendingNow(max: number) {
+    const at = Date.now()
+    const batch = [...this.pending].filter((h) => (this.verifyRetry.get(h)?.at ?? 0) <= at).slice(0, max)
     let failed: unknown
     for (let i = 0; i < batch.length; i += 4) {
-      const settled = await Promise.allSettled(batch.slice(i, i + 4).map((h) => this.verifyTx(h)))
-      for (const s of settled) if (s.status === 'rejected') failed = s.reason
+      const group = batch.slice(i, i + 4)
+      const settled = await Promise.allSettled(group.map((h) => this.verifyTx(h)))
+      settled.forEach((result, index) => {
+        const h = group[index]
+        if (result.status === 'fulfilled') {
+          this.verifyRetry.delete(h)
+          return
+        }
+        failed = result.reason
+        const failures = (this.verifyRetry.get(h)?.failures ?? 0) + 1
+        this.verifyRetry.set(h, { failures, at: Date.now() + Math.min(5 * 60_000, 2_000 * 2 ** failures) })
+      })
     }
     if (batch.length) this.bump()
-    if (failed) throw asError(failed)
+    if (failed) {
+      this.error = `Some transactions could not be checked yet (${classifyRpcFailure(failed) === 'rate' ? 'the Arc RPC is rate limiting requests' : 'the Arc RPC did not answer'}). They are retried automatically.`
+      this.bump()
+    }
   }
 
   /** Called after the app itself confirmed a transaction (for example a swap): read it now instead of waiting for the scan. */
@@ -312,11 +393,15 @@ export class ChainHistory {
   }
 
   /** Brings the newest blocks in right away (used when a screen asks for fresh data). */
-  async syncTip(): Promise<void> {
+  syncTip(): Promise<void> {
     this.start()
-    await this.refreshHead()
-    await this.scanTip()
-    await this.verifyPending(8).catch(() => undefined)
+    // Several screens ask at once (history, activity, analytics): they share one run.
+    this.syncRun ??= (async () => {
+      await this.refreshHead()
+      await this.scanTip()
+      await this.verifyPending(8)
+    })().finally(() => { this.syncRun = undefined })
+    return this.syncRun
   }
 
   // ---- main loop ---------------------------------------------------------------------------------
@@ -347,10 +432,13 @@ export class ChainHistory {
         failures = 0
       } catch (e) {
         failures += 1
-        const kind = kindOf(e)
-        this.error = kind === 'rate' ? 'The public Arc RPC is rate limiting requests; waiting before retrying.' : kind === 'range' ? 'The RPC rejected the block range; retrying with a smaller range.' : `The Arc RPC did not answer (${String((e as Error)?.message ?? e).split('\n')[0].slice(0, 120)}); retrying.`
+        const kind = classifyRpcFailure(e)
+        this.error = kind === 'rate' ? 'The Arc RPC is rate limiting requests; waiting before retrying.' : kind === 'range' ? 'The RPC rejected the block range; retrying with a smaller range.' : `The Arc RPC did not answer (${String((e as Error)?.message ?? e).split('\n')[0].slice(0, 120)}); retrying.`
+        this.rpcNote = this.error
         this.bump()
-        await sleep(Math.min(15_000, 1_000 * 2 ** Math.min(failures, 4)))
+        // Exponential backoff with jitter, so many tabs and screens do not retry in lockstep.
+        const step = Math.min(15_000, 1_000 * 2 ** Math.min(failures, 4))
+        await sleep(step / 2 + Math.random() * (step / 2))
       }
     }
   }
@@ -377,6 +465,7 @@ export class ChainHistory {
 
   private scheduleSave() {
     if (this.saveTimer) return
+    // Serialising a large history blocks the main thread for a moment, so it is saved in bursts, not on every step.
     this.saveTimer = setTimeout(() => {
       this.saveTimer = undefined
       const cache: Cache = {
@@ -388,16 +477,16 @@ export class ChainHistory {
       } catch {
         /* storage full or blocked: the next visit simply rescans from the chain */
       }
-    }, 2_000)
+    }, 6_000)
   }
 }
 
 let shared: PublicClient | undefined
-const sharedClient = () => (shared ??= createPublicClient({ chain: arcMainnet, transport: http(ARC_RPC_URL, { retryCount: 1, timeout: 20_000 }) }) as PublicClient)
+const sharedClient = () => (shared ??= createPublicClient({ chain: arcMainnet, transport: http(ARC_RPC_URL, { retryCount: 0, timeout: 15_000 }) }) as PublicClient)
 
 /** Latest Arc block, read directly from the RPC. */
 export async function arcHeadBlock(): Promise<number> {
-  return Number(await sharedClient().getBlockNumber())
+  return Number(await arcReadLane.shared('head', () => arcReadLane.run(() => sharedClient().getBlockNumber())))
 }
 
 const engines = new Map<string, ChainHistory>()

@@ -10,7 +10,9 @@ async function ready(address: string): Promise<Snapshot> {
   const engine = chainHistoryFor(address)
   engine.touch()
   engine.start()
-  await waitAtMost(engine.syncTip(), 3_000)
+  // A wallet the reader already knows answers at once with what it has (the sync carries on in the background and the
+  // next poll shows the result). Only a first visit waits, up to 8 seconds, for the first block.
+  await waitAtMost(engine.syncTip(), engine.started ? 800 : 8_000)
   if (!engine.started) throw new ApiError(0, 'rpc_unavailable', `Could not read Arc right now: ${engine.lastError ?? 'the RPC did not answer'}. Press retry.`)
   return engine.snapshot()
 }

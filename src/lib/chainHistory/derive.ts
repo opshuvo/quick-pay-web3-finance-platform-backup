@@ -80,13 +80,29 @@ const SWAP_SET = list(SWAP_COUNTERPARTIES)
 const BRIDGE_SET = list(BRIDGE_COUNTERPARTIES)
 const HEX_PREFIX = /^0x[0-9a-f]{1,64}$/
 
+/**
+ * A snapshot never changes once built (the reader makes a new one when anything changes), so everything derived from it
+ * is computed once and shared by every screen that asks: History, Overview, notifications, Analytics and Activity all
+ * read the same snapshot on every poll.
+ */
+const hashSets = new WeakMap<Snapshot, { swaps: Set<string>; bridges: Set<string> }>()
+function verifiedHashes(s: Snapshot) {
+  let sets = hashSets.get(s)
+  if (!sets) {
+    sets = { swaps: new Set(s.swaps.map((x) => x.hash)), bridges: new Set(s.bridges.map((x) => x.hash)) }
+    hashSets.set(s, sets)
+  }
+  return sets
+}
+
 /** Same rules as the server: a verified transaction target wins, then a known protocol counterparty. */
 export function classify(s: Snapshot, t: RawTransfer): HistoryRow['type'] {
   const w = s.address
   const meta = s.meta.get(t.txHash)
   const verified = meta?.ok && meta.from === w ? meta.to : null
-  if (s.swaps.some((x) => x.hash === t.txHash)) return 'swap'
-  if (s.bridges.some((x) => x.hash === t.txHash)) return 'bridge'
+  const { swaps, bridges } = verifiedHashes(s)
+  if (swaps.has(t.txHash)) return 'swap'
+  if (bridges.has(t.txHash)) return 'bridge'
   if (verified && s.registry && verified === s.registry) return 'request_payment'
   if (verified && SWAP_SET.has(verified)) return 'swap'
   if (verified && BRIDGE_SET.has(verified)) return 'bridge'
@@ -121,24 +137,36 @@ function toRow(s: Snapshot, t: RawTransfer): HistoryRow {
 /** Only transfers whose block time is known are listed: a row never appears with an invented date. */
 const known = (s: Snapshot) => s.transfers.filter((t) => s.times.has(t.block) && (t.from === s.address || t.to === s.address))
 
+const rowCache = new WeakMap<Snapshot, HistoryRow[]>()
+/** Every listed row, newest first. Built once per snapshot. */
+function allRows(s: Snapshot): HistoryRow[] {
+  let rows = rowCache.get(s)
+  if (!rows) {
+    rows = known(s)
+      .sort((a, b) => b.block - a.block || b.logIndex - a.logIndex)
+      .map((t) => toRow(s, t))
+    rowCache.set(s, rows)
+  }
+  return rows
+}
+
 export function filterRows(s: Snapshot, f: Filters): HistoryRow[] {
   const q = f.q.trim().toLowerCase()
   if (q && !HEX_PREFIX.test(q)) throw new HistoryInputError('Search by transaction hash or address (0x…).')
   const since = f.since ? new Date(f.since).getTime() : undefined
   const until = f.until ? new Date(f.until).getTime() : undefined
-  return known(s)
-    .sort((a, b) => b.block - a.block || b.logIndex - a.logIndex)
-    .map((t) => toRow(s, t))
-    .filter((r) => {
-      if (f.direction === 'in' && !(r.to === s.address && r.from !== s.address)) return false
-      if (f.direction === 'out' && !(r.from === s.address && r.to !== s.address)) return false
-      if (f.type !== 'all' && r.type !== f.type) return false
+  return allRows(s).filter((r) => {
+    if (f.direction === 'in' && !(r.to === s.address && r.from !== s.address)) return false
+    if (f.direction === 'out' && !(r.from === s.address && r.to !== s.address)) return false
+    if (f.type !== 'all' && r.type !== f.type) return false
+    if (since !== undefined || until !== undefined) {
       const at = new Date(r.timestamp).getTime()
       if (since !== undefined && at < since) return false
       if (until !== undefined && at > until) return false
-      if (q && !(r.txHash.startsWith(q) || r.from.startsWith(q) || r.to.startsWith(q))) return false
-      return true
-    })
+    }
+    if (q && !(r.txHash.startsWith(q) || r.from.startsWith(q) || r.to.startsWith(q))) return false
+    return true
+  })
 }
 
 export function buildCoverage(s: Snapshot, now: number): Coverage {
@@ -168,7 +196,17 @@ export function buildHistory(s: Snapshot, f: Filters, now: number) {
   return { rows: rows.slice(start, start + f.pageSize), total: rows.length, page: f.page, pageSize: f.pageSize, coverage: buildCoverage(s, now) }
 }
 
+const analyticsCache = new WeakMap<Snapshot, Analytics>()
+
 export function buildAnalytics(s: Snapshot, now: number): Analytics & { coverage: Coverage } {
+  const cached = analyticsCache.get(s)
+  if (cached) return { ...cached, coverage: buildCoverage(s, now) }
+  const { coverage: _unused, ...figures } = computeAnalytics(s, now)
+  analyticsCache.set(s, figures)
+  return { ...figures, coverage: buildCoverage(s, now) }
+}
+
+function computeAnalytics(s: Snapshot, now: number): Analytics & { coverage: Coverage } {
   const w = s.address
   const rows = filterRows(s, { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 1 })
   let sent = 0n
@@ -211,7 +249,17 @@ export function buildAnalytics(s: Snapshot, now: number): Analytics & { coverage
   }
 }
 
+const activityCache = new WeakMap<Snapshot, Map<number, ActivityDto[]>>()
+
 export function buildActivity(s: Snapshot, chainId: number): ActivityDto[] {
+  let byChain = activityCache.get(s)
+  if (!byChain) activityCache.set(s, (byChain = new Map<number, ActivityDto[]>()))
+  let list = byChain.get(chainId)
+  if (!list) byChain.set(chainId, (list = computeActivity(s, chainId)))
+  return list
+}
+
+function computeActivity(s: Snapshot, chainId: number): ActivityDto[] {
   const at = (block: number) => iso(s, block)
   const swaps = s.swaps.filter((x) => s.times.has(x.block)).map((x): ActivityDto => ({
     id: x.block * 1000 + (parseInt(x.hash.slice(-3), 16) % 1000),

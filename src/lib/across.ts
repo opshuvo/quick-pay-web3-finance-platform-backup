@@ -94,3 +94,25 @@ export const acrossApi = {
     ),
   status: (hash: string) => api<DepositStatus>(`/across/deposit/status?depositTxnRef=${hash}`),
 }
+
+const CHAINS_KEY = 'quickpay.across.chains.v1'
+const CHAINS_MAX_AGE_MS = 7 * 24 * 60 * 60_000
+
+/** The network list Across returned last time, so the Bridge form can show its choices at once while the live list loads. */
+export function cachedChains(): { data: AcrossChain[]; at: number } | undefined {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHAINS_KEY) ?? 'null') as { data?: AcrossChain[]; at?: number } | null
+    if (!raw || !Array.isArray(raw.data) || typeof raw.at !== 'number' || Date.now() - raw.at > CHAINS_MAX_AGE_MS) return undefined
+    return { data: raw.data, at: raw.at }
+  } catch {
+    return undefined
+  }
+}
+
+export function rememberChains(data: AcrossChain[]): void {
+  try {
+    localStorage.setItem(CHAINS_KEY, JSON.stringify({ data, at: Date.now() }))
+  } catch {
+    /* storage unavailable: the list simply loads live every time */
+  }
+}

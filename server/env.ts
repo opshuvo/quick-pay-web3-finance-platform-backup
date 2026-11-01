@@ -42,8 +42,8 @@ export const config = {
     /** eth_getLogs block span. Starts here and adapts to what the RPC accepts. */
     initialRange: int(process.env.INDEXER_RANGE, 2000),
     ceilingRange: int(process.env.INDEXER_RANGE_CEILING, 5000),
-    /** Minimum gap between RPC calls, to stay under provider rate limits. */
-    minIntervalMs: int(process.env.INDEXER_MIN_INTERVAL_MS, 150),
+    /** Minimum gap between RPC calls. The public Arc RPC allows roughly 4 eth_getLogs per second, so the default stays under that. */
+    minIntervalMs: int(process.env.INDEXER_MIN_INTERVAL_MS, 300),
     followLagBlocks: 40,
     /** Read requests sync a wallet's chain tip at most this often (and share one run at a time). */
     tipFreshnessMs: 15_000,

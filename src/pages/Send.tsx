@@ -7,6 +7,7 @@ import { PaymentConfirm } from '@/components/PaymentConfirm'
 import { Field, Notice, PageHeader } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
+import { useRouter } from '@/hooks/useRouter'
 import { PaymentParseError, validateAmount, validateRecipient } from '@/lib/payments'
 import { formatUsdc } from '@/onchain-money'
 
@@ -20,6 +21,8 @@ function check<T>(fn: () => T): { value?: T; error?: string } {
 
 export default function Send() {
   const wallet = useArcWallet()
+  // Starts the Quick Pay contract check as the screen opens, so the review sheet already has its answer (same cached query).
+  useRouter()
   const [params, setParams] = useSearchParams()
   const [to, setTo] = useState(params.get('to') ?? '')
   const [amount, setAmount] = useState(params.get('amount') ?? '')

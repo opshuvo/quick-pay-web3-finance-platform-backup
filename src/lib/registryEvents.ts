@@ -1,5 +1,6 @@
 import { getAddress, parseEventLogs, type Address, type Hash, type Log, type PublicClient } from 'viem'
 import { quickPayRegistryAbi } from '@/contracts/quickPayRegistryAbi'
+import { arcLogsLane, classifyRpcFailure } from '@/lib/arcRpc'
 
 export interface RegistryPayment {
   id: bigint
@@ -66,7 +67,8 @@ export function confirmPaid(logs: readonly Log[], registry: Address, expected: {
   )
 }
 
-const START_SPAN = 10_000n
+// The official Arc RPC accepts at most 5,001 blocks per eth_getLogs, so a bigger first try is a wasted, counted request.
+const START_SPAN = 5_000n
 const MIN_SPAN = 250n
 
 /**
@@ -83,7 +85,10 @@ export async function scanRange<T>(from: bigint, to: bigint, read: (fromBlock: b
       out.push(...(await read(cursor, end)))
       cursor = end + 1n
     } catch (error) {
-      if (span <= MIN_SPAN) throw error
+      // A rate limit or an unreachable node is retried with backoff by the shared log lane; a smaller range would
+      // not help and only multiplies the requests. Only a refused range is split.
+      const kind = classifyRpcFailure(error)
+      if (kind === 'rate' || kind === 'timeout' || kind === 'network' || span <= MIN_SPAN) throw error
       span = span / 2n
     }
   }
@@ -92,14 +97,14 @@ export async function scanRange<T>(from: bigint, to: bigint, read: (fromBlock: b
 
 export async function fetchPayments(client: PublicClient, registry: Address, who: { payer?: Address; merchant?: Address }, from: bigint, to: bigint): Promise<RegistryPayment[]> {
   const logs = await scanRange(from, to, (fromBlock, toBlock) =>
-    client.getContractEvents({ address: registry, abi: quickPayRegistryAbi, eventName: 'PaymentReceived', args: who, fromBlock, toBlock, strict: true }),
+    arcLogsLane.run(() => client.getContractEvents({ address: registry, abi: quickPayRegistryAbi, eventName: 'PaymentReceived', args: who, fromBlock, toBlock, strict: true })),
   )
   return registryPaymentsFromLogs(logs, registry)
 }
 
 export async function fetchCreated(client: PublicClient, registry: Address, merchant: Address, from: bigint, to: bigint): Promise<RegistryRequestCreated[]> {
   const logs = await scanRange(from, to, (fromBlock, toBlock) =>
-    client.getContractEvents({ address: registry, abi: quickPayRegistryAbi, eventName: 'RequestCreated', args: { merchant }, fromBlock, toBlock, strict: true }),
+    arcLogsLane.run(() => client.getContractEvents({ address: registry, abi: quickPayRegistryAbi, eventName: 'RequestCreated', args: { merchant }, fromBlock, toBlock, strict: true })),
   )
   return registryCreatedFromLogs(logs, registry)
 }

@@ -42,7 +42,6 @@ export default function Swap() {
   const [acceptLoss, setAcceptLoss] = useState(false)
   const [open, setOpen] = useState(false)
   const exec = useSwapExecution()
-  const now = useNow()
 
   const inTok = list.tokens.find((t) => t.address.toLowerCase() === tokenIn.toLowerCase())
   const outTok = list.tokens.find((t) => t.address.toLowerCase() === tokenOut.toLowerCase())
@@ -86,6 +85,8 @@ export default function Swap() {
     enabled: deployOk && wallet.onArc && !sameToken && !overBalance,
   })
   const q = quote.data
+  // Tick once a second only while a quote is on screen (the countdown); an idle form does not re-render.
+  const now = useNow(1000, Boolean(q))
   const unavailable = quote.error instanceof QuoteUnavailableError
   const quoteApiError = quote.error instanceof ApiError || quote.error instanceof QuoteTimeoutError ? quote.error.message : null
 

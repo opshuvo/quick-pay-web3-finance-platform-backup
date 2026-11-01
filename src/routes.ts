@@ -40,8 +40,10 @@ const frugal = () => {
   return Boolean(connection?.saveData) || /(^|-)2g$/.test(connection?.effectiveType ?? '')
 }
 
-/** Most used first. Every screen is small, so after the first paint they are all fetched quietly in the background. */
-const PREFETCH_ORDER = ['/send', '/swap', '/history', '/receive', '/bridge', '/scan', '/payments', '/requests', '/sent', '/received', '/analytics', '/split', '/settings', '/contracts', '/profile']
+/** The screens in the bottom bar. They are fetched together, right after the first paint, so none of them ever waits on a download. */
+const PRIMARY_ROUTES = ['/send', '/swap', '/bridge', '/receive', '/history']
+/** The rest, most used first. Every screen is small, so they are fetched quietly one by one while the browser is idle. */
+const PREFETCH_ORDER = ['/scan', '/payments', '/requests', '/sent', '/received', '/analytics', '/split', '/settings', '/contracts', '/profile']
 
 let prefetchAll: Promise<void> | undefined
 /**
@@ -53,7 +55,8 @@ export function prefetchAllRoutes(): Promise<void> {
     if (frugal()) return
     const idle = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
     const pause = () => new Promise<void>((resolve) => (idle ? idle(() => resolve(), { timeout: 800 }) : setTimeout(resolve, 100)))
-    await new Promise<void>((resolve) => setTimeout(resolve, 600))
+    await new Promise<void>((resolve) => setTimeout(resolve, 300))
+    await Promise.all(PRIMARY_ROUTES.map((path) => { prefetchRoute(path); return ROUTE_LOADERS[path]().catch(() => undefined) }))
     for (const path of PREFETCH_ORDER) {
       await pause()
       prefetchRoute(path)

@@ -22,7 +22,7 @@ function readSeen(address: string): number {
 export function useNotifications() {
   const { address } = useArcWallet()
   const prefs = usePrefs()
-  const query = useHistory(address, { ...DEFAULT_FILTERS, direction: 'in', pageSize: 8 })
+  const query = useHistory(address, { ...DEFAULT_FILTERS, direction: 'in', pageSize: 8 }, { background: true })
   const items: HistoryRow[] = query.data?.rows ?? []
   const [seenOverride, setSeenOverride] = useState<{ address: string; at: number } | null>(null)
   const announced = useRef<Set<string> | null>(null)

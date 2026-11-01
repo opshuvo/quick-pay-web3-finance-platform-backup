@@ -12,6 +12,7 @@ import { AddressChip, EmptyState, Skeleton, StatusBadge } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { useHealth } from '@/hooks/useHealth'
+import { isRpcUnavailable } from '@/lib/api'
 import { DEFAULT_FILTERS, useAnalytics, useHistory, type HistoryRow } from '@/hooks/useHistory'
 import { loadSession, useSession } from '@/hooks/useSession'
 import { displayUsdc, formatNumber } from '@/lib/format'
@@ -122,7 +123,7 @@ export default function Overview() {
           ) : history.isLoading ? (
             <div className="space-y-3 py-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
           ) : history.isError ? (
-            <EmptyState title="History unavailable" body="The history service is not reachable right now. Your balance above is read directly from Arc." />
+            <EmptyState title="History unavailable" body={isRpcUnavailable(history.error) ? 'Arc\'s RPC is not answering right now. Quick Pay is retrying automatically. Your balance above is read directly from Arc.' : 'The history service is not reachable right now. Your balance above is read directly from Arc.'} />
           ) : history.data && history.data.rows.length > 0 ? (
             <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>{history.data.rows.map((row) => <TxRow key={`${row.txHash}-${row.logIndex}`} row={row} onSelect={setSelected} />)}</ul>
           ) : (

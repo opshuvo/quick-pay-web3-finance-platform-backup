@@ -49,6 +49,18 @@ Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, 
 - Never call `waitForTransactionReceipt` directly for a money flow. Use `confirmTx` (`src/lib/confirmTx.ts`): it rejects cancelled or replaced transactions, follows speed-ups and keeps the hash when the outcome is unknown. Audit notes are in `docs/transaction-audit.md`.
 - A broadcast transaction whose outcome is unknown must never offer a blind retry (it could pay, swap or bridge twice).
 
+## Arc RPC rules (history)
+
+- Browser log reads go through `arcLogsLane` / `arcReadLane` in `src/lib/arcRpc.ts`; never call `eth_getLogs` against the Arc RPC outside them. The node limits log ranges and request rate (measurements and root cause in `docs/rpc-reliability.md`).
+
+## Contract wiring in this sandbox
+
+`.env` (gitignored) sets `VITE_QUICKPAY_ROUTER_ADDRESS` and `VITE_QUICKPAY_REGISTRY_ADDRESS` to the owner's deployments listed above, so the production build routes payments through the router. Vite bakes them in at build time: a build made without `.env` sends plain USDC transfers. Restart the dev server after changing `.env`.
+
+## History relay (Vercel)
+
+- `public/api/arc-logs.js` is a Vercel serverless function (copied into `dist/api/` by the build). It returns one wallet's USDC transfer logs for a fixed 10,000-block window, cached for a year once the window is finished. `src/lib/chainHistory/edge.ts` reads it first and falls back to the RPC when it is missing (local preview, other hosts) or busy. Do not add a `functions` block to `public/vercel.json`: it stopped the function from being detected on the last deploy. Details in `docs/rpc-reliability.md`.
+
 ## Performance notes
 
 - The wallet picker (ConnectKit) is NOT in the first download: `src/components/WalletButton.tsx` is a plain button, `WalletModalMount` loads `WalletModalHost` on idle/first touch/tap. Do not import `connectkit` anywhere else.

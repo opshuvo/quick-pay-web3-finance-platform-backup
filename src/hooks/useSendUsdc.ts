@@ -23,7 +23,7 @@ export function useSendUsdc() {
   const publicClient = usePublicClient({ chainId: ARC_CHAIN_ID })
   const { writeContractAsync } = useWriteContract()
   const queryClient = useQueryClient()
-  const { address: router } = useRouter()
+  const { address: router, configured: routerConfigured, isLoading: routerLoading, problem: routerProblem } = useRouter()
   const [state, setState] = useState<SendState>({ stage: 'idle' })
   const flight = useRef(new SingleFlight())
 
@@ -38,6 +38,8 @@ export function useSendUsdc() {
         runUsdcSend({
           onState: setState,
           submit: async () => {
+            // The owner's contract is configured but could not be verified: never fall back to a plain transfer silently.
+            if (routerConfigured && !router && (routerLoading || routerProblem === 'unreachable')) throw new TxFlowError('The Quick Pay contract could not be verified yet. Try again in a moment. Nothing was sent.')
             // Last line of defence: whatever called this, never sign an empty amount or a lost-funds recipient.
             if (amount <= 0n) throw new TxFlowError('Amount must be greater than zero.')
             try {
@@ -77,7 +79,7 @@ export function useSendUsdc() {
       }
       return hash ?? null
     },
-    [address, publicClient, queryClient, router, writeContractAsync],
+    [address, publicClient, queryClient, router, routerConfigured, routerLoading, routerProblem, writeContractAsync],
   )
 
   return { state, send, reset, busy: state.stage === 'wallet' || state.stage === 'confirming' }

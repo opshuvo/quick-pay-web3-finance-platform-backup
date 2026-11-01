@@ -15,7 +15,7 @@ import { useDebounced } from '@/hooks/useDebounced'
 import { useGasCheck } from '@/hooks/useGasCheck'
 import { useNow } from '@/hooks/useNow'
 import { BRIDGE_ORIGIN_CHAIN_IDS } from '@/config'
-import { ACROSS_URL, acrossApi, type AcrossQuote, type FeeLine } from '@/lib/across'
+import { ACROSS_URL, acrossApi, cachedChains, rememberChains, type AcrossQuote, type FeeLine } from '@/lib/across'
 import { ApiError } from '@/lib/api'
 import { ARC_CHAIN_ID } from '@/lib/arc'
 import { assertBridgeQuote, BridgeGuardError, describeFillTime, isQuoteStale } from '@/lib/bridgeGuard'
@@ -40,7 +40,6 @@ export default function Bridge() {
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const { sendTransactionAsync } = useSendTransaction()
-  const now = useNow()
   const queryClient = useQueryClient()
 
   const [origin, setOrigin] = useState<number>(ARC_CHAIN_ID)
@@ -54,7 +53,19 @@ export default function Bridge() {
   const lock = useRef(false)
 
   const originClient = usePublicClient({ chainId: origin })
-  const chains = useQuery({ queryKey: ['across-chains'], staleTime: 5 * 60_000, retry: 1, queryFn: acrossApi.chains })
+  // The last list Across returned is shown at once and refreshed behind it, so the form never waits on a network call to appear.
+  const chains = useQuery({
+    queryKey: ['across-chains'],
+    staleTime: 5 * 60_000,
+    retry: 1,
+    initialData: () => cachedChains()?.data,
+    initialDataUpdatedAt: () => cachedChains()?.at,
+    queryFn: async () => {
+      const list = await acrossApi.chains()
+      rememberChains(list)
+      return list
+    },
+  })
   const name = (id: number) => chainLabel(chains.data, id)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- storeVersion forces a re-read after saveBridge
@@ -102,6 +113,8 @@ export default function Bridge() {
       acrossApi.quote({ amount: BigInt(debounced as string), inputToken: (route as NonNullable<typeof route>).originToken, outputToken: (route as NonNullable<typeof route>).destinationToken, origin, destination, depositor: wallet.address as Address, recipient: recipientAddress as Address }),
   })
   const q = quote.data
+  // Tick once a second only while a quote is on screen (the countdown); an idle form does not re-render.
+  const now = useNow(1000, Boolean(q))
   const needsApproval = q ? BigInt(q.checks.allowance.actual) < BigInt(q.checks.allowance.expected) : false
   const quoteError = quote.error instanceof ApiError ? quote.error.message : quote.isError ? 'Could not get a quote from Across.' : null
   const gas = useGasCheck(origin, wallet.address, q, needsApproval, amountRaw)

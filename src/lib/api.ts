@@ -77,3 +77,6 @@ export const isServiceDown = (error: unknown) =>
 
 /** True when no Quick Pay backend answered at all (as opposed to it answering with an error). */
 export const isBackendMissing = (error: unknown) => error instanceof ApiError && error.code === 'backend_unavailable'
+
+/** The browser could not read Arc through its RPC (rate limit, no answer). Temporary, and retried automatically. */
+export const isRpcUnavailable = (error: unknown) => error instanceof ApiError && error.code === 'rpc_unavailable'

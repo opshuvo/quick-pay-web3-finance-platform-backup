@@ -76,7 +76,7 @@ Serve `dist/` with a host that rewrites unknown paths to `index.html`, and run t
 
 ## Hosting the backend (permanent history)
 
-Without a backend, History, Activity and the totals are read straight from Arc by the browser: newest first, with a local cache on that device. The public Arc RPC rate-limits, so scanning back through the whole chain from a browser takes hours, and each new device repeats it. A backend with a persistent PostgreSQL database stores the history once for every device and is much faster. A `Dockerfile` for the backend is included. Setup steps, environment variables and checks are in `docs/history-deployment.md`.
+Without a backend, History, Activity and the totals are read straight from Arc by the browser: newest first, with a local cache on that device. The public Arc RPC rate-limits, so scanning back through the whole chain from a browser takes hours, and each new device repeats it. A backend with a persistent PostgreSQL database stores the history once for every device and is much faster. On Vercel, the build also deploys a small history relay (`api/arc-logs`) that serves a wallet's older USDC transfers from a shared cache, which makes a new device's first History load much faster without a backend. A `Dockerfile` for the backend is included. Setup steps, environment variables and checks are in `docs/history-deployment.md`.
 
 ## Contract deployment
 

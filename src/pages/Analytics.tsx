@@ -3,7 +3,7 @@ import { AddressChip, EmptyState, ErrorState, PageHeader, Skeleton } from '@/com
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { useAnalytics } from '@/hooks/useHistory'
-import { isServiceDown } from '@/lib/api'
+import { isRpcUnavailable, isServiceDown } from '@/lib/api'
 import { displayUsdc, formatNumber } from '@/lib/format'
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -33,7 +33,7 @@ export default function Analytics() {
   }
   if (query.isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}</div><Skeleton className="h-64" /></div>
   if (query.isError || !query.data) {
-    return <div className="card"><ErrorState title="Analytics unavailable" body={isServiceDown(query.error) ? 'The history service is not reachable, so statistics cannot be calculated right now.' : 'Could not load analytics.'} onRetry={() => void query.refetch()} /></div>
+    return <div className="card"><ErrorState title="Analytics unavailable" body={isRpcUnavailable(query.error) ? 'Arc\'s RPC is not answering right now, so statistics cannot be calculated yet. Quick Pay is retrying automatically.' : isServiceDown(query.error) ? 'The history service is not reachable, so statistics cannot be calculated right now.' : 'Could not load analytics.'} onRetry={() => void query.refetch()} /></div>
   }
 
   const a = query.data

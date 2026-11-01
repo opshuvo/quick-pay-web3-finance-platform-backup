@@ -103,7 +103,7 @@ export function AppShell() {
 
       <div className="min-w-0">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 72%, transparent)' }}>
+        <header className="app-header sticky top-0 z-30 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
             <Link to="/" aria-label="Quick Pay home" className="lg:hidden"><Logo compact /></Link>
             <GlobalSearch className="hidden max-w-md flex-1 lg:block" />
@@ -142,7 +142,7 @@ export function AppShell() {
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 items-end border-t px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 90%, transparent)' }}>
+      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 items-end border-t px-1 pb-[env(safe-area-inset-bottom)] lg:hidden" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 96%, transparent)' }}>
         {PRIMARY_NAV.map(({ to, label, short, icon: Icon }) => {
           const center = to === '/scan'
           return (

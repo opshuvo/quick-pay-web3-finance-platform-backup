@@ -65,3 +65,26 @@ Total JavaScript in the build is about the same (3,939.6 KB before, 3,909.6 KB a
 ## Needs a real device
 
 First paint and interactive time, wallet connect on a phone, QR camera scanning on Android after the decoder became lazy, and scrolling smoothness. Run the live site on a phone and check Connect, Scan and Swap.
+
+## Round 2: mobile smoothness (main thread and paint)
+
+No real phone or browser was available, so the numbers below are measured CPU time of the real code on large synthetic histories (a desktop CPU; a phone is several times slower), and counted re-renders. Download size is unchanged apart from about 5 KB for the Arc RPC lanes added earlier (initial JavaScript 698.5 KB raw, 219.9 KB gzip).
+
+| Bottleneck | Before | After |
+| --- | --- | --- |
+| Deriving History, Overview, notification bell, Analytics and Activity from one snapshot, 10,000 transfers (one poll tick) | 180 ms | 17.8 ms the first time a snapshot changes, 0.7 ms on every poll after that |
+| Same, 3,000 transfers | 20.9 ms | 6.9 ms, then 0.3 ms |
+| Swap and Bridge pages | re-rendered the whole page every second, even with no quote | re-render once a second only while a quote countdown is on screen |
+| Notification bell (on every screen) | read history every 4 to 6 seconds while indexing | every 20 seconds |
+| History, Analytics, Activity answers for a wallet already known | waited up to 3 s for the chain sync | answer at once (at most 0.8 s), the sync continues in the background (idle polls measured at 0 to 1 ms) |
+| Bridge form | waited for the Across network list before showing its choices | shows the last list at once and refreshes it behind |
+| Receive QR | redrawn (464 px canvas) on every key press while typing an amount | redrawn 250 ms after typing stops |
+| Send review sheet | Quick Pay contract check started only when the sheet opened | starts when Send opens |
+| Bottom-bar screens | fetched one after another while idle (Bridge was fifth) | all five fetched together right after first paint |
+| Cards, header, bottom bar, sheet backdrop on phones | live backdrop blur on every card and bar (repainted each scroll frame) | no blur below 1024 px (slightly more opaque bars); desktop unchanged |
+| Profile avatar | parsed storage on every render | parsed once |
+| History cache writes | every 2 s while scanning | every 6 s |
+
+Not changed: transaction logic, confirmation sheets, polling of balances and quotes, the wallet picker loading, contract addresses.
+
+Also in round 2: built files (`/assets/*`, named by content hash) are now served with `Cache-Control: public, max-age=31536000, immutable` (`public/vercel.json`). Before, every file was revalidated with the server on each visit, which added a network round trip per screen file for returning visitors. The HTML page itself still revalidates, so a new deploy is picked up at once. Verified on the live site.

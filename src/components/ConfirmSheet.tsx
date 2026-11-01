@@ -44,7 +44,7 @@ export function ConfirmSheet({ open, title, onClose, children, locked }: Props) 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={locked ? undefined : onClose} aria-hidden />
+          <div className="absolute inset-0 bg-black/55 sm:backdrop-blur-sm" onClick={locked ? undefined : onClose} aria-hidden />
           <m.div
             ref={ref}
             tabIndex={-1}
