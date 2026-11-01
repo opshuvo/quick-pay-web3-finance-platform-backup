@@ -10,6 +10,9 @@ export interface HistoryRow {
   to: string
   token: string
   amount: string
+  /** Set only when the token is not USDC (a swap or bridge in another token). Missing means USDC with 6 decimals. */
+  symbol?: string | null
+  decimals?: number | null
   direction: 'in' | 'out' | 'self'
   type: 'transfer' | 'request_payment' | 'swap' | 'bridge'
   requestId: string | null

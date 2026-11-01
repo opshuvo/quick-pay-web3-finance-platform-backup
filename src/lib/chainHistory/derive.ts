@@ -53,6 +53,8 @@ export interface Snapshot {
   meta: ReadonlyMap<string, TxMeta>
   swaps: readonly SwapRec[]
   bridges: readonly BridgeRec[]
+  /** Transactions on Arc that delivered a bridge to this wallet (the destination fill). Labels their transfers as bridge. */
+  bridgeFills?: readonly string[]
   times: ReadonlyMap<number, number>
   newest: number | null
   oldest: number | null
@@ -89,7 +91,7 @@ const hashSets = new WeakMap<Snapshot, { swaps: Set<string>; bridges: Set<string
 function verifiedHashes(s: Snapshot) {
   let sets = hashSets.get(s)
   if (!sets) {
-    sets = { swaps: new Set(s.swaps.map((x) => x.hash)), bridges: new Set(s.bridges.map((x) => x.hash)) }
+    sets = { swaps: new Set(s.swaps.map((x) => x.hash)), bridges: new Set([...s.bridges.map((x) => x.hash), ...(s.bridgeFills ?? [])]) }
     hashSets.set(s, sets)
   }
   return sets
@@ -137,14 +139,33 @@ function toRow(s: Snapshot, t: RawTransfer): HistoryRow {
 /** Only transfers whose block time is known are listed: a row never appears with an invented date. */
 const known = (s: Snapshot) => s.transfers.filter((t) => s.times.has(t.block) && (t.from === s.address || t.to === s.address))
 
+/**
+ * Swaps and bridges that never move USDC (for example EURC to WETH) have no USDC transfer to list, so each gets one row
+ * built from its verified receipt: the token and amount the wallet gave up. USDC rows are untouched, and these rows are
+ * left out of every USDC total.
+ */
+function otherTokenRows(s: Snapshot): HistoryRow[] {
+  const listed = new Set(s.transfers.map((t) => t.txHash))
+  const rows: HistoryRow[] = []
+  const add = (kind: 'swap' | 'bridge', hash: string, block: number, token: string, amount: string, symbol: string | null, decimals: number | null) => {
+    if (listed.has(hash) || token === s.usdc || !s.times.has(block)) return
+    rows.push({
+      txHash: hash, logIndex: -1, blockNumber: block, timestamp: iso(s, block), from: s.address, to: s.meta.get(hash)?.to ?? s.address,
+      token, amount, symbol, decimals, direction: 'out', type: kind, requestId: null, contract: s.meta.get(hash)?.to ?? null,
+      confirmations: Math.max(0, s.head - block), status: 'confirmed',
+    })
+  }
+  for (const x of s.swaps) add('swap', x.hash, x.block, x.tokenIn, x.amountIn, x.inSymbol, x.inDecimals)
+  for (const x of s.bridges) add('bridge', x.hash, x.block, x.token, x.amountIn, x.symbol, x.decimals)
+  return rows
+}
+
 const rowCache = new WeakMap<Snapshot, HistoryRow[]>()
 /** Every listed row, newest first. Built once per snapshot. */
 function allRows(s: Snapshot): HistoryRow[] {
   let rows = rowCache.get(s)
   if (!rows) {
-    rows = known(s)
-      .sort((a, b) => b.block - a.block || b.logIndex - a.logIndex)
-      .map((t) => toRow(s, t))
+    rows = [...known(s).map((t) => toRow(s, t)), ...otherTokenRows(s)].sort((a, b) => b.blockNumber - a.blockNumber || b.logIndex - a.logIndex)
     rowCache.set(s, rows)
   }
   return rows
@@ -208,7 +229,8 @@ export function buildAnalytics(s: Snapshot, now: number): Analytics & { coverage
 
 function computeAnalytics(s: Snapshot, now: number): Analytics & { coverage: Coverage } {
   const w = s.address
-  const rows = filterRows(s, { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 1 })
+  // Statistics are in USDC: rows in another token are listed in History but never added into these totals.
+  const rows = filterRows(s, { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 1 }).filter((r) => r.token === s.usdc)
   let sent = 0n
   let received = 0n
   let sentCount = 0

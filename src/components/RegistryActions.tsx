@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { erc20Abi, isAddress, keccak256, stringToHex, zeroAddress, type Address, type Hash, type TransactionReceipt } from 'viem'
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from 'wagmi'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { recordConfirmedTx } from '@/lib/chainHistory/record'
 import { AmountInput } from '@/components/AmountInput'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TxProgress } from '@/components/TxProgress'
@@ -32,6 +33,8 @@ interface Step {
  */
 function useTxSequence() {
   const client = usePublicClient({ chainId: ARC_CHAIN_ID })
+  const { address: account } = useAccount()
+  const queryClient = useQueryClient()
   const { writeContractAsync } = useWriteContract()
   const [stage, setStage] = useState<Stage>('idle')
   const [hash, setHash] = useState<`0x${string}`>()
@@ -61,6 +64,8 @@ function useTxSequence() {
         if (receipt.status !== 'success') throw new TxFlowError('The transaction was mined but failed on-chain. No funds moved.')
         const problem = step.verify?.(receipt)
         if (problem) throw new TxFlowError(problem)
+        // The payment or request that was just confirmed is listed in History straight away.
+        if (step.verify && account) void recordConfirmedTx({ address: account, hash: mined, queryClient })
       }
       setStage('success')
       return true

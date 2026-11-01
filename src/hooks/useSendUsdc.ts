@@ -6,7 +6,7 @@ import { quickPayRouterAbi } from '@/contracts/quickPayRouterAbi'
 import { useRouter } from '@/hooks/useRouter'
 import { routerAllowance } from '@/lib/routerSend'
 import { ARC_CHAIN_ID, ARC_USDC } from '@/lib/arc'
-import { api } from '@/lib/api'
+import { recordConfirmedTx } from '@/lib/chainHistory/record'
 import { arcFeeParams } from '@/lib/fees'
 import { confirmTx, receiptHasTransfer, TxFlowError } from '@/lib/confirmTx'
 import { PaymentParseError, validateRecipient } from '@/lib/payments'
@@ -68,14 +68,12 @@ export function useSendUsdc() {
         }),
       )
       if (hash) {
-        const refresh = () => {
-          void queryClient.invalidateQueries({ queryKey: ['readContract'] })
-          void queryClient.invalidateQueries({ queryKey: ['history'] })
-        }
+        const refresh = () => void queryClient.invalidateQueries({ queryKey: ['readContract'] })
         refresh()
         // Another read a few seconds later, in case the first one hit an RPC node that had not seen the block yet.
         setTimeout(refresh, 4_000)
-        void api(`/index/${address}`, { method: 'POST' }).catch(() => undefined)
+        // The payment is read from its receipt and listed in History straight away.
+        void recordConfirmedTx({ address, hash, queryClient })
       }
       return hash ?? null
     },

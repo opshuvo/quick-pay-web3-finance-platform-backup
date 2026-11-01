@@ -82,7 +82,7 @@ export function useHistory(address: string | undefined, filters: HistoryFilters,
     retry: 2,
     retryDelay,
     // Poll faster while the indexer is still catching up so progress is visible. A failed read is retried automatically.
-    refetchInterval: (query) => query.state.status === 'error' ? RETRY_WHEN_FAILED_MS : options.background ? BACKGROUND_POLL_MS : pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 4_000 : 6_000, 30_000),
+    refetchInterval: (query) => query.state.status === 'error' ? RETRY_WHEN_FAILED_MS : options.background ? BACKGROUND_POLL_MS : pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 4_000 : 6_000, query.state.data?.coverage.source === 'browser' ? 10_000 : 30_000),
     // With a history server the server answers. Without one, this device reads Arc directly.
     queryFn: async ({ signal }) => ((await historyServerUsable()) ? readWithRegistration<HistoryResponse>(address ?? '', `/history/${address}?${historyQuery(filters)}`, signal) : chainHistoryPage(address ?? '', filters)),
   })
@@ -94,7 +94,7 @@ export function useAnalytics(address: string | undefined) {
     enabled: Boolean(address),
     retry: 2,
     retryDelay,
-    refetchInterval: (query) => query.state.status === 'error' ? RETRY_WHEN_FAILED_MS : pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 5_000 : 10_000, 60_000),
+    refetchInterval: (query) => query.state.status === 'error' ? RETRY_WHEN_FAILED_MS : pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 5_000 : 10_000, query.state.data?.coverage.source === 'browser' ? 15_000 : 60_000),
     queryFn: async ({ signal }) => ((await historyServerUsable()) ? readWithRegistration<Analytics & { coverage: Coverage }>(address ?? '', `/analytics/${address}`, signal) : chainAnalytics(address ?? '')),
   })
 }

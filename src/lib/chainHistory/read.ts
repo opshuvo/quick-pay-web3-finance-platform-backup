@@ -49,14 +49,14 @@ export async function chainCsv(address: string, filters: Filters): Promise<strin
     const t = String(v)
     return /^[=+\-@]/.test(t) || /[",\n]/.test(t) ? `"${(/^[=+\-@]/.test(t) ? `'${t}` : t).replace(/"/g, '""')}"` : t
   }
-  const usdc = (raw: string) => {
-    const d = raw.padStart(7, '0')
-    return `${d.slice(0, -6)}.${d.slice(-6)}`
+  const units = (raw: string, decimals = 6) => {
+    const d = raw.padStart(decimals + 1, '0')
+    return decimals === 0 ? d : `${d.slice(0, -decimals)}.${d.slice(-decimals)}`
   }
-  const lines = rows.map((r) => [r.timestamp, r.txHash, r.blockNumber, r.direction, r.type, r.from, r.to, r.token, usdc(r.amount), r.confirmations, r.status].map(cell).join(','))
+  const lines = rows.map((r) => [r.timestamp, r.txHash, r.blockNumber, r.direction, r.type, r.from, r.to, r.token, units(r.amount, r.decimals ?? 6), r.confirmations, r.status].map(cell).join(','))
   return ['timestamp,tx_hash,block_number,direction,type,from,to,token,amount_usdc,confirmations,status', ...lines].join('\n') + '\n'
 }
 
-export const chainTrackConfirmed = (address: string, hash: string) => chainHistoryFor(address).trackConfirmed(hash)
+export const chainTrackConfirmed = (address: string, hash: string, options?: { bridgeFill?: boolean }) => chainHistoryFor(address).trackConfirmed(hash, options)
 
 export { arcHeadBlock as chainHead } from './engine'

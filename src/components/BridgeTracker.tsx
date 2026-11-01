@@ -1,4 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { recordConfirmedTx } from '@/lib/chainHistory/record'
+import { ARC_CHAIN_ID } from '@/lib/arc'
 import { BridgeProgress } from '@/components/BridgeProgress'
 import { isTerminal, trackedSummary, type Tracked } from '@/lib/bridgeStatus'
 import { ExplorerLink, StatusBadge } from '@/components/ui'
@@ -51,6 +54,15 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
   const summary = trackedSummary(tracked.data)
   const activity = tracked.data?.source === 'verified' ? tracked.data.activity : undefined
   const destHash = activity?.destinationTxHash ?? (tracked.data?.source === 'across' ? tracked.data.status?.fillTxnRef : undefined)
+  // A bridge that arrived on Arc: its delivery is read from Arc and listed in History as a bridge, not as a plain receipt.
+  const queryClient = useQueryClient()
+  const listed = useRef<string | null>(null)
+  const delivered = tracked.data?.source === 'verified' ? (activity?.status === 'filled' && activity.destinationVerified) : tracked.data?.source === 'across' && tracked.data.status?.status === 'filled'
+  useEffect(() => {
+    if (!delivered || !destHash || !item.wallet || item.destinationChainId !== ARC_CHAIN_ID || listed.current === destHash) return
+    listed.current = destHash
+    void recordConfirmedTx({ address: item.wallet, hash: destHash, queryClient, bridgeFill: true })
+  }, [delivered, destHash, item.wallet, item.destinationChainId, queryClient])
   const sentUrl = explorerTxUrl(chains, item.originChainId, item.hash)
   const gotUrl = destHash ? explorerTxUrl(chains, item.destinationChainId, destHash) : undefined
 

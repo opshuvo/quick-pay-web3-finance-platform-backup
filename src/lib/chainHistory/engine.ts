@@ -35,6 +35,8 @@ interface Cache {
   meta: [string, string, string | null, boolean][]
   swaps: SwapRec[]
   bridges: BridgeRec[]
+  /** Optional so caches saved by older versions still load. */
+  fills?: string[]
   times: [number, number][]
 }
 
@@ -47,6 +49,7 @@ export class ChainHistory {
   private readonly meta = new Map<string, TxMeta>()
   private readonly swaps = new Map<string, SwapRec>()
   private readonly bridges = new Map<string, BridgeRec>()
+  private readonly bridgeFills = new Set<string>()
   private readonly times = new Map<number, number>()
   private readonly tokens = new Map<string, { symbol: string | null; decimals: number | null }>()
   private readonly pending = new Set<string>()
@@ -55,7 +58,12 @@ export class ChainHistory {
   private oldest: number | null = null
   private head = 0
   private range = CHUNK
-  private error: string | null = null
+  /** What the reader shows as its current problem. Each source keeps its own message, so one clearing never wipes another. */
+  private loopError: string | null = null
+  private verifyIssue: string | null = null
+  private get error(): string | null {
+    return this.laneNotes.logs ?? this.laneNotes.read ?? this.loopError ?? this.verifyIssue
+  }
   private lastProgressAt = Date.now()
   private version = 0
   private touchedAt = Date.now()
@@ -71,7 +79,6 @@ export class ChainHistory {
   private readonly verifying = new Map<string, Promise<void>>()
   /** Transactions whose verification failed: when each may be tried again, so one bad hash never blocks the rest. */
   private readonly verifyRetry = new Map<string, { failures: number; at: number }>()
-  private rpcNote: string | null = null
   /** The relay (see edge.ts) is used only by the real app; tests that inject a client read that client directly. */
   private readonly useEdge: boolean
   private edgeOffUntil = 0
@@ -113,6 +120,7 @@ export class ChainHistory {
       meta: this.meta,
       swaps: [...this.swaps.values()],
       bridges: [...this.bridges.values()],
+      bridgeFills: [...this.bridgeFills],
       times: this.times,
       newest: this.newest,
       oldest: this.oldest,
@@ -133,14 +141,6 @@ export class ChainHistory {
   private setNote(lane: 'logs' | 'read', note: string | null) {
     if (this.laneNotes[lane] === note) return
     this.laneNotes[lane] = note
-    const current = this.laneNotes.logs ?? this.laneNotes.read
-    if (current !== null) {
-      this.error = current
-      this.rpcNote = current
-    } else if (this.rpcNote !== null && this.error === this.rpcNote) {
-      this.error = null
-      this.rpcNote = null
-    }
     this.bump()
   }
 
@@ -268,7 +268,7 @@ export class ChainHistory {
 
   private progress() {
     this.lastProgressAt = Date.now()
-    this.error = null
+    this.loopError = null
     this.bump()
     this.scheduleSave()
   }
@@ -291,6 +291,28 @@ export class ChainHistory {
     return value
   }
 
+  /**
+   * Lists this wallet's USDC transfers from a confirmed receipt. Only logs emitted by the official USDC contract count
+   * (Arc's 18-decimal native mirror logs come from another address and are ignored), and the block time is read first,
+   * so a row never appears with an invented date.
+   */
+  private async addReceiptTransfers(hash: Hex, block: number, logs: readonly { address: string; topics: readonly string[]; data: string; logIndex: number | bigint | null }[]) {
+    const rows: RawTransfer[] = []
+    for (const log of logs) {
+      if (log.address.toLowerCase() !== ARC_USDC.toLowerCase() || log.topics.length !== 3 || log.topics[0] !== TRANSFER_TOPIC || log.logIndex === null) continue
+      const from = topicAddress(log.topics[1])
+      const to = topicAddress(log.topics[2])
+      if (from !== this.address && to !== this.address) continue
+      rows.push({ txHash: hash, logIndex: Number(log.logIndex), block, from, to, amount: BigInt(log.data === '0x' ? 0 : log.data).toString() })
+    }
+    if (rows.length === 0) return
+    if (!this.times.has(block)) {
+      const b = await this.call(() => this.client.getBlock({ blockNumber: BigInt(block) }))
+      this.times.set(block, Number(b.timestamp))
+    }
+    for (const row of rows) this.transfers.set(`${row.txHash}:${row.logIndex}`, row)
+  }
+
   /** Reads a transaction and its receipt from Arc. Only a successful receipt can produce a swap or bridge record. */
   verifyTx(hash: string): Promise<void> {
     const h = hash.toLowerCase()
@@ -308,8 +330,11 @@ export class ChainHistory {
     const meta: TxMeta = { from: tx.from.toLowerCase(), to: tx.to ? tx.to.toLowerCase() : null, ok }
     this.meta.set(h, meta)
     this.pending.delete(h)
-    if (!ok || meta.from !== this.address) return
+    if (!ok) return
     const block = Number(receipt.blockNumber)
+    // The receipt is the proof: this wallet's USDC transfers in it are listed now, without waiting for the log scan.
+    await this.addReceiptTransfers(h, block, receipt.logs)
+    if (meta.from !== this.address) return
     const flows = netFlows(receipt.logs, this.address)
     if (isSwapTarget(meta.to)) {
       const legs = pickSwapLegs(flows)
@@ -363,17 +388,25 @@ export class ChainHistory {
       })
     }
     if (batch.length) this.bump()
+    if (!failed && this.verifyRetry.size === 0) this.verifyIssue = null
     if (failed) {
-      this.error = `Some transactions could not be checked yet (${classifyRpcFailure(failed) === 'rate' ? 'the Arc RPC is rate limiting requests' : 'the Arc RPC did not answer'}). They are retried automatically.`
+      this.verifyIssue = `Some transactions could not be checked yet (${classifyRpcFailure(failed) === 'rate' ? 'the Arc RPC is rate limiting requests' : 'the Arc RPC did not answer'}). They are retried automatically.`
       this.bump()
     }
   }
 
   /** Called after the app itself confirmed a transaction (for example a swap): read it now instead of waiting for the scan. */
-  async trackConfirmed(hash: string): Promise<void> {
+  async trackConfirmed(hash: string, options: { bridgeFill?: boolean } = {}): Promise<void> {
     await this.refreshHead()
     this.start()
+    await this.ingestConfirmed(hash, options)
+  }
+
+  /** Reads one confirmed transaction from Arc and lists what it contains (transfers, swap, bridge) right now. */
+  async ingestConfirmed(hash: string, options: { bridgeFill?: boolean } = {}): Promise<void> {
     await this.verifyTx(hash)
+    // A bridge delivered to this wallet: its transfers are labelled bridge, not plain received payments.
+    if (options.bridgeFill && this.meta.get(hash.toLowerCase())?.ok) this.bridgeFills.add(hash.toLowerCase())
     this.bump()
     this.scheduleSave()
   }
@@ -405,6 +438,11 @@ export class ChainHistory {
   }
 
   // ---- main loop ---------------------------------------------------------------------------------
+  /** Stops the background scan (it starts again on the next read). */
+  stop() {
+    this.running = false
+  }
+
   /** Marks the data as still wanted. A reader that stops asking lets the scan stop after a minute. */
   touch() { this.touchedAt = Date.now() }
 
@@ -433,8 +471,7 @@ export class ChainHistory {
       } catch (e) {
         failures += 1
         const kind = classifyRpcFailure(e)
-        this.error = kind === 'rate' ? 'The Arc RPC is rate limiting requests; waiting before retrying.' : kind === 'range' ? 'The RPC rejected the block range; retrying with a smaller range.' : `The Arc RPC did not answer (${String((e as Error)?.message ?? e).split('\n')[0].slice(0, 120)}); retrying.`
-        this.rpcNote = this.error
+        this.loopError = kind === 'rate' ? 'The Arc RPC is rate limiting requests; waiting before retrying.' : kind === 'range' ? 'The RPC rejected the block range; retrying with a smaller range.' : `The Arc RPC did not answer (${String((e as Error)?.message ?? e).split('\n')[0].slice(0, 120)}); retrying.`
         this.bump()
         // Exponential backoff with jitter, so many tabs and screens do not retry in lockstep.
         const step = Math.min(15_000, 1_000 * 2 ** Math.min(failures, 4))
@@ -454,6 +491,7 @@ export class ChainHistory {
       for (const [h, from, to, ok] of raw.meta) this.meta.set(h, { from, to, ok })
       for (const s of raw.swaps) this.swaps.set(s.hash, s)
       for (const b of raw.bridges) this.bridges.set(b.hash, b)
+      for (const f of raw.fills ?? []) this.bridgeFills.add(f)
       for (const [b, t] of raw.times) this.times.set(b, t)
       this.newest = raw.newest
       this.oldest = raw.oldest
@@ -470,7 +508,7 @@ export class ChainHistory {
       this.saveTimer = undefined
       const cache: Cache = {
         v: CACHE_VERSION, newest: this.newest, oldest: this.oldest, transfers: [...this.transfers.values()],
-        meta: [...this.meta].map(([h, m]) => [h, m.from, m.to, m.ok]), swaps: [...this.swaps.values()], bridges: [...this.bridges.values()], times: [...this.times],
+        meta: [...this.meta].map(([h, m]) => [h, m.from, m.to, m.ok]), swaps: [...this.swaps.values()], bridges: [...this.bridges.values()], fills: [...this.bridgeFills], times: [...this.times],
       }
       try {
         localStorage.setItem(this.key(), JSON.stringify(cache))

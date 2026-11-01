@@ -57,6 +57,10 @@ Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, 
 
 `.env` (gitignored) sets `VITE_QUICKPAY_ROUTER_ADDRESS` and `VITE_QUICKPAY_REGISTRY_ADDRESS` to the owner's deployments listed above, so the production build routes payments through the router. Vite bakes them in at build time: a build made without `.env` sends plain USDC transfers. Restart the dev server after changing `.env`.
 
+## Instant history for in-app transactions
+
+After Send, Pay request, Split, Registry actions, Swap and a bridge deposit on Arc are confirmed, `recordConfirmedTx` (`src/lib/chainHistory/record.ts`) reads the receipt and lists its USDC transfers, swap or bridge immediately (`ChainHistory.ingestConfirmed`). A bridge delivered to Arc is marked as a bridge fill from `BridgeTracker`. Swaps and bridges in another token get one History row with their own token (`symbol`, `decimals`) that is left out of the USDC totals. In tests call `ingestConfirmed`, never `trackConfirmed`: it starts the background scan.
+
 ## History relay (Vercel)
 
 - `public/api/arc-logs.js` is a Vercel serverless function (copied into `dist/api/` by the build). It returns one wallet's USDC transfer logs for a fixed 10,000-block window, cached for a year once the window is finished. `src/lib/chainHistory/edge.ts` reads it first and falls back to the RPC when it is missing (local preview, other hosts) or busy. Do not add a `functions` block to `public/vercel.json`: it stopped the function from being detected on the last deploy. Details in `docs/rpc-reliability.md`.

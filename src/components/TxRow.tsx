@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Repeat2, Waypoints, type LucideIcon } from 'lucide-react'
 import { ExplorerLink, StatusBadge } from '@/components/ui'
-import { arcTxUrl } from '@/lib/arc'
-import { displayUsdc, formatDateTime, shortAddress, shortHash } from '@/lib/format'
+import { ARC_USDC, arcTxUrl } from '@/lib/arc'
+import { displayUnits, displayUsdc, formatDateTime, shortAddress, shortHash } from '@/lib/format'
 import type { HistoryRow } from '@/hooks/useHistory'
 
 export const TYPE_LABEL: Record<HistoryRow['type'], string> = {
@@ -10,6 +10,12 @@ export const TYPE_LABEL: Record<HistoryRow['type'], string> = {
   request_payment: 'Request payment',
   swap: 'Swap',
   bridge: 'Bridge',
+}
+
+/** The amount and token of a row. USDC unless the row says otherwise (a swap or bridge in another token). */
+export function rowAmount(row: HistoryRow): { text: string; symbol: string } {
+  if (row.symbol && row.decimals !== null && row.decimals !== undefined && row.token.toLowerCase() !== ARC_USDC.toLowerCase()) return { text: displayUnits(BigInt(row.amount), row.decimals, 2, Math.min(row.decimals, 8)), symbol: row.symbol }
+  return { text: displayUsdc(BigInt(row.amount)), symbol: 'USDC' }
 }
 
 export function rowIcon(row: HistoryRow): LucideIcon {
@@ -31,6 +37,7 @@ export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: His
   const incoming = row.direction === 'in'
   const self = row.direction === 'self'
   const counterparty = incoming ? row.from : row.to
+  const amount = rowAmount(row)
   const tone = self ? 'var(--muted)' : incoming ? 'var(--success)' : 'var(--ink-2)'
   const body = (
     <>
@@ -51,15 +58,15 @@ export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: His
       <span className="hidden sm:block"><StatusBadge tone="success">Confirmed</StatusBadge></span>
       <span className="display w-[7.5rem] shrink-0 text-right text-sm font-bold tabular-nums sm:w-32" style={{ color: incoming ? 'var(--success)' : 'var(--ink)' }}>
         {self ? '' : incoming ? '+' : '−'}
-        {displayUsdc(BigInt(row.amount))}
-        <span className="ml-1 text-[11px] font-medium" style={{ color: 'var(--subtle)' }}>USDC</span>
+        {amount.text}
+        <span className="ml-1 text-[11px] font-medium" style={{ color: 'var(--subtle)' }}>{amount.symbol}</span>
       </span>
     </>
   )
   return (
     <li className="flex items-center gap-2 py-2">
       {onSelect ? (
-        <button type="button" onClick={() => onSelect(row)} aria-label={`${rowTitle(row)} ${displayUsdc(BigInt(row.amount))} USDC, open details`} className="flex min-h-[56px] min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-[var(--surface)]">
+        <button type="button" onClick={() => onSelect(row)} aria-label={`${rowTitle(row)} ${amount.text} ${amount.symbol}, open details`} className="flex min-h-[56px] min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-[var(--surface)]">
           {body}
         </button>
       ) : (

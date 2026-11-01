@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
-import { rowTitle, TYPE_LABEL } from '@/components/TxRow'
+import { rowAmount, rowTitle, TYPE_LABEL } from '@/components/TxRow'
 import { CopyButton, ExplorerLink, Row, StatusBadge } from '@/components/ui'
 import type { HistoryRow } from '@/hooks/useHistory'
 import { arcAddressUrl, arcTxUrl } from '@/lib/arc'
-import { displayUsdc, formatDateTime, formatNumber } from '@/lib/format'
+import { formatDateTime, formatNumber } from '@/lib/format'
 
 function AddressLine({ address }: { address: string }) {
   return (
@@ -25,9 +25,9 @@ export function TxDetailSheet({ row, onClose }: { row: HistoryRow | null; onClos
             <p className="label">{rowTitle(row)}</p>
             <p className="display mt-1 text-4xl font-bold tabular-nums" style={{ color: row.direction === 'in' ? 'var(--success)' : 'var(--ink)' }}>
               {row.direction === 'in' ? '+' : row.direction === 'out' ? '−' : ''}
-              {displayUsdc(BigInt(row.amount))}
+              {rowAmount(row).text}
             </p>
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>USDC on Arc Mainnet</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>{rowAmount(row).symbol} on Arc Mainnet</p>
             <div className="mt-2"><StatusBadge tone="success">Confirmed · {formatNumber(row.confirmations)} confirmations</StatusBadge></div>
           </div>
           <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>

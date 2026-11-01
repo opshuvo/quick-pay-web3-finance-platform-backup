@@ -20,6 +20,7 @@ import { ApiError } from '@/lib/api'
 import { ARC_CHAIN_ID } from '@/lib/arc'
 import { assertBridgeQuote, BridgeGuardError, describeFillTime, isQuoteStale } from '@/lib/bridgeGuard'
 import { loadBridges, removeBridge, saveBridge, type StoredBridge } from '@/lib/bridgeStore'
+import { recordConfirmedTx } from '@/lib/chainHistory/record'
 import { confirmTx, TxFlowError, TxReplacedError, TxUnconfirmedError } from '@/lib/confirmTx'
 import { chainLabel } from '@/lib/chains'
 import { parseTxError } from '@/lib/errors'
@@ -184,6 +185,8 @@ export default function Bridge() {
       }
       setRun({ stage: 'success', hash: confirmed.hash, note: 'Deposit confirmed on the source chain. Delivery is tracked below and is complete only once verified on the destination.' })
       void balance.refetch()
+      // A deposit made on Arc is a USDC (or token) transfer out of this wallet: list it as a bridge in History now.
+      if (origin === ARC_CHAIN_ID) void recordConfirmedTx({ address: wallet.address, hash: confirmed.hash, queryClient })
       for (const key of ['readContract', 'readContracts', 'balance']) void queryClient.invalidateQueries({ queryKey: [key] })
     } catch (error) {
       if (deposit && error instanceof TxReplacedError && wallet.address) {
