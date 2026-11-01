@@ -1,25 +1,26 @@
 import { lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
+import { lazyRoute } from '@/routes'
 
-const Overview = lazy(() => import('@/pages/Overview'))
-const Payments = lazy(() => import('@/pages/Payments'))
-const Send = lazy(() => import('@/pages/Send'))
-const Receive = lazy(() => import('@/pages/Receive'))
-const Scan = lazy(() => import('@/pages/Scan'))
-const Requests = lazy(() => import('@/pages/Requests'))
+const Overview = lazyRoute('/')
+const Payments = lazyRoute('/payments')
+const Send = lazyRoute('/send')
+const Receive = lazyRoute('/receive')
+const Scan = lazyRoute('/scan')
+const Requests = lazyRoute('/requests')
 const PayRequest = lazy(() => import('@/pages/PayRequest'))
-const History = lazy(() => import('@/pages/History'))
-const Swap = lazy(() => import('@/pages/Swap'))
-const Bridge = lazy(() => import('@/pages/Bridge'))
-const Analytics = lazy(() => import('@/pages/Analytics'))
-const Contracts = lazy(() => import('@/pages/Contracts'))
-const Settings = lazy(() => import('@/pages/Settings'))
-const Split = lazy(() => import('@/pages/Split'))
+const History = lazyRoute('/history')
+const Swap = lazyRoute('/swap')
+const Bridge = lazyRoute('/bridge')
+const Analytics = lazyRoute('/analytics')
+const Contracts = lazyRoute('/contracts')
+const Settings = lazyRoute('/settings')
+const Split = lazyRoute('/split')
 const SplitDetail = lazy(() => import('@/pages/SplitDetail'))
-const Profile = lazy(() => import('@/pages/Profile'))
-const Sent = lazy(() => import('@/pages/Sent'))
-const Received = lazy(() => import('@/pages/Received'))
+const Profile = lazyRoute('/profile')
+const Sent = lazyRoute('/sent')
+const Received = lazyRoute('/received')
 
 export default function App() {
   return (

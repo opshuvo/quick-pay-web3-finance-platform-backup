@@ -13,6 +13,7 @@ import { isBridgeCounterparty, isBridgeTarget, isSwapCounterparty, isSwapTarget,
 const CHUNK = 5_000
 const MIN_CHUNK = 500
 const PARALLEL = 3
+const HEAD_TTL_MS = 2_000
 const MIN_INTERVAL_MS = 220
 const CACHE_VERSION = 1
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -66,6 +67,8 @@ export class ChainHistory {
   private running = false
   private loopActive = false
   private tipRun: Promise<void> | undefined
+  private headAt = 0
+  private headInflight: Promise<void> | undefined
   private stopTimer: ReturnType<typeof setTimeout> | undefined
   private nextSlot = 0
   private pauseUntil = 0
@@ -294,12 +297,18 @@ export class ChainHistory {
     this.scheduleSave()
   }
 
-  private async refreshHead() {
-    this.head = Number(await this.call(() => this.client.getBlockNumber()))
-    if (this.newest === null) {
-      this.newest = this.head
-      this.oldest = this.head + 1
-    }
+  /** The chain head, shared: several screens ask at once and poll often, so a value under 2 seconds old is reused. */
+  private refreshHead(): Promise<void> {
+    if (this.newest !== null && Date.now() - this.headAt < HEAD_TTL_MS) return Promise.resolve()
+    this.headInflight ??= (async () => {
+      this.head = Number(await this.call(() => this.client.getBlockNumber()))
+      this.headAt = Date.now()
+      if (this.newest === null) {
+        this.newest = this.head
+        this.oldest = this.head + 1
+      }
+    })().finally(() => { this.headInflight = undefined })
+    return this.headInflight
   }
 
   /** Brings the newest blocks in right away (used when a screen asks for fresh data). */

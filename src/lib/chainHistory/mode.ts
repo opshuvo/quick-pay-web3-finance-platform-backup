@@ -16,16 +16,26 @@ let cached: { at: number; usable: Promise<boolean> } | undefined
  * host `/api/health` returns the app's HTML (which `api()` reports as an error), so the browser then reads
  * Arc directly instead. The answer is cached briefly so polling screens do not probe on every refresh.
  */
+let health: { at: number; result: Promise<ServerHealth> } | undefined
+
+/** One `/health` request shared by everything that asks within 10 seconds (the status tiles and the server check). */
+export function fetchHealthShared<T extends ServerHealth>(): Promise<T> {
+  if (health && Date.now() - health.at < 10_000) return health.result as Promise<T>
+  const result = api<ServerHealth>('/health')
+  health = { at: Date.now(), result }
+  return result as Promise<T>
+}
+
 export function historyServerUsable(): Promise<boolean> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.usable
-  const usable = api<ServerHealth>('/health')
+  const usable = fetchHealthShared()
     .then((h) => Boolean(h && h.ok === true && h.database === 'ok' && h.rpc === 'ok'))
     .catch(() => false)
   cached = { at: Date.now(), usable }
   return usable
 }
 
-export const forgetServerProbe = () => { cached = undefined }
+export const forgetServerProbe = () => { cached = undefined; health = undefined }
 
 /** Resolves when `promise` settles or after `ms`, whichever is first. Never rejects. */
 export const waitAtMost = (promise: Promise<unknown>, ms: number) =>

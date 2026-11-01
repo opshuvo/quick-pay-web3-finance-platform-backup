@@ -60,6 +60,7 @@ Public (shipped to the browser, so never put secrets here):
 - `bun run typecheck:server` typecheck the backend
 - `bun run test` unit tests
 - `bun run test:render` renders every screen in a DOM
+- `bun run perf:report [dir]` prints first-visit download size of a production build (run `bunx vite build` first)
 - `bun run test:smoke` live checks against a running backend (uses the real Arc RPC and Across API)
 - `bun run backend:url https://your-backend` points the production `/api/*` at your hosted backend (see `docs/history-deployment.md`)
 - `bun run contracts:build`, `bun run contracts:test` build and test the contract

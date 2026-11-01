@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, LazyMotion, m } from 'framer-motion'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -10,6 +10,9 @@ interface Props {
   /** Block dismissing while a transaction is being signed or confirmed. */
   locked?: boolean
 }
+
+// Animation features load after the sheet's first use instead of weighing down the first page load.
+const loadFeatures = () => import('@/lib/motionFeatures').then((mod) => mod.default)
 
 /** Bottom sheet on mobile, centered dialog on desktop. Used for every financial confirmation. */
 export function ConfirmSheet({ open, title, onClose, children, locked }: Props) {
@@ -32,16 +35,17 @@ export function ConfirmSheet({ open, title, onClose, children, locked }: Props) 
   }, [open, locked, onClose])
 
   return (
+    <LazyMotion features={loadFeatures} strict>
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={locked ? undefined : onClose} aria-hidden />
-          <motion.div
+          <m.div
             ref={ref}
             tabIndex={-1}
             role="dialog"
@@ -61,9 +65,10 @@ export function ConfirmSheet({ open, title, onClose, children, locked }: Props) 
               </button>
             </div>
             {children}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
+    </LazyMotion>
   )
 }

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
 import { chainHead } from '@/lib/chainHistory/read'
+import { fetchHealthShared } from '@/lib/chainHistory/mode'
 
 export interface Health {
   ok: boolean
@@ -22,7 +22,7 @@ export function useHealth() {
     refetchInterval: 30_000,
     queryFn: async ({ signal }): Promise<Health> => {
       try {
-        return { ...(await api<Health>('/health', { signal })), mode: 'server' }
+        return { ...(await fetchHealthShared<Health>()), mode: 'server' }
       } catch (error) {
         if (signal?.aborted) throw error
         // No backend answered: report what can still be verified, the Arc RPC itself.

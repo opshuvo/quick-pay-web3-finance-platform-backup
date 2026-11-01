@@ -90,7 +90,7 @@ async function onchainView(client: PublicClient, p: Required<Pick<Params, 'token
  */
 export function useSwapQuote({ tokenIn, tokenOut, amount, slippageBps, wallet, status, enabled }: Params) {
   const client = usePublicClient({ chainId: ARC_CHAIN_ID })
-  const fetchQuote = async (): Promise<SwapQuoteView> => {
+  const fetchQuote = async (signal?: AbortSignal): Promise<SwapQuoteView> => {
     const c = client as PublicClient
     const base = { tokenIn: tokenIn as Address, tokenOut: tokenOut as Address, amount: amount as bigint, slippageBps }
     const apiUsable = status?.configured && status.chainSupported && status.routerVerified && wallet
@@ -98,7 +98,7 @@ export function useSwapQuote({ tokenIn, tokenOut, amount, slippageBps, wallet, s
 
     if (apiUsable) {
       try {
-        const res = await uniswapApi.quote({ tokenIn: base.tokenIn, tokenOut: base.tokenOut, amount: base.amount.toString(), swapper: wallet, slippageTolerance: slippageBps / 100 })
+        const res = await uniswapApi.quote({ tokenIn: base.tokenIn, tokenOut: base.tokenOut, amount: base.amount.toString(), swapper: wallet, slippageTolerance: slippageBps / 100 }, signal)
         assertQuoteMatches(res.quote, { tokenIn: base.tokenIn, tokenOut: base.tokenOut, amount: base.amount, wallet: wallet })
         const reference = await bestQuote(c, base.tokenIn, base.tokenOut, 'exactIn', base.amount).then((q) => q.amountOut).catch(() => null)
         const gasNative = res.quote.gasFee && /^\d+$/.test(res.quote.gasFee) ? BigInt(res.quote.gasFee) : null
@@ -118,6 +118,8 @@ export function useSwapQuote({ tokenIn, tokenOut, amount, slippageBps, wallet, s
           api: res,
         }
       } catch (error) {
+        // A newer amount or token replaced this request: stop here instead of falling back to a second, pointless quote.
+        if (signal?.aborted) throw error
         if (error instanceof ApiError && error.code === 'bad_slippage') throw error
         fallbackReason = error instanceof ApiError ? `Uniswap API: ${error.message}` : 'The Uniswap API could not be used for this quote.'
       }
@@ -137,6 +139,6 @@ export function useSwapQuote({ tokenIn, tokenOut, amount, slippageBps, wallet, s
     retry: false,
     refetchInterval: 15_000,
     staleTime: 0,
-    queryFn: () => withTimeout(fetchQuote(), QUOTE_TIMEOUT_MS),
+    queryFn: ({ signal }) => withTimeout(fetchQuote(signal), QUOTE_TIMEOUT_MS),
   })
 }

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import jsQR from 'jsqr'
 
 export type ScannerState = 'idle' | 'starting' | 'scanning' | 'denied' | 'unavailable' | 'error'
 
@@ -31,6 +30,9 @@ export function useQrScanner(videoRef: RefObject<HTMLVideoElement | null>, onCod
     }
     setState('starting')
     try {
+      // The QR decoder loads only when scanning starts, in parallel with the camera permission prompt.
+      const decoder = import('jsqr')
+      void decoder.catch(() => undefined)
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
       streamRef.current = stream
       const video = videoRef.current
@@ -41,6 +43,7 @@ export function useQrScanner(videoRef: RefObject<HTMLVideoElement | null>, onCod
       video.srcObject = stream
       video.setAttribute('playsinline', 'true')
       await video.play()
+      const jsQR = (await decoder).default
       setState('scanning')
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d', { willReadFrequently: true })

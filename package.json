@@ -18,7 +18,8 @@
     "contracts:abi": "bun run ./scripts/export-registry-abi.ts",
     "test": "bun test tests/auth.test.ts tests/format.test.ts tests/history.test.ts tests/payments.test.ts tests/uniswap.test.ts tests/split.test.ts tests/swapApi.test.ts tests/activity.test.ts tests/executeApi.test.ts tests/rpc.test.ts tests/scanPlan.test.ts tests/tipGate.test.ts tests/coverage.test.tsx tests/readPaths.test.ts tests/nav.test.ts tests/send.test.ts tests/bridge.test.ts tests/swapAmount.test.ts tests/swapState.test.ts tests/api.test.ts tests/deployment.test.ts tests/arcTokens.test.ts tests/chainHistory.test.ts",
     "typecheck:server": "tsc --noEmit -p server/tsconfig.json",
-    "test:render": "bun test --preload ./tests/setup-dom.ts tests/render.test.tsx tests/rpcBatch.test.ts",
+    "test:render": "bun test --preload ./tests/setup-dom.ts tests/render.test.tsx tests/rpcBatch.test.ts tests/walletModal.test.tsx",
+    "perf:report": "bun run ./scripts/perf-report.ts",
     "test:smoke": "bun run tests/api.smoke.ts"
   },
   "dependencies": {
