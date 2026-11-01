@@ -1,5 +1,5 @@
 /**
- * Across Protocol client. Calls go through the Quick Pay backend (`/api/across/*`), which only
+ * Across Protocol client. Calls go through the FlowPay backend (`/api/across/*`), which only
  * forwards an allow-list of Across endpoints and keeps any API key server-side.
  */
 import type { Address, Hex } from 'viem'

@@ -27,7 +27,7 @@ export const activityApi = {
     api<{ activity: ActivityDto | null }>('/activity/bridge/refresh', { method: 'POST', body: { txHash, originChainId } }),
 }
 
-/** Verified swaps and bridges for a wallet, from the Quick Pay history service. */
+/** Verified swaps and bridges for a wallet, from the FlowPay history service. */
 export function useActivity(address: string | undefined, kind?: 'swap' | 'bridge') {
   return useQuery({
     queryKey: ['activity', address, kind],

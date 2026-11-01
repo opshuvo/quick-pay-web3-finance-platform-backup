@@ -1,5 +1,5 @@
 /**
- * Payment URIs and QR content. Parsing is strict: anything that is not clearly a Quick Pay
+ * Payment URIs and QR content. Parsing is strict: anything that is not clearly a FlowPay
  * request link, a plain address, or an EIP-681 USDC transfer on Arc is rejected.
  */
 import { getAddress, isAddress, type Address } from 'viem'
@@ -63,7 +63,7 @@ export function parsePaymentContent(input: string): ParsedPayment {
     const match = /^ethereum:(0x[0-9a-fA-F]{40})(?:@(\d+))?(?:\/([a-zA-Z]+))?(?:\?(.*))?$/.exec(text)
     if (!match) throw new PaymentParseError('Unsupported payment link format.')
     const [, target, chain, fn, query] = match
-    if (chain && Number(chain) !== ARC_CHAIN_ID) throw new PaymentParseError(`This code is for chain ${chain}. Quick Pay pays on Arc Mainnet (5042).`)
+    if (chain && Number(chain) !== ARC_CHAIN_ID) throw new PaymentParseError(`This code is for chain ${chain}. FlowPay pays on Arc Mainnet (5042).`)
     const params = new URLSearchParams(query ?? '')
     if (fn === 'transfer') {
       if (target.toLowerCase() !== ARC_USDC.toLowerCase()) throw new PaymentParseError('This code asks for a token other than USDC on Arc.')
@@ -78,8 +78,8 @@ export function parsePaymentContent(input: string): ParsedPayment {
       return { kind: 'address', to: validateRecipient(to), amount }
     }
     if (fn) throw new PaymentParseError('Unsupported payment action in this code.')
-    if (params.get('value')) throw new PaymentParseError('Native-value payment codes are not supported. Quick Pay sends USDC only.')
+    if (params.get('value')) throw new PaymentParseError('Native-value payment codes are not supported. FlowPay sends USDC only.')
     return { kind: 'address', to: validateRecipient(target) }
   }
-  throw new PaymentParseError('Not a wallet address or Quick Pay payment code.')
+  throw new PaymentParseError('Not a wallet address or FlowPay payment code.')
 }

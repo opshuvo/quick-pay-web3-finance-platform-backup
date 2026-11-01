@@ -23,7 +23,7 @@ export function RequestShare({ id }: { id: string }) {
         <CopyButton value={link} label="Copy request link" />
       </div>
       {typeof navigator.share === 'function' && (
-        <button className="btn btn-ghost w-full" onClick={() => void navigator.share({ title: 'Quick Pay payment request', url: link }).catch(() => undefined)}>
+        <button className="btn btn-ghost w-full" onClick={() => void navigator.share({ title: 'FlowPay payment request', url: link }).catch(() => undefined)}>
           Share link
         </button>
       )}

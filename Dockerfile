@@ -1,4 +1,4 @@
-# Quick Pay backend (history indexer + API). Build: docker build -t quickpay-api .
+# FlowPay backend (history indexer + API). Build: docker build -t flowpay-api .
 # Needs DATABASE_URL at runtime. Listens on $PORT (default 3001).
 FROM oven/bun:1
 WORKDIR /app

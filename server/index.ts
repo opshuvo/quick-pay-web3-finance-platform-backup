@@ -1,5 +1,5 @@
 /**
- * Quick Pay backend: wallet history indexer, payment requests, Across proxy.
+ * FlowPay backend: wallet history indexer, payment requests, Across proxy.
  * Run with `bun run server`. The Vite dev server proxies `/api/*` here (prefix stripped).
  */
 import { listActivity, recordBridge, recordSwap, refreshBridge } from './activity'
@@ -106,7 +106,7 @@ async function route(req: Request, ip: string): Promise<Response> {
     if (url.searchParams.get('format') === 'csv') {
       rateLimit(`csv:${ip}`, 10, 60_000)
       const csv = await exportCsv(filters)
-      return new Response(csv, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="quickpay-${address.slice(0, 8)}.csv"`, 'cache-control': 'no-store' } })
+      return new Response(csv, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="flowpay-${address.slice(0, 8)}.csv"`, 'cache-control': 'no-store' } })
     }
     const [result, cov] = await Promise.all([queryHistory(filters), coverage(address)])
     return json({ ...result, page: filters.page, pageSize: filters.pageSize, coverage: cov })
@@ -155,4 +155,4 @@ const server = Bun.serve({
   },
 })
 
-console.log(`[quickpay] api listening on :${server.port} | db=${sql ? 'configured' : 'NOT configured'} | rpc=${config.rpcSource}`)
+console.log(`[flowpay] api listening on :${server.port} | db=${sql ? 'configured' : 'NOT configured'} | rpc=${config.rpcSource}`)

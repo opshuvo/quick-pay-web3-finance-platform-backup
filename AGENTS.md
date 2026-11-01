@@ -1,4 +1,4 @@
-# Quick Pay
+# FlowPay
 
 > Built with Arc Studio
 
@@ -6,7 +6,7 @@ Project memory for future agents and developers.
 
 ## What this app does
 
-Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, receive, scan to pay, payment requests, split payments, swap (Uniswap), bridge (Across), history, analytics, and a payment request registry contract.
+FlowPay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, receive, scan to pay, payment requests, split payments, swap (Uniswap), bridge (Across), history, analytics, and a payment request registry contract.
 
 ## Tech stack
 
@@ -20,7 +20,7 @@ Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, 
 - Never fake quotes, balances, routes, history or success states. A swap is "success" only after its receipt; a bridge is "Complete" only after the destination fill transaction was read back as successful.
 - No automatic transactions. Every financial action goes through a confirmation sheet.
 - API keys (Uniswap, Across) live only in server env. The browser calls `/api/uniswap/*` and `/api/across/*`.
-- Approvals are exact-amount, built by Quick Pay, never taken from API calldata.
+- Approvals are exact-amount, built by FlowPay, never taken from API calldata.
 - The preview proxy drops custom `x-*` headers: auth uses the `Authorization` header.
 
 ## Where things are

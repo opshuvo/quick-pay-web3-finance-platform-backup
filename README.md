@@ -1,10 +1,12 @@
-# Quick Pay
+# FlowPay
 
-Quick Pay is a USDC payment and finance app for Arc Mainnet. Send, receive and scan to pay, create shareable payment requests, split bills, swap tokens through Uniswap, bridge with Across, and keep a searchable history of your wallet activity.
+FlowPay is a USDC payment and finance app for Arc Mainnet. Send, receive and scan to pay, create shareable payment requests, split bills, swap tokens through Uniswap, bridge with Across, and keep a searchable history of your wallet activity.
 
 Built with [Arc Studio](https://studio.arc.io)
 
 > Arc Mainnet moves real funds and transactions cannot be reversed. Review everything on testnet first, get an independent security review, and only then use real money. Nothing in this repository has had an independent audit.
+
+> FlowPay was previously named Quick Pay. Only the product name changed. Deployed contract names (`QuickPayRegistry`, `QuickPayRouter`), their addresses, the `VITE_QUICKPAY_*` environment variables, saved browser keys and the Solidity files are intentionally unchanged, because renaming them would alter the compiled contracts or break existing setups.
 
 ## Features
 
@@ -49,7 +51,7 @@ Public (shipped to the browser, so never put secrets here):
 
 - `VITE_EURC_ADDRESS` Optional override for the EURC address in Swap. By default Swap lists USDC, EURC, cirBTC and WETH using Circle's published Arc Mainnet addresses, each checked against its own contract
 - `VITE_QUICKPAY_REGISTRY_ADDRESS` Address of your deployed QuickPayRegistry. Leave unset until a real deployment exists
-- `VITE_QUICKPAY_ROUTER_ADDRESS` Address of your deployed QuickPayRouter. When set and confirmed on Arc, sends go through it (the explorer shows the Quick Pay contract); otherwise sends are plain USDC transfers
+- `VITE_QUICKPAY_ROUTER_ADDRESS` Address of your deployed QuickPayRouter. When set and confirmed on Arc, sends go through it (the explorer shows the FlowPay contract); otherwise sends are plain USDC transfers
 - `VITE_WALLETCONNECT_PROJECT_ID` Optional, enables WalletConnect
 
 ### Scripts
@@ -87,6 +89,6 @@ export REGISTRY_OWNER=<pause-rights address, ideally a multisig>
 forge script contracts/script/DeployQuickPayRegistry.s.sol --rpc-url <Arc RPC> --account <keystore> --sender <deployer> --broadcast
 ```
 
-To route ordinary sends through the Quick Pay contract, deploy `contracts/QuickPayRouter.sol` the same way with `contracts/script/DeployQuickPayRouter.s.sol` (set `USDC` and `ROUTER_OWNER`), then set `VITE_QUICKPAY_ROUTER_ADDRESS`.
+To route ordinary sends through the FlowPay contract, deploy `contracts/QuickPayRouter.sol` the same way with `contracts/script/DeployQuickPayRouter.s.sol` (set `USDC` and `ROUTER_OWNER`), then set `VITE_QUICKPAY_ROUTER_ADDRESS`.
 
 Then set `VITE_QUICKPAY_REGISTRY_ADDRESS` and restart the frontend. The Smart Contracts page marks it deployed only after reading it from the chain and checking it uses the official USDC.

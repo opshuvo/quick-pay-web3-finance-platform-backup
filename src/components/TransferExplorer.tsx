@@ -71,7 +71,7 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `quickpay-${lockedTab ?? tab}-${address.slice(0, 8)}.csv`
+      a.download = `flowpay-${lockedTab ?? tab}-${address.slice(0, 8)}.csv`
       a.click()
       URL.revokeObjectURL(url)
     } catch {
@@ -154,7 +154,7 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
         ) : query.isError ? (
           <ErrorState
             title={isServiceDown(query.error) ? 'History service unavailable' : 'Could not load transactions'}
-            body={isServiceDown(query.error) ? 'The Quick Pay indexer or its database is not reachable, so nothing is shown. Nothing is lost: history is rebuilt from the chain.' : (query.error).message}
+            body={isServiceDown(query.error) ? 'The FlowPay indexer or its database is not reachable, so nothing is shown. Nothing is lost: history is rebuilt from the chain.' : (query.error).message}
             onRetry={() => void query.refetch()}
           />
         ) : data && data.rows.length === 0 ? (

@@ -31,7 +31,7 @@ Contract: `0x3920870225841408E5bfcADA83d1b50F5fcCa58b` on Arc Mainnet (chain 504
 
 ## What this change does
 
-- Sent and Received pages gain a "Confirmed by the Quick Pay contract" list built from `PaymentReceived` logs for the connected wallet (payer = Sent, merchant = Received). Rows come only from logs emitted by the registry address.
+- Sent and Received pages gain a "Confirmed by the FlowPay contract" list built from `PaymentReceived` logs for the connected wallet (payer = Sent, merchant = Received). Rows come only from logs emitted by the registry address.
 - Ordinary USDC transfers already appear in the right wallet's Sent and Received history, including registry payments, because the registry moves USDC with a normal USDC transfer. Those rows are unchanged.
 - The Smart Contracts page shows "recorded by the contract" only when the confirmed receipt contains the expected registry event with matching id, merchant, payer and amount. Otherwise it says the transaction confirmed but no registry record was found.
 - After every confirmed contract transaction, balances, allowances, history and the contract lists are refreshed.

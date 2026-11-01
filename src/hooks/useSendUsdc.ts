@@ -40,7 +40,7 @@ export function useSendUsdc() {
             if (!router) {
               return writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees })
             }
-            // Through the Quick Pay router: approve the exact amount only (never unlimited), wait for it, then pay.
+            // Through the FlowPay router: approve the exact amount only (never unlimited), wait for it, then pay.
             if ((await routerAllowance(publicClient, address, router)) < amount) {
               const approveHash = await writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [router, amount], chainId: ARC_CHAIN_ID, ...fees })
               const approval = await publicClient.waitForTransactionReceipt({ hash: approveHash })

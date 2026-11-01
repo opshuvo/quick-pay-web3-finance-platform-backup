@@ -17,7 +17,7 @@ export const config = createConfig({
   chains: [arcMainnet, mainnet, base, optimism, arbitrum, polygon],
   connectors: [
     injected(),
-    coinbaseWallet({ appName: 'Quick Pay' }),
+    coinbaseWallet({ appName: 'FlowPay' }),
     ...(env.walletConnectProjectId ? [walletConnect({ projectId: env.walletConnectProjectId })] : []),
   ],
   transports: {

@@ -50,7 +50,7 @@ export default function Receive() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <ExplorerLink href={arcAddressUrl(address)}>View on explorer</ExplorerLink>
             {typeof navigator.share === 'function' && (
-              <button className="btn btn-ghost" onClick={() => void navigator.share({ title: 'My Quick Pay address', text: address }).catch(() => undefined)}>
+              <button className="btn btn-ghost" onClick={() => void navigator.share({ title: 'My FlowPay address', text: address }).catch(() => undefined)}>
                 <Share2 className="size-4" /> Share
               </button>
             )}

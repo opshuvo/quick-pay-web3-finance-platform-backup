@@ -18,7 +18,7 @@ export interface SwapRun {
   step?: ApiSwapStep
   hash?: `0x${string}`
   error?: string
-  /** Whether the verified record was written to Quick Pay history. */
+  /** Whether the verified record was written to FlowPay history. */
   saved?: 'saving' | 'saved' | 'failed'
 }
 
@@ -39,7 +39,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 /**
  * Runs one swap end to end. A second call while one is running is ignored (no duplicate submissions),
  * the quote is re-fetched right before anything is signed, and success is reported only after the
- * transaction receipt says so. The verified swap is then saved to Quick Pay history.
+ * transaction receipt says so. The verified swap is then saved to FlowPay history.
  */
 export function useSwapExecution() {
   const [run, setRun] = useState<SwapRun>({ stage: 'idle' })

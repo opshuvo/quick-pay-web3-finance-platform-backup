@@ -190,7 +190,7 @@ export default function Bridge() {
         {routes.isLoading ? <Skeleton className="h-12" /> : routes.isError ? (
           <Notice tone="danger" action={fallbackLink}>Could not check routes with Across. Try again shortly.</Notice>
         ) : !routes.data || routes.data.length === 0 ? (
-          <Notice tone="warn" action={fallbackLink}>Unavailable: Across does not list an ERC-20 route from {name(origin)} to {name(destination)}. Quick Pay will not offer one. You can check across.to for other options.</Notice>
+          <Notice tone="warn" action={fallbackLink}>Unavailable: Across does not list an ERC-20 route from {name(origin)} to {name(destination)}. FlowPay will not offer one. You can check across.to for other options.</Notice>
         ) : (
           <>
             <Field label="Token">

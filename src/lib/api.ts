@@ -47,9 +47,9 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     })
     text = await response.text()
   } catch (error) {
-    if (timedOut) throw new ApiError(0, 'timeout', 'The Quick Pay service took too long to respond.')
+    if (timedOut) throw new ApiError(0, 'timeout', 'The FlowPay service took too long to respond.')
     if (options.signal?.aborted) throw error
-    throw new ApiError(0, 'unreachable', 'The Quick Pay service is unreachable right now.')
+    throw new ApiError(0, 'unreachable', 'The FlowPay service is unreachable right now.')
   } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', onAbort)
@@ -64,7 +64,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
       isJson = false
     }
   }
-  if (response.ok && !isJson) throw new ApiError(503, 'backend_unavailable', 'The Quick Pay backend is not connected to this deployment.')
+  if (response.ok && !isJson) throw new ApiError(503, 'backend_unavailable', 'The FlowPay backend is not connected to this deployment.')
   if (!response.ok) {
     const body = data as { error?: string; message?: string } | null
     throw new ApiError(response.status, body?.error ?? 'error', body?.message ?? `Request failed (${response.status})`)
@@ -75,5 +75,5 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
 export const isServiceDown = (error: unknown) =>
   error instanceof ApiError && (['unreachable', 'timeout', 'backend_unavailable', 'database_not_configured'].includes(error.code) || error.status >= 500)
 
-/** True when no Quick Pay backend answered at all (as opposed to it answering with an error). */
+/** True when no FlowPay backend answered at all (as opposed to it answering with an error). */
 export const isBackendMissing = (error: unknown) => error instanceof ApiError && error.code === 'backend_unavailable'

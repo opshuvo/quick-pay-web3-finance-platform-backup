@@ -24,7 +24,7 @@ export const clearSession = () => sessionStorage.removeItem(KEY)
 export const loadSession = load
 
 /**
- * Wallet-signature sign-in for the Quick Pay backend (payment requests).
+ * Wallet-signature sign-in for the FlowPay backend (payment requests).
  * The signature is free, sends no transaction, and is kept for this browser tab only.
  */
 export function useSession() {

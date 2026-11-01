@@ -86,3 +86,27 @@ describe('totals and coverage honesty', () => {
     expect(buildCoverage(snap({ oldest: null, newest: null }), Date.now()).status).toBe('unregistered')
   })
 })
+
+describe('history server selection (regression: expired RPC credentials on the server)', () => {
+  const withHealth = async (body: unknown, status = 200, type = 'application/json') => {
+    const real = globalThis.fetch
+    globalThis.fetch = (async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': type } })) as unknown as typeof fetch
+    try {
+      const { historyServerUsable, forgetServerProbe } = await import('../src/lib/chainHistory/mode')
+      forgetServerProbe()
+      return await historyServerUsable()
+    } finally {
+      globalThis.fetch = real
+    }
+  }
+  test('a healthy server (database and RPC ok) is used', async () => {
+    expect(await withHealth({ ok: true, database: 'ok', rpc: 'ok' })).toBe(true)
+  })
+  test('a server whose Arc RPC is failing is NOT used, so the browser reads Arc directly', async () => {
+    expect(await withHealth({ ok: true, database: 'ok', rpc: 'error' })).toBe(false)
+  })
+  test('a server with no database, or a static host answering with HTML, is not used', async () => {
+    expect(await withHealth({ ok: true, database: 'unconfigured', rpc: 'ok' })).toBe(false)
+    expect(await withHealth('<!DOCTYPE html><html></html>', 200, 'text/html')).toBe(false)
+  })
+})

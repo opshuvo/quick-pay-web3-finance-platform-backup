@@ -6,7 +6,7 @@
   box-sizing: border-box;
 }
 
-/* Quick Pay design tokens: deep navy / near-black canvas, electric blue + cyan + violet accents. */
+/* FlowPay design tokens: deep navy / near-black canvas, electric blue + cyan + violet accents. */
 :root,
 [data-theme='dark'] {
   color-scheme: dark;

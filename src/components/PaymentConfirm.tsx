@@ -71,14 +71,14 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
       <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
         <Row label="From">{address ? <span className="mono">{shortAddress(address)}</span> : '—'}</Row>
         <Row label="To"><span className="mono break-all">{to}</span></Row>
-        {router && <Row label="Via"><span className="mono break-all text-xs">Quick Pay contract {shortAddress(router)}</span></Row>}
+        {router && <Row label="Via"><span className="mono break-all text-xs">FlowPay contract {shortAddress(router)}</span></Row>}
         <Row label="Network fee">
           {!wallet.onArc ? 'Switch to Arc' : fee.isLoading ? 'Estimating…' : fee.data ? `≈ ${displayUsdc(fee.data.usdc, 4, 6)} USDC` : 'Unavailable'}
         </Row>
         <Row label="Total debited">{total !== undefined ? `${displayUsdc(total, 2, 6)} USDC` : '—'}</Row>
       </div>
       {note && <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>{note}</p>}
-      {router && <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>This payment goes through the Quick Pay contract, which sends your USDC straight to the recipient and never holds it. If it needs permission first, your wallet asks you to approve exactly this amount, then to pay.</p>}
+      {router && <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>This payment goes through the FlowPay contract, which sends your USDC straight to the recipient and never holds it. If it needs permission first, your wallet asks you to approve exactly this amount, then to pay.</p>}
 
       <div className="mt-3 space-y-2">
         {fee.isError && wallet.onArc && (
