@@ -1,13 +1,13 @@
 import { useId } from 'react'
 
 /**
- * FlowPay mark: a ring (the "Q") with a lightning bolt at its core and a forward-moving tail.
+ * Quick Pay mark: a ring (the "Q") with a lightning bolt at its core and a forward-moving tail.
  * The gradient runs cyan to electric blue to violet.
  */
 export function LogoMark({ size = 36 }: { size?: number }) {
   const id = useId()
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="FlowPay">
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Quick Pay">
       <defs>
         <linearGradient id={`${id}-g`} x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
           <stop stopColor="#2fd4f0" />
@@ -34,7 +34,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       <LogoMark size={compact ? 32 : 38} />
       <div className="leading-none">
         <span className="display block text-[1.15rem] font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
-          Flow<span className="gradient-text">Pay</span>
+          Quick<span className="gradient-text">Pay</span>
         </span>
         {!compact && (
           <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--subtle)' }}>

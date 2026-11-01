@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {QuickPayRouter} from "../FlowPayRouter.sol";
+import {QuickPayRouter} from "../QuickPayRouter.sol";
 
 /// @notice Deploys QuickPayRouter. The signer comes from a Foundry keystore or hardware wallet
 ///         (`--account` / `--ledger`); this script never reads a raw private key.

@@ -19,7 +19,7 @@ export const SESSION_TTL_MS = 12 * 60 * 60 * 1000
 
 export function buildSessionMessage(p: SessionPayload): string {
   return [
-    'FlowPay sign-in',
+    'Quick Pay sign-in',
     '',
     'This signature proves you control this wallet. It does not send a transaction, cost gas, or move funds.',
     '',

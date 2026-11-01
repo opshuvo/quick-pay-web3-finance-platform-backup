@@ -1,4 +1,4 @@
-/** Browser client for FlowPay's server-side Uniswap Trading API integration. No API key is ever in the browser. */
+/** Browser client for Quick Pay's server-side Uniswap Trading API integration. No API key is ever in the browser. */
 import { api } from '@/lib/api'
 
 export interface UniswapStatus {
@@ -9,7 +9,7 @@ export interface UniswapStatus {
   message: string
 }
 
-/** The subset of the Trading API's CLASSIC quote that FlowPay reads. Everything else is passed back untouched. */
+/** The subset of the Trading API's CLASSIC quote that Quick Pay reads. Everything else is passed back untouched. */
 export interface ApiQuote {
   input: { token: string; amount: string }
   output: { token: string; amount: string; recipient?: string; minimumAmount?: string }

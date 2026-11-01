@@ -18,7 +18,7 @@ export function NetworkBanner() {
           </button>
         }
       >
-        Your wallet is on {name}. FlowPay payments run on Arc Mainnet (chain ID 5042). Switch networks before sending, swapping, or paying a request.
+        Your wallet is on {name}. Quick Pay payments run on Arc Mainnet (chain ID 5042). Switch networks before sending, swapping, or paying a request.
       </Notice>
     </div>
   )

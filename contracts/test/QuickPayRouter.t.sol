@@ -7,7 +7,7 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {QuickPayRouter} from "../FlowPayRouter.sol";
+import {QuickPayRouter} from "../QuickPayRouter.sol";
 import {MockERC20} from "../test-helpers/MockERC20.sol";
 import {ReentrantToken, FalseReturnToken, NoReturnToken} from "../test-helpers/MaliciousTokens.sol";
 

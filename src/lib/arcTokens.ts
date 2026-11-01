@@ -3,7 +3,7 @@ import { ARC_USDC } from '@/lib/arc'
 import { env } from '@/lib/env'
 
 /**
- * Tokens FlowPay lists in Swap on Arc Mainnet (chain 5042). Addresses come from Circle's published Arc
+ * Tokens Quick Pay lists in Swap on Arc Mainnet (chain 5042). Addresses come from Circle's published Arc
  * contract addresses (https://docs.arc.io/arc/references/contract-addresses.md). The expected symbol and
  * decimals are only a cross-check: the list still reads every value from the token's own contract and drops
  * a token whose contract does not answer with exactly these. Nothing here is a price or a balance.

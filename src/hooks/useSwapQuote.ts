@@ -85,7 +85,7 @@ async function onchainView(client: PublicClient, p: Required<Pick<Params, 'token
 
 /**
  * Live quote. The Uniswap Trading API is used when the server has a key and the API lists Arc with the
- * router FlowPay trusts. Otherwise (or if the API is unavailable) the same Uniswap pools are quoted
+ * router Quick Pay trusts. Otherwise (or if the API is unavailable) the same Uniswap pools are quoted
  * directly on-chain, and the screen says so. A quote is never invented.
  */
 export function useSwapQuote({ tokenIn, tokenOut, amount, slippageBps, wallet, status, enabled }: Params) {

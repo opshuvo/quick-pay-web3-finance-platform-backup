@@ -1,4 +1,4 @@
-/** Response shapes shared by the FlowPay server and the browser. Types only, no runtime code. */
+/** Response shapes shared by the Quick Pay server and the browser. Types only, no runtime code. */
 import type { RequestStatus } from './session'
 
 export interface HistoryRow {

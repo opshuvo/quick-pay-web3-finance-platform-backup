@@ -98,7 +98,7 @@ export default function Scan() {
           >
             <label className="block">
               <span className="label mb-1.5 block">Address, payment link, or request link</span>
-              <textarea className="field mono min-h-[96px] resize-none" placeholder="0x… or ethereum:… or a FlowPay request link" value={manual} onChange={(e) => setManual(e.target.value)} spellCheck={false} />
+              <textarea className="field mono min-h-[96px] resize-none" placeholder="0x… or ethereum:… or a Quick Pay request link" value={manual} onChange={(e) => setManual(e.target.value)} spellCheck={false} />
             </label>
             <button type="submit" className="btn btn-primary w-full" disabled={!manual.trim()}>Check details</button>
           </form>
@@ -122,7 +122,7 @@ export default function Scan() {
               )}
             </>
           ) : (
-            <p className="mt-2 text-sm">A FlowPay payment request (<span className="mono">{detected.id}</span>). Open it to see the amount and who is asking to be paid.</p>
+            <p className="mt-2 text-sm">A Quick Pay payment request (<span className="mono">{detected.id}</span>). Open it to see the amount and who is asking to be paid.</p>
           )}
           <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>Nothing has been sent. Continue to review the payment, then confirm in your wallet.</p>
           <button className="btn btn-primary mt-3 w-full" onClick={proceed}>{detected.kind === 'request' ? 'Open payment request' : 'Continue to review'}</button>

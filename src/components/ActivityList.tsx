@@ -62,7 +62,7 @@ export function ActivityList({ kind, title }: { kind?: 'swap' | 'bridge'; title:
       ) : query.isLoading ? (
         <Skeleton className="h-24" />
       ) : query.isError ? (
-        <ErrorState title="Activity unavailable" body={isBackendMissing(query.error) ? 'Verified swap and bridge activity is saved by the FlowPay backend, which is not connected to this deployment yet. Your transactions are not lost: they are on-chain.' : isServiceDown(query.error) ? 'The history service is not reachable right now.' : 'Could not load your activity.'} onRetry={() => void query.refetch()} />
+        <ErrorState title="Activity unavailable" body={isBackendMissing(query.error) ? 'Verified swap and bridge activity is saved by the Quick Pay backend, which is not connected to this deployment yet. Your transactions are not lost: they are on-chain.' : isServiceDown(query.error) ? 'The history service is not reachable right now.' : 'Could not load your activity.'} onRetry={() => void query.refetch()} />
       ) : query.data && query.data.length > 0 ? (
         <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>{query.data.map((a) => <Item key={a.id} a={a} chains={chains.data} />)}</ul>
       ) : (

@@ -45,11 +45,11 @@ export default function Settings() {
             <div className="mt-3 flex flex-wrap gap-2">
               {wallet.wrongNetwork && <button className="btn btn-primary" onClick={() => void wallet.switchToArc()}>Switch to Arc</button>}
               <button className="btn btn-ghost" onClick={() => { clearSession(); disconnect(); toast.success('Disconnected') }}>Disconnect</button>
-              <button className="btn btn-ghost" onClick={() => { clearSession(); toast.success('Signed out of FlowPay requests') }}>Sign out of requests</button>
+              <button className="btn btn-ghost" onClick={() => { clearSession(); toast.success('Signed out of Quick Pay requests') }}>Sign out of requests</button>
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-between gap-3"><p className="text-sm" style={{ color: 'var(--muted)' }}>No wallet connected. FlowPay never asks for a seed phrase or private key.</p><WalletButton /></div>
+          <div className="flex items-center justify-between gap-3"><p className="text-sm" style={{ color: 'var(--muted)' }}>No wallet connected. Quick Pay never asks for a seed phrase or private key.</p><WalletButton /></div>
         )}
       </section>
 
@@ -69,7 +69,7 @@ export default function Settings() {
         <h2 className="display mb-2 text-lg font-semibold">Service status</h2>
         {health.isLoading ? <Skeleton className="h-24" /> : (
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            <Row label="FlowPay API">{health.isError ? <StatusBadge tone="danger">Unreachable</StatusBadge> : health.data?.mode === 'browser' ? <StatusBadge tone="warn">Not connected (reading Arc directly)</StatusBadge> : <StatusBadge tone="success">Online</StatusBadge>}</Row>
+            <Row label="Quick Pay API">{health.isError ? <StatusBadge tone="danger">Unreachable</StatusBadge> : health.data?.mode === 'browser' ? <StatusBadge tone="warn">Not connected (reading Arc directly)</StatusBadge> : <StatusBadge tone="success">Online</StatusBadge>}</Row>
             <Row label="Database">{health.data?.database === 'ok' ? <StatusBadge tone="success">Connected</StatusBadge> : health.data?.database === 'unconfigured' ? <StatusBadge tone="warn">Not configured</StatusBadge> : <StatusBadge tone="danger">Error</StatusBadge>}</Row>
             <Row label="Arc RPC">{health.data?.rpc === 'ok' ? <StatusBadge tone="success">Online ({health.data.rpcSource === 'proxy' ? 'keyed' : 'public'})</StatusBadge> : <StatusBadge tone="danger">Unreachable</StatusBadge>}</Row>
             <Row label="Latest block">{health.data?.headBlock ? formatNumber(health.data.headBlock) : '—'}</Row>
@@ -77,7 +77,7 @@ export default function Settings() {
         )}
       </section>
 
-      <p className="text-xs" style={{ color: 'var(--muted)' }}>FlowPay is software that helps you build and send blockchain transactions. It has not been independently audited. You approve every transaction in your own wallet.</p>
+      <p className="text-xs" style={{ color: 'var(--muted)' }}>Quick Pay is software that helps you build and send blockchain transactions. It has not been independently audited. You approve every transaction in your own wallet.</p>
     </div>
   )
 }

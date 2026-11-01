@@ -72,7 +72,7 @@ export function TokenPicker({ label, value, tokens, unavailable = [], loading, e
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1 text-sm font-bold">
                         {t.symbol}
-                        {t.preset && <ShieldCheck className="size-3.5" aria-label="Listed by FlowPay" style={{ color: 'var(--success)' }} />}
+                        {t.preset && <ShieldCheck className="size-3.5" aria-label="Listed by Quick Pay" style={{ color: 'var(--success)' }} />}
                       </span>
                       <span className="block truncate text-xs" style={{ color: 'var(--muted)' }}>{t.name} · {shortAddress(t.address, 6, 4)}</span>
                     </span>

@@ -10,7 +10,7 @@ export interface Health {
   rpcSource: 'proxy' | 'public'
   headBlock: number | null
   chainId: number
-  /** `server`: the FlowPay backend answered. `browser`: no backend is connected, so the block is read straight from Arc. */
+  /** `server`: the Quick Pay backend answered. `browser`: no backend is connected, so the block is read straight from Arc. */
   mode?: 'server' | 'browser'
 }
 

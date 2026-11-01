@@ -59,11 +59,11 @@ export default function Contracts() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Smart Contracts" subtitle="FlowPay Registry (contract name QuickPayRegistry): an optional, non-custodial on-chain record of payment requests and receipts." />
+      <PageHeader title="Smart Contracts" subtitle="QuickPayRegistry: an optional, non-custodial on-chain record of payment requests and receipts." />
 
       <section className="card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="display text-lg font-semibold">FlowPay Registry on Arc Mainnet <span className="mono text-xs font-normal" style={{ color: 'var(--muted)' }}>(QuickPayRegistry)</span></h2>
+          <h2 className="display text-lg font-semibold">QuickPayRegistry on Arc Mainnet</h2>
           {deployment.isLoading || !d ? <Skeleton className="h-6 w-28" /> : d.state === 'verified' ? <StatusBadge tone="success">Deployed and verified on-chain</StatusBadge> : d.state === 'mismatch' ? <StatusBadge tone="danger">Address does not match</StatusBadge> : <StatusBadge tone="neutral">Not Deployed</StatusBadge>}
         </div>
         {d?.state === 'verified' && env.registryAddress ? (
@@ -75,7 +75,7 @@ export default function Contracts() {
             <Row label="Explorer"><ExplorerLink href={arcAddressUrl(env.registryAddress)}>View contract</ExplorerLink></Row>
           </div>
         ) : d && d.state !== 'verified' ? (
-          <Notice tone={d.state === 'mismatch' ? 'danger' : 'info'}>{d.reason} FlowPay payments, requests, and history work without the contract. Deploy it yourself using the steps below.</Notice>
+          <Notice tone={d.state === 'mismatch' ? 'danger' : 'info'}>{d.reason} Quick Pay payments, requests, and history work without the contract. Deploy it yourself using the steps below.</Notice>
         ) : null}
         <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>Status comes from live reads on Arc. It says deployed only if the code exists, matches the registry interface, and uses the official USDC address. It does not mean the contract has been independently audited.</p>
       </section>

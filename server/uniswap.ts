@@ -102,7 +102,7 @@ export async function uniswapStatus(): Promise<UniswapStatus> {
       chainSupported: true,
       routerVerified,
       protocols: (chain.protocols ?? []).filter((p) => ['V2', 'V3', 'V4'].includes(p)),
-      message: routerVerified ? 'Uniswap API lists Arc Mainnet.' : 'The Universal Router address reported by Uniswap does not match the one FlowPay trusts. Swaps through the API are disabled.',
+      message: routerVerified ? 'Uniswap API lists Arc Mainnet.' : 'The Universal Router address reported by Uniswap does not match the one Quick Pay trusts. Swaps through the API are disabled.',
     }
   } catch (error) {
     if (error instanceof HttpError) return { configured: true, chainSupported: null, routerVerified: null, protocols: [], message: error.message }
@@ -163,7 +163,7 @@ export function validateQuoteResponse(
   expected: { tokenIn: string; tokenOut: string; amount: string; swapper: string },
 ) {
   if (data.routing !== 'CLASSIC' || !data.quote) {
-    throw new HttpError(422, 'unsupported_routing', 'Uniswap returned a route type FlowPay does not execute. Try a different pair or size.')
+    throw new HttpError(422, 'unsupported_routing', 'Uniswap returned a route type Quick Pay does not execute. Try a different pair or size.')
   }
   const q = data.quote as {
     input?: { token?: string; amount?: string }
@@ -190,7 +190,7 @@ export interface ApprovalInput {
 
 /**
  * Asks Uniswap whether the wallet must approve Permit2 for this token. Only the yes/no answer is
- * used: FlowPay builds the approval itself (exact amount, Permit2 as spender) rather than sending
+ * used: Quick Pay builds the approval itself (exact amount, Permit2 as spender) rather than sending
  * calldata it did not construct.
  */
 export async function checkApproval(input: ApprovalInput) {

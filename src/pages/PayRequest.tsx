@@ -40,7 +40,7 @@ export default function PayRequest() {
     const notFound = request.error instanceof ApiError && request.error.status === 404
     return (
       <div className="mx-auto max-w-lg card">
-        <ErrorState title={notFound ? 'Request not found' : 'Could not load this request'} body={notFound ? 'This payment request link is invalid or no longer exists.' : 'The FlowPay service is not reachable right now.'} onRetry={notFound ? undefined : () => void request.refetch()} />
+        <ErrorState title={notFound ? 'Request not found' : 'Could not load this request'} body={notFound ? 'This payment request link is invalid or no longer exists.' : 'The Quick Pay service is not reachable right now.'} onRetry={notFound ? undefined : () => void request.refetch()} />
       </div>
     )
   }
@@ -97,7 +97,7 @@ export default function PayRequest() {
         <details className="card mt-4 p-4">
           <summary className="min-h-[32px] cursor-pointer text-sm font-semibold">Already paid? Verify by transaction hash</summary>
           <div className="mt-3 space-y-3">
-            <Field label="Transaction hash" hint="FlowPay checks the payment on Arc before marking this request paid.">
+            <Field label="Transaction hash" hint="Quick Pay checks the payment on Arc before marking this request paid.">
               <input className="field mono" placeholder="0x…" value={manualHash} onChange={(e) => setManualHash(e.target.value.trim())} />
             </Field>
             <button className="btn btn-ghost w-full" disabled={!/^0x[0-9a-fA-F]{64}$/.test(manualHash) || verify.isPending} onClick={() => verify.mutate(manualHash)}>
@@ -114,7 +114,7 @@ export default function PayRequest() {
           to={recipient}
           amount={amount}
           title="Pay request"
-          note="After your payment confirms, FlowPay checks it on Arc and marks the request paid."
+          note="After your payment confirms, Quick Pay checks it on Arc and marks the request paid."
           onSuccess={(hash) => verify.mutate(hash)}
         />
       )}

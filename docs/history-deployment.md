@@ -2,7 +2,7 @@
 
 ## Why History and Activity show "unavailable" on the live site
 
-The live site is a static build on Vercel. Wallet history is not computed in the browser. It needs the FlowPay backend (`server/`, a Bun process with an indexer) and a PostgreSQL database. Neither is part of a static deployment, so `/api/*` on the live site falls through to `index.html` and the app reports "backend not connected". Nothing was lost: the transactions are on Arc, and the indexer rebuilds history from the chain.
+The live site is a static build on Vercel. Wallet history is not computed in the browser. It needs the Quick Pay backend (`server/`, a Bun process with an indexer) and a PostgreSQL database. Neither is part of a static deployment, so `/api/*` on the live site falls through to `index.html` and the app reports "backend not connected". Nothing was lost: the transactions are on Arc, and the indexer rebuilds history from the chain.
 
 ## Without a backend (what the live site does today)
 
@@ -15,7 +15,7 @@ When `/api/health` does not return JSON with `database: ok`, the app reads Arc d
 - Each wallet has a stored cursor (`newest_scanned`, `oldest_scanned`). The indexer scans forward from the tip and backfills toward block 0. The cursor moves only after a chunk was fetched and stored, so a restart or RPC error resumes without gaps. Rate limits back off and shrink the block range automatically.
 - A wallet's history is only labelled complete after the backfill reaches block 0. Until then the app shows how much of the chain is covered.
 - Swaps are discovered and saved by the server, not the browser. Each transaction the wallet sent (or received directly from a Uniswap or Across contract) is queued in PostgreSQL, its receipt is read from Arc, and a successful transaction sent by the wallet to the Uniswap Universal Router is saved with its real token legs, symbols, decimals and amounts. This covers swaps made before the fix, swaps made with the browser closed, and swaps in tokens other than USDC. The queue survives restarts and retries with backoff. `/health` reports `verification.pending` and `verification.failing`.
-- Bridges that FlowPay recorded are verified against Across and the destination chain. Older bridges appear as USDC legs labelled from the verified transaction target (the Across contract). Swap and bridge legs that never touched USDC for that wallet are not discovered.
+- Bridges that Quick Pay recorded are verified against Across and the destination chain. Older bridges appear as USDC legs labelled from the verified transaction target (the Across contract). Swap and bridge legs that never touched USDC for that wallet are not discovered.
 - Reads are scoped by chain id 5042 and wallet address. A wallet never sees rows that do not involve it.
 
 ## What you must provide

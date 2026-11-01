@@ -120,7 +120,7 @@ export default function SplitDetail() {
         {summary.own > 0n && <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>Your own share of {displayUsdc(summary.own)} USDC is not requested.</p>}
       </div>
 
-      <Notice tone="info">Each share is an <strong>off-chain payment request</strong>. It turns <strong>Paid</strong> only after FlowPay verifies a matching USDC transfer on Arc. Nothing is ever sent automatically.</Notice>
+      <Notice tone="info">Each share is an <strong>off-chain payment request</strong>. It turns <strong>Paid</strong> only after Quick Pay verifies a matching USDC transfer on Arc. Nothing is ever sent automatically.</Notice>
 
       <section className="card mt-4 p-2 sm:p-4">
         <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>

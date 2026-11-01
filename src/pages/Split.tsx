@@ -130,7 +130,7 @@ function Builder() {
   const diffTone = validation.difference === 0n ? 'var(--success)' : 'var(--danger)'
   return (
     <div className="space-y-4">
-      <Notice tone="info">A split creates one <strong>off-chain payment request</strong> per participant. Creating it moves no money. A share is marked paid only after FlowPay verifies the participant's USDC transfer on Arc.</Notice>
+      <Notice tone="info">A split creates one <strong>off-chain payment request</strong> per participant. Creating it moves no money. A share is marked paid only after Quick Pay verifies the participant's USDC transfer on Arc.</Notice>
 
       <section className="card space-y-4 p-4 sm:p-5">
         <h2 className="display text-lg font-semibold">Bill</h2>

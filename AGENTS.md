@@ -1,4 +1,4 @@
-# FlowPay
+# Quick Pay
 
 > Built with Arc Studio
 
@@ -6,7 +6,7 @@ Project memory for future agents and developers.
 
 ## What this app does
 
-FlowPay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, receive, scan to pay, payment requests, split payments, swap (Uniswap), bridge (Across), history, analytics, and a payment request registry contract.
+Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, receive, scan to pay, payment requests, split payments, swap (Uniswap), bridge (Across), history, analytics, and a payment request registry contract.
 
 ## Tech stack
 
@@ -20,7 +20,7 @@ FlowPay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, re
 - Never fake quotes, balances, routes, history or success states. A swap is "success" only after its receipt; a bridge is "Complete" only after the destination fill transaction was read back as successful.
 - No automatic transactions. Every financial action goes through a confirmation sheet.
 - API keys (Uniswap, Across) live only in server env. The browser calls `/api/uniswap/*` and `/api/across/*`.
-- Approvals are exact-amount, built by FlowPay, never taken from API calldata.
+- Approvals are exact-amount, built by Quick Pay, never taken from API calldata.
 - The preview proxy drops custom `x-*` headers: auth uses the `Authorization` header.
 
 ## Where things are
@@ -42,7 +42,7 @@ FlowPay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, re
 - QuickPayRegistry on Arc Mainnet (5042): `0x3920870225841408E5bfcADA83d1b50F5fcCa58b` (deployed by the owner from their own wallet; also listed in `deployments/arc-mainnet.json`). Read from the chain: uses USDC `0x3600000000000000000000000000000000000000`, owner `0x26Eff17ACB6932F197ADbc1aA493b9BF64C04968`, not paused, 0 requests at last check.
 - The app uses it through `VITE_QUICKPAY_REGISTRY_ADDRESS` in the local, gitignored `.env`. Not independently audited.
 
-- QuickPayRouter (`contracts/FlowPayRouter.sol`, `payTo(recipient, amount, reference)`): written and tested. The owner's own deployment on Arc Mainnet (5042) is `0x1593C6fdEAB15228c90da354913a919fDA08b7E4` (read from the chain: uses official USDC `0x3600...0000`, not paused; wired via `VITE_QUICKPAY_ROUTER_ADDRESS` in the gitignored `.env`; not independently audited). When `VITE_QUICKPAY_ROUTER_ADDRESS` is set and `src/hooks/useRouter.ts` confirms it on Arc (code, official USDC, not paused), Send/Pay use approve (exact amount) + `payTo` instead of a direct USDC transfer, so the explorer shows the router as the destination. Unset means plain transfers.
+- QuickPayRouter (`contracts/QuickPayRouter.sol`, `payTo(recipient, amount, reference)`): written and tested. The owner's own deployment on Arc Mainnet (5042) is `0x1593C6fdEAB15228c90da354913a919fDA08b7E4` (read from the chain: uses official USDC `0x3600...0000`, not paused; wired via `VITE_QUICKPAY_ROUTER_ADDRESS` in the gitignored `.env`; not independently audited). When `VITE_QUICKPAY_ROUTER_ADDRESS` is set and `src/hooks/useRouter.ts` confirms it on Arc (code, official USDC, not paused), Send/Pay use approve (exact amount) + `payTo` instead of a direct USDC transfer, so the explorer shows the router as the destination. Unset means plain transfers.
 
 ## To run
 

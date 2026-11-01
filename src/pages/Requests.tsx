@@ -102,7 +102,7 @@ export default function Requests() {
       <div className="lg:col-span-2">
         <PageHeader title="Payment Requests" subtitle="Create a link or QR that asks someone to pay you a set amount of USDC." />
         <Notice tone="info">
-          A request is an <strong>off-chain record</strong> kept by FlowPay. It does not move any money. Funds move only when someone pays it and confirms in their own wallet, and a request turns Paid only after the payment is found on Arc.
+          A request is an <strong>off-chain record</strong> kept by Quick Pay. It does not move any money. Funds move only when someone pays it and confirms in their own wallet, and a request turns Paid only after the payment is found on Arc.
         </Notice>
       </div>
 

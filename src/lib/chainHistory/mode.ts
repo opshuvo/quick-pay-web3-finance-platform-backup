@@ -10,7 +10,7 @@ const TTL_MS = 45_000
 let cached: { at: number; usable: Promise<boolean> } | undefined
 
 /**
- * True only when a real FlowPay history server answers with JSON AND its database AND its Arc RPC work.
+ * True only when a real Quick Pay history server answers with JSON AND its database AND its Arc RPC work.
  * A server whose RPC credentials expired still reports `ok` with a working database, but every history
  * request then fails with a 500, so it must not be chosen over reading Arc directly. On a static
  * host `/api/health` returns the app's HTML (which `api()` reports as an error), so the browser then reads

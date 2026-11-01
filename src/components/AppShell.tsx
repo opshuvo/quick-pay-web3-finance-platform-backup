@@ -6,7 +6,7 @@ import { Avatar } from '@/components/Avatar'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalSearch } from '@/components/GlobalSearch'
-import { Logo } from '@/components/Logo'
+import { Logo, LogoMark } from '@/components/Logo'
 import { NetworkBanner } from '@/components/NetworkBanner'
 import { NotificationsMenu } from '@/components/NotificationsMenu'
 import { Skeleton } from '@/components/ui'
@@ -50,7 +50,7 @@ export function AppShell() {
     <div className="min-h-dvh lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-5 border-r px-5 py-5 lg:flex" style={{ borderColor: 'var(--border)', background: 'var(--sidebar)', backdropFilter: 'blur(20px)' }}>
-        <Link to="/" aria-label="FlowPay home" className="px-1"><Logo /></Link>
+        <Link to="/" aria-label="Quick Pay home" className="px-1"><Logo /></Link>
         <nav aria-label="Main" className="-mr-2 flex flex-1 flex-col gap-5 overflow-y-auto pr-2">
           <div className="flex flex-col gap-0.5 pl-2">
             {PRIMARY_NAV.map(({ to, label, icon: Icon }) => (
@@ -95,7 +95,7 @@ export function AppShell() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 72%, transparent)' }}>
           <div className="flex items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
-            <Link to="/" aria-label="FlowPay home" className="lg:hidden"><Logo compact /></Link>
+            <Link to="/" aria-label="Quick Pay home" className="lg:hidden"><LogoMark size={36} /></Link>
             <GlobalSearch className="hidden max-w-md flex-1 lg:block" />
             <span className="chip ml-auto hidden xl:inline-flex" title="Network">
               <span className="pulse-dot size-1.5 rounded-full" style={{ background: wallet.wrongNetwork ? 'var(--warn)' : 'var(--success)' }} />

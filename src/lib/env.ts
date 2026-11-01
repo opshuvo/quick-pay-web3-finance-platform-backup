@@ -16,7 +16,7 @@ export const env = {
   registryAddress: addressEnv(import.meta.env.VITE_QUICKPAY_REGISTRY_ADDRESS),
   /** Block the registry was created at. Event scans start here, never at block 0. */
   registryFromBlock: blockEnv(import.meta.env.VITE_QUICKPAY_REGISTRY_FROM_BLOCK),
-  /** Set once QuickPayRouter is deployed. Sends route through it so the explorer shows the FlowPay contract. */
+  /** Set once QuickPayRouter is deployed. Sends route through it so the explorer shows the Quick Pay contract. */
   routerAddress: addressEnv(import.meta.env.VITE_QUICKPAY_ROUTER_ADDRESS),
   /** EURC on Arc (public token address), enables the EURC option in Swap. */
   eurcAddress: addressEnv(import.meta.env.VITE_EURC_ADDRESS),

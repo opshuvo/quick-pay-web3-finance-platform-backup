@@ -1,4 +1,4 @@
-/** Minimal ABI for contracts/FlowPayRouter.sol (payments and the reads the app needs). */
+/** Minimal ABI for contracts/QuickPayRouter.sol (payments and the reads the app needs). */
 export const quickPayRouterAbi = [
   {
     type: 'function',

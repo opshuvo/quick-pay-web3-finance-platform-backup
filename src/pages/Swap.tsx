@@ -27,7 +27,7 @@ import { QUOTE_TTL_MS } from '@/lib/uniswap/apiValidate'
 
 /** USDC is also the gas token on Arc, so MAX keeps a small reserve for network fees. */
 const GAS_RESERVE = 20_000n
-const UNREACHABLE: UniswapStatus = { configured: false, chainSupported: null, routerVerified: null, protocols: [], message: 'The FlowPay backend is not reachable from here, so the Uniswap Trading API is not used.' }
+const UNREACHABLE: UniswapStatus = { configured: false, chainSupported: null, routerVerified: null, protocols: [], message: 'The Quick Pay backend is not reachable from here, so the Uniswap Trading API is not used.' }
 
 export default function Swap() {
   const wallet = useArcWallet()
@@ -198,7 +198,7 @@ export default function Swap() {
         {q?.fallbackReason && <div className="mt-3"><Notice tone="info">Using Uniswap pools directly on-chain. {q.fallbackReason}</Notice></div>}
         {!q && status && !status.configured && <div className="mt-3"><Notice tone="info">Quotes and swaps use Uniswap's pools on Arc directly. The optional Uniswap Trading API is not enabled on this server ({status.message.replace(/\.$/, '')}).</Notice></div>}
         {deploymentState === 'unreachable' && (
-          <div className="mt-3"><Notice tone="warn" action={<button className="btn btn-ghost !min-h-[36px]" onClick={() => void deployment.refetch()} disabled={deployment.isFetching}>Retry</button>}>FlowPay could not reach the Arc network to verify the Uniswap contracts (a connection or rate-limit problem, not a missing contract). Swapping stays disabled until they are verified. Retrying automatically.</Notice></div>
+          <div className="mt-3"><Notice tone="warn" action={<button className="btn btn-ghost !min-h-[36px]" onClick={() => void deployment.refetch()} disabled={deployment.isFetching}>Retry</button>}>Quick Pay could not reach the Arc network to verify the Uniswap contracts (a connection or rate-limit problem, not a missing contract). Swapping stays disabled until they are verified. Retrying automatically.</Notice></div>
         )}
         {deploymentState === 'missing' && <div className="mt-3"><Notice tone="danger">Swapping is disabled. These Uniswap contracts were not found on Arc: {deployment.data?.filter((c) => c.status === 'missing').map((c) => c.name).join(', ')}.</Notice></div>}
         {!list.isLoading && (list.readFailed || list.balanceFailed) && (
