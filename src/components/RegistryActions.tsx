@@ -10,7 +10,8 @@ import { Field, Notice, Row, Spinner } from '@/components/ui'
 import { quickPayRegistryAbi } from '@/contracts/quickPayRegistryAbi'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { ARC_CHAIN_ID, ARC_USDC, arcTxUrl } from '@/lib/arc'
-import { confirmTx, TxFlowError } from '@/lib/confirmTx'
+import { confirmTx, TxFlowError, TxReplacedError } from '@/lib/confirmTx'
+import { ledgerAdd, ledgerRehash, ledgerSetStatus } from '@/lib/txLedger'
 import { parseTxError } from '@/lib/errors'
 import { arcFeeParams } from '@/lib/fees'
 import { displayUsdc, formatDateTime } from '@/lib/format'
@@ -25,6 +26,8 @@ interface Step {
   write: () => Promise<Hash>
   /** Returns a problem description when the mined receipt does not contain what this step was meant to do. */
   verify?: (receipt: TransactionReceipt) => string | null
+  /** The money this step moves, kept in History as pending until Arc's receipt says what happened. */
+  ledger?: { to: Address; amount: bigint }
 }
 
 /**
@@ -59,8 +62,20 @@ function useTxSequence() {
         const submitted = await step.write()
         setHash(submitted)
         setStage('confirming')
-        const { hash: mined, receipt } = await confirmTx(client, submitted)
+        if (step.ledger && account) ledgerAdd({ hash: submitted, wallet: account, kind: 'pay_request', to: step.ledger.to, token: ARC_USDC, amount: step.ledger.amount.toString(), symbol: 'USDC', decimals: 6 })
+        let confirmed: Awaited<ReturnType<typeof confirmTx>>
+        try {
+          confirmed = await confirmTx(client, submitted)
+        } catch (error) {
+          if (step.ledger && account && error instanceof TxReplacedError && error.reason === 'cancelled') ledgerSetStatus(account, submitted, 'failed')
+          throw error
+        }
+        const { hash: mined, receipt } = confirmed
         setHash(mined)
+        if (step.ledger && account) {
+          ledgerRehash(account, submitted, mined)
+          ledgerSetStatus(account, mined, receipt.status === 'success' ? 'confirmed' : 'failed')
+        }
         if (receipt.status !== 'success') throw new TxFlowError('The transaction was mined but failed on-chain. No funds moved.')
         const problem = step.verify?.(receipt)
         if (problem) throw new TxFlowError(problem)
@@ -204,6 +219,7 @@ function PayRequest({ registry }: { registry: Address }) {
       }
       steps.push({
         write: async () => tx.writeContractAsync({ address: registry, abi: quickPayRegistryAbi, functionName: 'pay', args: [id], chainId: ARC_CHAIN_ID, ...(await arcFeeParams(client)) }),
+        ledger: { to: fresh.merchant, amount: fresh.amount },
         // Only a PaymentReceived event from this registry for this request, payer, merchant and amount proves it was paid.
         verify: (receipt) =>
           confirmPaid(receipt.logs, registry, { id, payer: address, merchant: fresh.merchant, amount: fresh.amount })

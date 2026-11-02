@@ -6,6 +6,7 @@ import type { ActivityDto, Analytics, Coverage, HistoryRow } from '../../../shar
 import { evaluateCoverage } from '../../../server/coverageState'
 import { BRIDGE_COUNTERPARTIES, SWAP_COUNTERPARTIES } from '../../../server/protocols'
 import { UNISWAP_UNIVERSAL_ROUTER } from '../../../shared/uniswap-constants'
+import type { LedgerEntry } from '../txLedger'
 
 export interface RawTransfer {
   txHash: string
@@ -55,6 +56,8 @@ export interface Snapshot {
   bridges: readonly BridgeRec[]
   /** Transactions on Arc that delivered a bridge to this wallet (the destination fill). Labels their transfers as bridge. */
   bridgeFills?: readonly string[]
+  /** What this device's wallet signed (pending, failed, confirmed). Optional so older snapshots still work. */
+  ledger?: readonly LedgerEntry[]
   times: ReadonlyMap<number, number>
   newest: number | null
   oldest: number | null
@@ -160,12 +163,37 @@ function otherTokenRows(s: Snapshot): HistoryRow[] {
   return rows
 }
 
+/**
+ * Signed by this wallet but not (yet) in the scanned data: pending, failed, or confirmed-but-not-yet-scanned. Once the scan
+ * lists the same transaction, the scanned row replaces it, so a transaction is never shown twice.
+ */
+function ledgerRows(s: Snapshot): HistoryRow[] {
+  if (!s.ledger?.length) return []
+  const listed = new Set<string>([...s.transfers.map((t) => t.txHash), ...s.swaps.map((x) => x.hash), ...s.bridges.map((x) => x.hash)])
+  const rows: HistoryRow[] = []
+  for (const e of s.ledger) {
+    if (listed.has(e.hash)) continue
+    const usdc = e.token === s.usdc
+    rows.push({
+      txHash: e.hash, logIndex: -2, blockNumber: 0, timestamp: new Date(e.submittedAt).toISOString(), from: s.address, to: e.to,
+      token: e.token, amount: e.amount, symbol: usdc ? null : e.symbol, decimals: usdc ? null : e.decimals,
+      direction: 'out', type: e.kind === 'send' ? 'transfer' : e.kind === 'pay_request' ? 'request_payment' : e.kind, requestId: null,
+      contract: null, confirmations: 0, status: e.status, local: true,
+    })
+  }
+  return rows
+}
+
 const rowCache = new WeakMap<Snapshot, HistoryRow[]>()
 /** Every listed row, newest first. Built once per snapshot. */
 function allRows(s: Snapshot): HistoryRow[] {
   let rows = rowCache.get(s)
   if (!rows) {
-    rows = [...known(s).map((t) => toRow(s, t)), ...otherTokenRows(s)].sort((a, b) => b.blockNumber - a.blockNumber || b.logIndex - a.logIndex)
+    // Newest first by time. A scanned row's time is its block time; a local row's time is when the wallet signed.
+    const at = new Map<HistoryRow, number>()
+    const all = [...known(s).map((t) => toRow(s, t)), ...otherTokenRows(s), ...ledgerRows(s)]
+    for (const r of all) at.set(r, Date.parse(r.timestamp))
+    rows = all.sort((a, b) => (at.get(b) ?? 0) - (at.get(a) ?? 0) || b.blockNumber - a.blockNumber || b.logIndex - a.logIndex)
     rowCache.set(s, rows)
   }
   return rows
@@ -230,7 +258,7 @@ export function buildAnalytics(s: Snapshot, now: number): Analytics & { coverage
 function computeAnalytics(s: Snapshot, now: number): Analytics & { coverage: Coverage } {
   const w = s.address
   // Statistics are in USDC: rows in another token are listed in History but never added into these totals.
-  const rows = filterRows(s, { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 1 }).filter((r) => r.token === s.usdc)
+  const rows = filterRows(s, { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 1 }).filter((r) => r.token === s.usdc && !r.local)
   let sent = 0n
   let received = 0n
   let sentCount = 0

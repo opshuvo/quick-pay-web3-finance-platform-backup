@@ -21,6 +21,7 @@ import { ARC_CHAIN_ID } from '@/lib/arc'
 import { assertBridgeQuote, BridgeGuardError, describeFillTime, isQuoteStale } from '@/lib/bridgeGuard'
 import { loadBridges, removeBridge, saveBridge, type StoredBridge } from '@/lib/bridgeStore'
 import { recordConfirmedTx } from '@/lib/chainHistory/record'
+import { ledgerAdd, ledgerRehash, ledgerSetStatus } from '@/lib/txLedger'
 import { confirmTx, TxFlowError, TxReplacedError, TxUnconfirmedError } from '@/lib/confirmTx'
 import { chainLabel } from '@/lib/chains'
 import { parseTxError } from '@/lib/errors'
@@ -171,7 +172,13 @@ export default function Bridge() {
       setStoreVersion((v) => v + 1)
       setRun({ stage: 'confirming', hash, note: 'Waiting for the deposit to confirm on the source chain…' })
       deposit = { hash, entry }
+      // A deposit made on Arc stays in History as pending until Arc's receipt says what happened.
+      if (origin === ARC_CHAIN_ID) ledgerAdd({ hash, wallet: wallet.address, kind: 'bridge', to: tx.to, token: current.inputToken.address, amount: BigInt(current.inputAmount).toString(), symbol: current.inputToken.symbol, decimals: current.inputToken.decimals })
       const confirmed = await confirmTx(originClient, hash)
+      if (origin === ARC_CHAIN_ID) {
+        ledgerRehash(wallet.address, hash, confirmed.hash)
+        ledgerSetStatus(wallet.address, confirmed.hash, confirmed.receipt.status === 'success' ? 'confirmed' : 'failed')
+      }
       if (confirmed.hash !== hash) {
         // The wallet sped the deposit up: track the transaction that actually mined.
         removeBridge(wallet.address, hash)
@@ -191,6 +198,7 @@ export default function Bridge() {
     } catch (error) {
       if (deposit && error instanceof TxReplacedError && wallet.address) {
         if (error.reason === 'cancelled') {
+          if (origin === ARC_CHAIN_ID) ledgerSetStatus(wallet.address, deposit.hash, 'failed')
           removeBridge(wallet.address, deposit.hash)
           setStoreVersion((v) => v + 1)
         }

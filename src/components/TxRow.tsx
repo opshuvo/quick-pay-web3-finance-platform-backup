@@ -52,12 +52,14 @@ export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: His
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: 'var(--muted)' }}>
           {formatDateTime(row.timestamp)}
           {row.type === 'request_payment' && <StatusBadge tone="neutral">Request payment</StatusBadge>}
+          {row.status === 'pending' && <StatusBadge tone="warn">Pending</StatusBadge>}
+          {row.status === 'failed' && <StatusBadge tone="danger">Failed</StatusBadge>}
           <span className="mono hidden md:inline" style={{ color: 'var(--subtle)' }}>{shortHash(row.txHash)}</span>
         </span>
       </span>
-      <span className="hidden sm:block"><StatusBadge tone="success">Confirmed</StatusBadge></span>
-      <span className="display w-[7.5rem] shrink-0 text-right text-sm font-bold tabular-nums sm:w-32" style={{ color: incoming ? 'var(--success)' : 'var(--ink)' }}>
-        {self ? '' : incoming ? '+' : '−'}
+      {row.status === 'confirmed' && <span className="hidden sm:block"><StatusBadge tone="success">Confirmed</StatusBadge></span>}
+      <span className="display w-[7.5rem] shrink-0 text-right text-sm font-bold tabular-nums sm:w-32" style={{ color: row.status === 'failed' ? 'var(--subtle)' : incoming ? 'var(--success)' : 'var(--ink)' }}>
+        {self || row.status === 'failed' ? '' : incoming ? '+' : '−'}
         {amount.text}
         <span className="ml-1 text-[11px] font-medium" style={{ color: 'var(--subtle)' }}>{amount.symbol}</span>
       </span>

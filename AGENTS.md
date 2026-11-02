@@ -61,6 +61,10 @@ Quick Pay is a USDC payment and finance app for Arc Mainnet (chain 5042): send, 
 
 Plain native sends of USDC (a wallet's "send" with a value) emit only a Transfer from the system address `0xfff…fffe` in the 18-decimal native view, with no log from the USDC contract. ERC-20 transfers emit both. History therefore reads the system log and converts the amount to 6 decimals (`src/lib/chainHistory/native.ts`), which also removes double counting. The relay uses it with `v=2` (older app versions without `v` still get the USDC contract log). The history cache is version 2 so every device rescans once. The optional Postgres indexer in `server/` still reads the USDC contract log only.
 
+## Pending and failed transactions
+
+`src/lib/txLedger.ts` is a device-local record of what this wallet signed (Send, Pay request, Swap, bridge deposit on Arc). A failed transaction writes no logs and a pending one has none yet, so only this record can show them. History lists them with a Pending or Failed badge (`local: true`), leaves them out of every total, and replaces them with the scanned row once the chain scan lists the same hash. `ChainHistory.reconcileLedger` reads their receipts; a signed transaction the node no longer knows after 10 minutes becomes Failed. It is not shown in server mode (Postgres indexer).
+
 ## Instant history for in-app transactions
 
 After Send, Pay request, Split, Registry actions, Swap and a bridge deposit on Arc are confirmed, `recordConfirmedTx` (`src/lib/chainHistory/record.ts`) reads the receipt and lists its USDC transfers, swap or bridge immediately (`ChainHistory.ingestConfirmed`). A bridge delivered to Arc is marked as a bridge fill from `BridgeTracker`. Swaps and bridges in another token get one History row with their own token (`symbol`, `decimals`) that is left out of the USDC totals. In tests call `ingestConfirmed`, never `trackConfirmed`: it starts the background scan.

@@ -11,6 +11,8 @@ import { useRouter } from '@/hooks/useRouter'
 import { useSendUsdc } from '@/hooks/useSendUsdc'
 import { estimateRouterSendGas } from '@/lib/routerSend'
 import { ARC_CHAIN_ID, ARC_USDC, arcTxUrl } from '@/lib/arc'
+import { describeSimulationError, shouldRetrySimulation } from '@/lib/simulationError'
+import { retryDelay } from '@/lib/arcRpc'
 import { arcFeeParams, gasCostToUsdc } from '@/lib/fees'
 import { displayUsdc, shortAddress } from '@/lib/format'
 
@@ -37,8 +39,11 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
 
   const fee = useQuery({
     queryKey: ['fee-estimate', address, to, amount.toString(), router],
-    enabled: open && Boolean(address && publicClient && wallet.onArc) && !routerLoading,
-    retry: false,
+    // An amount above the balance cannot be simulated (the token would revert); it is reported as a low balance instead.
+    enabled: open && Boolean(address && publicClient && wallet.onArc) && !routerLoading && !(wallet.balanceRaw !== undefined && amount > wallet.balanceRaw),
+    // A temporary RPC failure is retried; a real revert is not.
+    retry: shouldRetrySimulation,
+    retryDelay,
     refetchInterval: open ? 20_000 : false,
     queryFn: async () => {
       if (!publicClient || !address) throw new Error('no client')
@@ -58,7 +63,7 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
 
   const balance = wallet.balanceRaw
   const total = fee.data ? amount + fee.data.usdc : undefined
-  const insufficient = balance !== undefined && total !== undefined && total > balance
+  const insufficient = balance !== undefined && (amount > balance || (total !== undefined && total > balance))
   const done = state.stage === 'success'
   // With a Quick Pay contract configured, a payment waits until it is verified instead of silently going direct.
   const routerHeld = routerLoading || routerProblem === 'unreachable'
@@ -87,9 +92,10 @@ export function PaymentConfirm({ open, onClose, to, amount, title = 'Review paym
         {routerProblem && routerProblem !== 'unreachable' && (
           <Notice tone="warn">The Quick Pay contract is {routerProblem === 'paused' ? 'paused' : routerProblem === 'wrong-usdc' ? 'not set up for the official USDC' : 'not found on Arc'}, so this payment is sent as a direct USDC transfer.</Notice>
         )}
-        {fee.isError && wallet.onArc && (
-          <Notice tone="danger">The network could not simulate this payment, so it was not sent. Check your balance and the recipient, then retry.</Notice>
-        )}
+        {fee.isError && wallet.onArc && (() => {
+          const problem = describeSimulationError(fee.error)
+          return <Notice tone={problem.kind === 'busy' ? 'warn' : 'danger'}>{problem.message}</Notice>
+        })()}
         {insufficient && <Notice tone="danger">Balance too low: the amount plus network fee is more than your {displayUsdc(balance ?? 0n)} USDC.</Notice>}
         <p className="flex items-start gap-2 text-xs" style={{ color: 'var(--warn)' }}>
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />

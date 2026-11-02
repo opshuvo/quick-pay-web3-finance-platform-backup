@@ -167,6 +167,8 @@ export default function Swap() {
       amount: amountRaw,
       slippageBps,
       acceptLoss,
+      tokenInSymbol: inTok.symbol,
+      tokenInDecimals: inTok.decimals,
     })
   }
 

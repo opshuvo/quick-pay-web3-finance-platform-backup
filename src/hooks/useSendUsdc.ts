@@ -8,8 +8,9 @@ import { routerAllowance } from '@/lib/routerSend'
 import { ARC_CHAIN_ID, ARC_USDC } from '@/lib/arc'
 import { recordConfirmedTx } from '@/lib/chainHistory/record'
 import { arcFeeParams } from '@/lib/fees'
-import { confirmTx, receiptHasTransfer, TxFlowError } from '@/lib/confirmTx'
+import { confirmTx, receiptHasTransfer, TxFlowError, TxReplacedError } from '@/lib/confirmTx'
 import { PaymentParseError, validateRecipient } from '@/lib/payments'
+import { ledgerAdd, ledgerRehash, ledgerSetStatus } from '@/lib/txLedger'
 import { runUsdcSend, SingleFlight, type SendStage, type SendState } from '@/lib/sendFlow'
 
 export type { SendStage, SendState }
@@ -49,8 +50,13 @@ export function useSendUsdc() {
               throw error
             }
             const fees = await arcFeeParams(publicClient)
+            // The wallet signed: keep the payment in History as pending until Arc's receipt says what happened.
+            const remember = (hash: `0x${string}`, target: Address) => {
+              ledgerAdd({ hash, wallet: address, kind: 'send', to: target, token: ARC_USDC, amount: amount.toString(), symbol: 'USDC', decimals: 6 })
+              return hash
+            }
             if (!router) {
-              return writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees })
+              return remember(await writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees }), to)
             }
             // Through the Quick Pay router: approve the exact amount only (never unlimited), wait for it, then pay.
             if ((await routerAllowance(publicClient, address, router)) < amount) {
@@ -58,10 +64,20 @@ export function useSendUsdc() {
               const approval = await confirmTx(publicClient, approveHash)
               if (approval.receipt.status !== 'success') throw new TxFlowError('The approval failed on-chain. No funds moved.')
             }
-            return writeContractAsync({ address: router, abi: quickPayRouterAbi, functionName: 'payTo', args: [to, amount, zeroHash], chainId: ARC_CHAIN_ID, ...fees })
+            return remember(await writeContractAsync({ address: router, abi: quickPayRouterAbi, functionName: 'payTo', args: [to, amount, zeroHash], chainId: ARC_CHAIN_ID, ...fees }), to)
           },
           waitForReceipt: async (h) => {
-            const { hash: mined, receipt } = await confirmTx(publicClient, h)
+            let confirmed: Awaited<ReturnType<typeof confirmTx>>
+            try {
+              confirmed = await confirmTx(publicClient, h)
+            } catch (error) {
+              // Cancelled or dropped: the payment will never happen. Any other failure leaves it pending (Arc is asked again later).
+              if (error instanceof TxReplacedError && error.reason === 'cancelled') ledgerSetStatus(address, h, 'failed')
+              throw error
+            }
+            const { hash: mined, receipt } = confirmed
+            ledgerRehash(address, h, mined)
+            ledgerSetStatus(address, mined, receipt.status === 'success' ? 'confirmed' : 'failed')
             // Success needs the receipt AND the exact USDC transfer (right payer, recipient and amount) inside it.
             return { status: receipt.status, hash: mined, verified: receiptHasTransfer(receipt.logs, ARC_USDC, address, to, amount) }
           },

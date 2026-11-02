@@ -4,7 +4,9 @@
  */
 import { getAddress, isAddress, type Address } from 'viem'
 import { ARC_CHAIN_ID, ARC_USDC } from '@/lib/arc'
+import { env } from '@/lib/env'
 import { formatUsdc, parseUsdc } from '@/onchain-money'
+import { NATIVE_TRANSFER_EMITTER } from '../../shared/swapLegs'
 
 export type ParsedPayment =
   | { kind: 'address'; to: Address; amount?: string }
@@ -12,6 +14,8 @@ export type ParsedPayment =
 
 export class PaymentParseError extends Error {}
 
+/** Arc's blocklist system contract. */
+const SYSTEM_BLOCKLIST = '0x1800000000000000000000000000000000000001'
 const isZero = (a: string) => /^0x0{40}$/i.test(a)
 
 /** Validates a recipient for sending. Throws a readable message. */
@@ -20,6 +24,8 @@ export function validateRecipient(value: string, sender?: string): Address {
   if (!isAddress(v, { strict: false })) throw new PaymentParseError('Enter a valid 0x wallet address.')
   if (isZero(v)) throw new PaymentParseError('The zero address cannot receive funds.')
   if (v.toLowerCase() === ARC_USDC.toLowerCase()) throw new PaymentParseError('That is the USDC token contract. Funds sent there are lost.')
+  if (env.routerAddress && v.toLowerCase() === env.routerAddress.toLowerCase()) throw new PaymentParseError('That is the Quick Pay payment contract. USDC sent to it would be stranded.')
+  if (v.toLowerCase() === NATIVE_TRANSFER_EMITTER || v.toLowerCase() === SYSTEM_BLOCKLIST) throw new PaymentParseError('That is an Arc system address, not a wallet.')
   // Reject mixed-case addresses with a bad checksum; all-lowercase is accepted.
   if (v !== v.toLowerCase() && v.slice(2) !== v.slice(2).toUpperCase() && !isAddress(v)) throw new PaymentParseError('Address checksum is invalid. Check for typos.')
   if (sender && v.toLowerCase() === sender.toLowerCase()) throw new PaymentParseError('You cannot send to your own address.')

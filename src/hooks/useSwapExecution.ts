@@ -13,6 +13,8 @@ import { executeApiSwap, type ApiSwapStep } from '@/lib/uniswap/executeApi'
 import { ApiValidationError } from '@/lib/uniswap/apiValidate'
 import { PRICE_IMPACT_BLOCK } from '@/lib/uniswap/arc'
 import type { SwapQuoteView } from '@/hooks/useSwapQuote'
+import { ledgerAdd, ledgerRehash, ledgerSetStatus } from '@/lib/txLedger'
+import { UNISWAP_UNIVERSAL_ROUTER } from '../../shared/uniswap-constants'
 
 export interface SwapRun {
   stage: 'idle' | 'wallet' | 'confirming' | 'success' | 'error'
@@ -35,6 +37,9 @@ interface Args {
   amount: bigint
   slippageBps: number
   acceptLoss: boolean
+  /** For the pending record in History when the input is not USDC. */
+  tokenInSymbol?: string
+  tokenInDecimals?: number
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -47,6 +52,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 export function useSwapExecution() {
   const [run, setRun] = useState<SwapRun>({ stage: 'idle' })
   const lock = useRef(false)
+  const lastHash = useRef<`0x${string}` | undefined>(undefined)
   const queryClient = useQueryClient()
   const { address } = useAccount()
 
@@ -103,6 +109,11 @@ export function useSwapExecution() {
 
         const onStep = (step: ApiSwapStep, hash?: `0x${string}`) => {
           progress.step = step
+          if (step === 'swap-confirm' && hash) lastHash.current = hash
+          // The swap is broadcast: keep it in History as pending until Arc's receipt says what happened.
+          if (step === 'swap-confirm' && hash && address) {
+            ledgerAdd({ hash, wallet: address, kind: 'swap', to: UNISWAP_UNIVERSAL_ROUTER, token: a.tokenIn, amount: a.amount.toString(), symbol: a.tokenInSymbol ?? null, decimals: a.tokenInDecimals ?? null })
+          }
           setRun({ stage: step === 'swap-confirm' || step === 'approve-confirm' || step === 'quote' || step === 'build' ? 'confirming' : 'wallet', step, hash })
         }
 
@@ -110,6 +121,10 @@ export function useSwapExecution() {
           fresh.engine === 'uniswap-api' && fresh.api
             ? await executeApiSwap(a.publicClient, a.walletClient, fresh.api, { tokenIn: a.tokenIn, tokenOut: a.tokenOut, amount: a.amount, quoteFetchedAt: fresh.fetchedAt }, onStep)
             : await executeSwap(a.publicClient, a.walletClient, a.tokenIn, a.tokenOut, 'exactIn', a.amount, a.slippageBps, a.acceptLoss, (step: SwapStep, hash) => onStep(step, hash))
+        if (address) {
+          ledgerRehash(address, lastHash.current ?? result.hash, result.hash)
+          ledgerSetStatus(address, result.hash, result.success ? 'confirmed' : 'failed')
+        }
         if (result.success) {
           setRun({ stage: 'success', hash: result.hash, saved: 'saving' })
           void save(result.hash)
@@ -125,6 +140,7 @@ export function useSwapExecution() {
           return
         }
         if (progress.step === 'swap-confirm' && error instanceof TxReplacedError) {
+          if (error.reason === 'cancelled' && address) ledgerSetStatus(address, error.hash, 'failed')
           setRun({ stage: 'error', hash: error.hash, error: error.message, unconfirmed: error.reason === 'replaced' })
           return
         }
@@ -138,7 +154,7 @@ export function useSwapExecution() {
         lock.current = false
       }
     },
-    [save, queryClient],
+    [save, queryClient, address],
   )
 
   const reset = useCallback(() => setRun({ stage: 'idle' }), [])

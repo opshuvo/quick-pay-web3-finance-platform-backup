@@ -19,7 +19,13 @@ export interface HistoryRow {
   /** Contract the transaction was sent to, once the transaction was verified from its receipt. */
   contract?: string | null
   confirmations: number
-  status: 'confirmed'
+  /**
+   * 'confirmed' rows are read from Arc's logs and receipts. 'pending' and 'failed' rows come from this device's record
+   * of what the wallet signed (`local`), because a failed transaction writes no logs and a pending one has none yet.
+   */
+  status: 'confirmed' | 'pending' | 'failed'
+  /** True for a row built from this device's own submission record, not from a chain scan. Left out of every total. */
+  local?: boolean
 }
 
 export interface Analytics {

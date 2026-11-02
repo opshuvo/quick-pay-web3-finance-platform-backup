@@ -28,12 +28,16 @@ export function TxDetailSheet({ row, onClose }: { row: HistoryRow | null; onClos
               {rowAmount(row).text}
             </p>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>{rowAmount(row).symbol} on Arc Mainnet</p>
-            <div className="mt-2"><StatusBadge tone="success">Confirmed · {formatNumber(row.confirmations)} confirmations</StatusBadge></div>
+            <div className="mt-2">
+              {row.status === 'pending' && <StatusBadge tone="warn">Pending · waiting for Arc to confirm</StatusBadge>}
+              {row.status === 'failed' && <StatusBadge tone="danger">Failed · did not complete on Arc, no funds moved</StatusBadge>}
+              {row.status === 'confirmed' && <StatusBadge tone="success">{row.local ? 'Confirmed · receipt verified' : `Confirmed · ${formatNumber(row.confirmations)} confirmations`}</StatusBadge>}
+            </div>
           </div>
           <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
             <Row label="Type">{TYPE_LABEL[row.type]}</Row>
-            <Row label="Time">{formatDateTime(row.timestamp)}</Row>
-            <Row label="Block">{formatNumber(row.blockNumber)}</Row>
+            <Row label={row.local ? 'Signed' : 'Time'}>{formatDateTime(row.timestamp)}</Row>
+            {row.blockNumber > 0 && <Row label="Block">{formatNumber(row.blockNumber)}</Row>}
             <Row label="From"><AddressLine address={row.from} /></Row>
             <Row label="To"><AddressLine address={row.to} /></Row>
             <Row label="Transaction">

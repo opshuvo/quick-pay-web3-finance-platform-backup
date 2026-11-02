@@ -8,6 +8,7 @@ import { createPublicClient, erc20Abi, http, toHex, type Hex, type PublicClient 
 import { netFlows, pickSwapLegs, TRANSFER_TOPIC } from '../../../shared/swapLegs'
 import { ARC_RPC_URL, ARC_USDC, arcMainnet } from '@/lib/arc'
 import { SYSTEM_TRANSFER_EMITTER, systemAmountToUsdc } from './native'
+import { ledgerFor, ledgerPending, ledgerSetStatus, onLedgerChange } from '@/lib/txLedger'
 import { arcLogsLane, arcReadLane, classifyRpcFailure } from '@/lib/arcRpc'
 import { EDGE_CHUNK, fetchEdgeChunk } from './edge'
 import { env } from '@/lib/env'
@@ -19,6 +20,8 @@ const PARALLEL = 3
 const HEAD_TTL_MS = 2_000
 /** Following the chain tip costs two log calls each time. Newer blocks are picked up at most this often, so the rate-limited call budget goes to older history. */
 const TIP_SCAN_MIN_MS = 10_000
+/** Arc confirms in about a second: a signed transaction with no receipt and no trace after this long never made it. */
+const DROPPED_AFTER_MS = 10 * 60_000
 const CACHE_VERSION = 2  // 2: history reads Arc's system Transfer log, so plain native sends are included
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const pad = (a: string): Hex => `0x${a.slice(2).toLowerCase().padStart(64, '0')}`
@@ -92,6 +95,8 @@ export class ChainHistory {
     this.client = client ?? sharedClient()
     this.useEdge = client === undefined
     this.load()
+    // Something this wallet just signed (or its status changed): show it at once.
+    onLedgerChange(() => this.bump())
   }
 
   // ---- subscription (React useSyncExternalStore) ------------------------------------------------
@@ -122,6 +127,7 @@ export class ChainHistory {
       swaps: [...this.swaps.values()],
       bridges: [...this.bridges.values()],
       bridgeFills: [...this.bridgeFills],
+      ledger: ledgerFor(this.address),
       times: this.times,
       newest: this.newest,
       oldest: this.oldest,
@@ -373,7 +379,38 @@ export class ChainHistory {
     return this.verifyRun
   }
 
+  /**
+   * Looks up the receipt of every transaction this wallet signed that is still marked pending. A successful receipt makes it
+   * confirmed and lists its transfers at once; a reverted one becomes failed; no receipt yet leaves it pending.
+   */
+  async reconcileLedger(): Promise<void> {
+    for (const entry of ledgerPending(this.address).slice(0, 6)) {
+      let receipt: { status: string } | null = null
+      try {
+        receipt = await this.call(() => this.client.getTransactionReceipt({ hash: entry.hash as Hex }))
+      } catch (error) {
+        // "Not found" means it is still pending (or never mined); any other failure is retried on the next pass.
+        if (!/could not be found|not found/i.test(String((error as { shortMessage?: string; message?: string }).shortMessage ?? (error as Error).message))) continue
+      }
+      if (!receipt) {
+        // No receipt yet. A transaction the node no longer knows about, long after it was signed, was dropped or replaced.
+        if (Date.now() - entry.submittedAt > DROPPED_AFTER_MS) {
+          const known = await this.call(() => this.client.getTransaction({ hash: entry.hash as Hex })).then(() => true, () => false)
+          if (!known) ledgerSetStatus(this.address, entry.hash, 'failed')
+        }
+        continue
+      }
+      if (receipt.status === 'success') {
+        ledgerSetStatus(this.address, entry.hash, 'confirmed')
+        await this.ingestConfirmed(entry.hash).catch(() => undefined)
+      } else {
+        ledgerSetStatus(this.address, entry.hash, 'failed')
+      }
+    }
+  }
+
   private async verifyPendingNow(max: number) {
+    await this.reconcileLedger().catch(() => undefined)
     const at = Date.now()
     const batch = [...this.pending].filter((h) => (this.verifyRetry.get(h)?.at ?? 0) <= at).slice(0, max)
     let failed: unknown
