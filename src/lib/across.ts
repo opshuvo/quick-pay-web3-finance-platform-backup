@@ -40,6 +40,10 @@ export interface FeeLine {
 
 export interface AcrossQuote {
   id: string
+  /** Which service produced the quote. Missing means Across. */
+  provider?: 'across' | 'lifi'
+  /** For LI.FI, the bridge it picked for this route. */
+  via?: string
   checks: { allowance: { token: Address; spender: Address; actual: string; expected: string }; balance: { token: Address; actual: string; expected: string } }
   approvalTxns?: { chainId: number; to: Address; data: Hex }[]
   inputToken: TokenRef

@@ -1,15 +1,18 @@
 import type { ProgressStep } from '@/components/BridgeProgress'
 import type { ActivityDto } from '@/lib/activity'
 import type { DepositStatus } from '@/lib/across'
+import type { LifiStatus } from '@/lib/lifi'
 
 export type Tracked =
   | { source: 'verified'; activity: ActivityDto }
   | { source: 'waiting'; reason: string }
   | { source: 'across'; status: DepositStatus | null }
+  | { source: 'lifi'; status: LifiStatus | null; destinationVerified: boolean }
 
 export const isTerminal = (t: Tracked | undefined) =>
   t?.source === 'verified' ? (t.activity.status === 'filled' && t.activity.destinationVerified) || t.activity.status === 'expired' || t.activity.status === 'refunded'
   : t?.source === 'across' ? ['filled', 'expired', 'refunded'].includes(t.status?.status ?? '')
+  : t?.source === 'lifi' ? t.status?.status === 'FAILED' || (t.status?.status === 'DONE' && (t.destinationVerified || t.status.substatus === 'REFUNDED'))
   : false
 
 /** What the user sees. "Complete" requires a destination-chain receipt that the server read back as successful. */
@@ -18,6 +21,16 @@ export function trackedSummary(t: Tracked | undefined): { label: string; tone: '
   if (!t) return { label: 'Checking…', tone: 'neutral', steps: [source, { label: 'Waiting for Across to index the deposit', state: 'active' }, { label: 'Delivery on destination', state: 'todo' }] }
   if (t.source === 'waiting') {
     return { label: 'Waiting for Across', tone: 'neutral', steps: [source, { label: 'Waiting for Across to index the deposit', detail: t.reason, state: 'active' }, { label: 'Delivery on destination', state: 'todo' }] }
+  }
+  if (t.source === 'lifi') {
+    const s = t.status
+    const wait = (label: string): ProgressStep[] => [source, { label, state: 'active' }, { label: 'Delivery on destination', state: 'todo' }]
+    if (!s || s.status === 'NOT_FOUND' || s.status === 'INVALID') return { label: 'Waiting for LI.FI', tone: 'neutral', steps: wait('Waiting for LI.FI to index the transfer') }
+    if (s.status === 'PENDING') return { label: 'In transit', tone: 'warn', steps: wait('LI.FI is moving the transfer') }
+    if (s.status === 'FAILED') return { label: 'Failed', tone: 'danger', steps: [source, { label: s.substatusMessage ?? 'LI.FI reported the transfer failed', state: 'failed' }, { label: 'Check the source transaction and your balance', state: 'active' }] }
+    if (s.substatus === 'REFUNDED') return { label: 'Refunded', tone: 'neutral', steps: [source, { label: 'Not delivered', state: 'failed' }, { label: 'Refunded on the source chain', state: 'done' }] }
+    if (t.destinationVerified) return { label: 'Complete', tone: 'success', steps: [source, { label: 'LI.FI delivered the transfer', state: 'done' }, { label: 'Delivery verified on destination chain', state: 'done' }] }
+    return { label: 'Delivered (per LI.FI)', tone: 'warn', steps: [source, { label: 'LI.FI reports the transfer delivered', state: 'done' }, { label: 'Destination receipt not independently verified yet', state: 'active' }] }
   }
   if (t.source === 'across') {
     const s = t.status?.status

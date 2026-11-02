@@ -6,7 +6,10 @@ import { BridgeProgress } from '@/components/BridgeProgress'
 import { isTerminal, trackedSummary, type Tracked } from '@/lib/bridgeStatus'
 import { ExplorerLink, StatusBadge } from '@/components/ui'
 import { activityApi } from '@/lib/activity'
+import { getPublicClient } from 'wagmi/actions'
+import { config } from '@/config'
 import { acrossApi, type AcrossChain } from '@/lib/across'
+import { lifiApi } from '@/lib/lifi'
 import { ApiError, isServiceDown } from '@/lib/api'
 import type { StoredBridge } from '@/lib/bridgeStore'
 import { chainLabel, explorerTxUrl } from '@/lib/chains'
@@ -19,6 +22,19 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
     retry: false,
     refetchInterval: (query) => (isTerminal(query.state.data) ? false : 6_000),
     queryFn: async () => {
+      if (item.provider === 'lifi') {
+        const status = await lifiApi.status(item.hash, item.originChainId, item.destinationChainId)
+        // "Complete" needs the destination transaction read back from the destination chain as successful. If this app has
+        // no connection to that chain, the answer stays "per LI.FI" instead of claiming more than was checked.
+        let destinationVerified = false
+        const receiving = status.status === 'DONE' && status.substatus !== 'REFUNDED' ? status.receiving?.txHash : undefined
+        if (receiving) {
+          const client = getPublicClient(config, { chainId: item.destinationChainId as never })
+          const receipt = await client?.getTransactionReceipt({ hash: receiving as `0x${string}` }).catch(() => null)
+          destinationVerified = receipt?.status === 'success'
+        }
+        return { source: 'lifi', status, destinationVerified }
+      }
       try {
         const refreshed = await activityApi.refreshBridge(item.hash, item.originChainId)
         if (refreshed.activity) return { source: 'verified', activity: refreshed.activity }
@@ -53,11 +69,11 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
   })
   const summary = trackedSummary(tracked.data)
   const activity = tracked.data?.source === 'verified' ? tracked.data.activity : undefined
-  const destHash = activity?.destinationTxHash ?? (tracked.data?.source === 'across' ? tracked.data.status?.fillTxnRef : undefined)
+  const destHash = activity?.destinationTxHash ?? (tracked.data?.source === 'across' ? tracked.data.status?.fillTxnRef : tracked.data?.source === 'lifi' ? tracked.data.status?.receiving?.txHash : undefined)
   // A bridge that arrived on Arc: its delivery is read from Arc and listed in History as a bridge, not as a plain receipt.
   const queryClient = useQueryClient()
   const listed = useRef<string | null>(null)
-  const delivered = tracked.data?.source === 'verified' ? (activity?.status === 'filled' && activity.destinationVerified) : tracked.data?.source === 'across' && tracked.data.status?.status === 'filled'
+  const delivered = tracked.data?.source === 'verified' ? (activity?.status === 'filled' && activity.destinationVerified) : tracked.data?.source === 'across' ? tracked.data.status?.status === 'filled' : tracked.data?.source === 'lifi' && tracked.data.destinationVerified
   useEffect(() => {
     if (!delivered || !destHash || !item.wallet || item.destinationChainId !== ARC_CHAIN_ID || listed.current === destHash) return
     listed.current = destHash

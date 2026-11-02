@@ -72,6 +72,8 @@ export interface Filters {
   q: string
   direction: 'all' | 'in' | 'out'
   type: 'all' | 'transfer' | 'request_payment' | 'swap' | 'bridge'
+  /** Which outcome to list. Missing or 'all' lists every status. */
+  status?: 'all' | 'confirmed' | 'pending' | 'failed'
   since: string
   until: string
   page: number
@@ -170,12 +172,16 @@ function otherTokenRows(s: Snapshot): HistoryRow[] {
 function ledgerRows(s: Snapshot): HistoryRow[] {
   if (!s.ledger?.length) return []
   const listed = new Set<string>([...s.transfers.map((t) => t.txHash), ...s.swaps.map((x) => x.hash), ...s.bridges.map((x) => x.hash)])
+  return rowsFromLedger(s.address, s.usdc, s.ledger.filter((e) => !listed.has(e.hash)))
+}
+
+/** History rows for ledger entries (what this wallet signed). Used with a chain scan and, without one, on their own. */
+export function rowsFromLedger(address: string, usdcAddress: string, entries: readonly LedgerEntry[]): HistoryRow[] {
   const rows: HistoryRow[] = []
-  for (const e of s.ledger) {
-    if (listed.has(e.hash)) continue
-    const usdc = e.token === s.usdc
+  for (const e of entries) {
+    const usdc = e.token === usdcAddress
     rows.push({
-      txHash: e.hash, logIndex: -2, blockNumber: 0, timestamp: new Date(e.submittedAt).toISOString(), from: s.address, to: e.to,
+      txHash: e.hash, logIndex: -2, blockNumber: 0, timestamp: new Date(e.submittedAt).toISOString(), from: address, to: e.to,
       token: e.token, amount: e.amount, symbol: usdc ? null : e.symbol, decimals: usdc ? null : e.decimals,
       direction: 'out', type: e.kind === 'send' ? 'transfer' : e.kind === 'pay_request' ? 'request_payment' : e.kind, requestId: null,
       contract: null, confirmations: 0, status: e.status, local: true,
@@ -208,6 +214,7 @@ export function filterRows(s: Snapshot, f: Filters): HistoryRow[] {
     if (f.direction === 'in' && !(r.to === s.address && r.from !== s.address)) return false
     if (f.direction === 'out' && !(r.from === s.address && r.to !== s.address)) return false
     if (f.type !== 'all' && r.type !== f.type) return false
+    if (f.status && f.status !== 'all' && r.status !== f.status) return false
     if (since !== undefined || until !== undefined) {
       const at = new Date(r.timestamp).getTime()
       if (since !== undefined && at < since) return false

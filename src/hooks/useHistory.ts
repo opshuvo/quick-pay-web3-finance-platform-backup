@@ -4,6 +4,9 @@ import { api } from '@/lib/api'
 import { retryDelay } from '@/lib/arcRpc'
 import { chainAnalytics, chainHistoryPage } from '@/lib/chainHistory/read'
 import { historyServerUsable } from '@/lib/chainHistory/mode'
+import { rowsFromLedger } from '@/lib/chainHistory/derive'
+import { ARC_USDC } from '@/lib/arc'
+import { ledgerFor } from '@/lib/txLedger'
 
 const REGISTER_RETRY_MS = 30_000
 const registrations = new Map<string, Promise<void>>()
@@ -44,13 +47,14 @@ export interface HistoryFilters {
   q: string
   direction: 'all' | 'in' | 'out'
   type: 'all' | 'transfer' | 'request_payment' | 'swap' | 'bridge'
+  status: 'all' | 'confirmed' | 'pending' | 'failed'
   since: string
   until: string
   page: number
   pageSize: number
 }
 
-export const DEFAULT_FILTERS: HistoryFilters = { q: '', direction: 'all', type: 'all', since: '', until: '', page: 1, pageSize: 25 }
+export const DEFAULT_FILTERS: HistoryFilters = { q: '', direction: 'all', type: 'all', status: 'all', since: '', until: '', page: 1, pageSize: 25 }
 
 export interface HistoryResponse {
   rows: HistoryRow[]
@@ -65,6 +69,7 @@ export function historyQuery(filters: HistoryFilters, extra: Record<string, stri
   if (filters.q) params.set('q', filters.q)
   if (filters.direction !== 'all') params.set('direction', filters.direction)
   if (filters.type !== 'all') params.set('type', filters.type)
+  if (filters.status !== 'all') params.set('status', filters.status)
   if (filters.since) params.set('since', new Date(`${filters.since}T00:00:00`).toISOString())
   if (filters.until) params.set('until', new Date(`${filters.until}T23:59:59`).toISOString())
   params.set('page', String(filters.page))
@@ -84,7 +89,17 @@ export function useHistory(address: string | undefined, filters: HistoryFilters,
     // Poll faster while the indexer is still catching up so progress is visible. A failed read is retried automatically.
     refetchInterval: (query) => query.state.status === 'error' ? RETRY_WHEN_FAILED_MS : options.background ? BACKGROUND_POLL_MS : pollMs(query.state.data?.coverage.status, query.state.data?.coverage.source === 'browser' ? 4_000 : 6_000, query.state.data?.coverage.source === 'browser' ? 10_000 : 30_000),
     // With a history server the server answers. Without one, this device reads Arc directly.
-    queryFn: async ({ signal }) => ((await historyServerUsable()) ? readWithRegistration<HistoryResponse>(address ?? '', `/history/${address}?${historyQuery(filters)}`, signal) : chainHistoryPage(address ?? '', filters)),
+    queryFn: async ({ signal }) => {
+      if (!(await historyServerUsable())) return chainHistoryPage(address ?? '', filters)
+      const page = await readWithRegistration<HistoryResponse>(address ?? '', `/history/${address}?${historyQuery(filters)}`, signal)
+      // The server only knows confirmed transfers. Pending and failed transactions exist only in this device's record of
+      // what the wallet signed, so those views are built from it (never from guesses).
+      if (filters.status === 'pending' || filters.status === 'failed') {
+        const rows = rowsFromLedger(address ?? '', ARC_USDC.toLowerCase(), ledgerFor(address ?? '').filter((e) => e.status === filters.status))
+        return { ...page, rows: rows.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize), total: rows.length }
+      }
+      return page
+    },
   })
 }
 

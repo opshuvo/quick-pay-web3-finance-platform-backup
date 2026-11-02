@@ -6,7 +6,7 @@ const KEY = 'quickpay.theme'
 function initial(): Theme {
   const stored = localStorage.getItem(KEY)
   if (stored === 'dark' || stored === 'light') return stored
-  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return 'dark'
 }
 
 interface ThemeValue {

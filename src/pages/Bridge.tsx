@@ -2,9 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 import { erc20Abi, isAddress, zeroAddress, type Address } from 'viem'
 import { usePublicClient, useReadContract, useSendTransaction, useSwitchChain, useWriteContract } from 'wagmi'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ExternalLink, RefreshCw } from 'lucide-react'
+import { ExternalLink, RefreshCw } from 'lucide-react'
 import { ActivityList } from '@/components/ActivityList'
-import { AmountInput } from '@/components/AmountInput'
+import { BridgeAmount, NetworkRow, ReverseButton } from '@/components/BridgeCard'
 import { BridgeTracker } from '@/components/BridgeTracker'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TxProgress } from '@/components/TxProgress'
@@ -13,9 +13,11 @@ import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { useDebounced } from '@/hooks/useDebounced'
 import { useGasCheck } from '@/hooks/useGasCheck'
+import { useHealth } from '@/hooks/useHealth'
 import { useNow } from '@/hooks/useNow'
 import { BRIDGE_ORIGIN_CHAIN_IDS } from '@/config'
-import { ACROSS_URL, acrossApi, cachedChains, rememberChains, type AcrossQuote, type FeeLine } from '@/lib/across'
+import { ACROSS_URL, acrossApi, cachedChains, rememberChains, type AcrossChain, type AcrossQuote, type FeeLine } from '@/lib/across'
+import { LIFI_URL, lifiApi, lifiToQuote, type LifiChain } from '@/lib/lifi'
 import { ApiError } from '@/lib/api'
 import { ARC_CHAIN_ID } from '@/lib/arc'
 import { assertBridgeQuote, BridgeGuardError, describeFillTime, isQuoteStale } from '@/lib/bridgeGuard'
@@ -29,9 +31,11 @@ import { arcFeeParams } from '@/lib/fees'
 import { displayUnits, shortAddress } from '@/lib/format'
 import { parseUnitsExact } from '@/onchain-money'
 
-const fallbackLink = (
-  <a className="btn btn-ghost" href={ACROSS_URL} target="_blank" rel="noopener noreferrer">across.to <ExternalLink className="size-4" aria-hidden /></a>
-)
+type Provider = 'across' | 'lifi'
+const PROVIDERS: { id: Provider; label: string; site: string; url: string }[] = [
+  { id: 'across', label: 'Across', site: 'across.to', url: ACROSS_URL },
+  { id: 'lifi', label: 'LI.FI', site: 'li.fi', url: LIFI_URL },
+]
 
 const line = (l: FeeLine | undefined) =>
   l?.token ? `${displayUnits(BigInt(l.amount), l.token.decimals, 2, 6)} ${l.token.symbol}${l.amountUsd ? ` (≈ $${Number(l.amountUsd).toFixed(2)})` : ''}` : undefined
@@ -44,6 +48,7 @@ export default function Bridge() {
   const { sendTransactionAsync } = useSendTransaction()
   const queryClient = useQueryClient()
 
+  const [provider, setProvider] = useState<Provider>('across')
   const [origin, setOrigin] = useState<number>(ARC_CHAIN_ID)
   const [destination, setDestination] = useState<number>(1)
   const [routeIdx, setRouteIdx] = useState(0)
@@ -54,15 +59,22 @@ export default function Bridge() {
   const [storeVersion, setStoreVersion] = useState(0)
   const lock = useRef(false)
 
+  // LI.FI is reached through the Quick Pay backend. A static host without it keeps Across (which has direct rewrites).
+  const backend = useHealth().data?.mode === 'server'
+  const providerInfo = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0]
+  const fallbackLink = (
+    <a className="btn btn-ghost" href={providerInfo.url} target="_blank" rel="noopener noreferrer">{providerInfo.site} <ExternalLink className="size-4" aria-hidden /></a>
+  )
   const originClient = usePublicClient({ chainId: origin })
   // The last list Across returned is shown at once and refreshed behind it, so the form never waits on a network call to appear.
-  const chains = useQuery({
-    queryKey: ['across-chains'],
+  const chains = useQuery<(AcrossChain | LifiChain)[]>({
+    queryKey: [provider === 'lifi' ? 'lifi-chains' : 'across-chains'],
     staleTime: 5 * 60_000,
     retry: 1,
-    initialData: () => cachedChains()?.data,
-    initialDataUpdatedAt: () => cachedChains()?.at,
+    initialData: () => (provider === 'across' ? cachedChains()?.data : undefined),
+    initialDataUpdatedAt: () => (provider === 'across' ? cachedChains()?.at : undefined),
     queryFn: async () => {
+      if (provider === 'lifi') return lifiApi.chains()
       const list = await acrossApi.chains()
       rememberChains(list)
       return list
@@ -78,11 +90,11 @@ export default function Bridge() {
   const destinationOptions = useMemo(() => (chains.data ?? []).filter((c) => c.chainId !== origin), [chains.data, origin])
 
   const routes = useQuery({
-    queryKey: ['across-routes', origin, destination],
+    queryKey: [provider === 'lifi' ? 'lifi-routes' : 'across-routes', origin, destination],
     enabled: origin !== destination,
     retry: 1,
     staleTime: 60_000,
-    queryFn: async () => (await acrossApi.routes(origin, destination)).filter((r) => !r.isNative),
+    queryFn: async () => ((await (provider === 'lifi' ? lifiApi : acrossApi).routes(origin, destination))).filter((r) => !r.isNative),
   })
   const route = routes.data?.[Math.min(routeIdx, Math.max(0, (routes.data?.length ?? 1) - 1))]
 
@@ -106,19 +118,27 @@ export default function Bridge() {
   const overBalance = amountRaw !== undefined && balance.data !== undefined && amountRaw > balance.data
 
   const quote = useQuery({
-    queryKey: ['across-quote', origin, destination, route?.originToken, route?.destinationToken, debounced, wallet.address, recipientAddress],
+    queryKey: [provider === 'lifi' ? 'lifi-quote' : 'across-quote', origin, destination, route?.originToken, route?.destinationToken, debounced, wallet.address, recipientAddress],
     enabled: Boolean(route && debounced && wallet.address && recipientAddress && !recipientError && !overBalance),
     retry: false,
     staleTime: 20_000,
     refetchInterval: 25_000,
-    queryFn: () =>
-      acrossApi.quote({ amount: BigInt(debounced as string), inputToken: (route as NonNullable<typeof route>).originToken, outputToken: (route as NonNullable<typeof route>).destinationToken, origin, destination, depositor: wallet.address as Address, recipient: recipientAddress as Address }),
+    queryFn: async () => {
+      const params = { amount: BigInt(debounced as string), inputToken: (route as NonNullable<typeof route>).originToken, outputToken: (route as NonNullable<typeof route>).destinationToken, origin, destination, depositor: wallet.address as Address, recipient: recipientAddress as Address }
+      if (provider === 'across') return acrossApi.quote(params)
+      const raw = await lifiApi.quote(params)
+      // The allowance is read from the source chain so "approval required" is never assumed.
+      const allowance = originClient ? await originClient.readContract({ address: raw.action.fromToken.address, abi: erc20Abi, functionName: 'allowance', args: [params.depositor, raw.estimate.approvalAddress] }) : 0n
+      const found = chains.data?.find((c) => c.chainId === origin)
+      const diamond = found && 'diamond' in found ? found.diamond : undefined
+      return lifiToQuote(raw, { depositor: params.depositor, recipient: params.recipient, diamond, allowance, nowMs: Date.now() })
+    },
   })
   const q = quote.data
   // Tick once a second only while a quote is on screen (the countdown); an idle form does not re-render.
   const now = useNow(1000, Boolean(q))
   const needsApproval = q ? BigInt(q.checks.allowance.actual) < BigInt(q.checks.allowance.expected) : false
-  const quoteError = quote.error instanceof ApiError ? quote.error.message : quote.isError ? 'Could not get a quote from Across.' : null
+  const quoteError = quote.error instanceof ApiError || quote.error instanceof BridgeGuardError ? quote.error.message : quote.isError ? `Could not get a quote from ${providerInfo.label}.` : null
   const gas = useGasCheck(origin, wallet.address, q, needsApproval, amountRaw)
   const secondsLeft = q ? Math.max(0, Math.floor(q.quoteExpiryTimestamp - now / 1000)) : 0
   const expired = Boolean(q) && secondsLeft <= 0 && !quote.isFetching
@@ -164,7 +184,7 @@ export default function Bridge() {
       setRun({ stage: 'wallet', note: 'Confirm the bridge transfer in your wallet…' })
       const hash = await sendTransactionAsync({ to: tx.to, data: tx.data, value: tx.value ? BigInt(tx.value) : 0n, chainId: origin, ...(tx.gas ? { gas: BigInt(tx.gas) } : {}), ...fees })
       const entry: StoredBridge = {
-        hash, originChainId: origin, destinationChainId: destination, amount: displayUnits(BigInt(current.inputAmount), current.inputToken.decimals, 2, 6), symbol: current.inputToken.symbol, createdAt: Date.now(),
+        hash, originChainId: origin, destinationChainId: destination, amount: displayUnits(BigInt(current.inputAmount), current.inputToken.decimals, 2, 6), symbol: current.inputToken.symbol, createdAt: Date.now(), provider: current.provider ?? 'across',
         wallet: wallet.address, inputToken: current.inputToken.address, outputToken: current.outputToken.address, recipient: recipientAddress, expectedOutput: current.expectedOutputAmount, feeAmount: current.fees.total.amount,
         inputSymbol: current.inputToken.symbol, inputDecimals: current.inputToken.decimals, outputSymbol: current.outputToken.symbol, outputDecimals: current.outputToken.decimals,
       }
@@ -221,61 +241,69 @@ export default function Bridge() {
   }
 
   const busy = run.stage === 'wallet' || run.stage === 'confirming'
+  // Reversing is offered only when the current destination can also be a source in this wallet.
+  const canReverse = !busy && originOptions.some((c) => c.chainId === destination)
+  function reverse() {
+    if (!canReverse) return
+    setOrigin(destination)
+    setDestination(origin)
+    setRouteIdx(0)
+    setAmount('')
+  }
   const arrival = q ? describeFillTime(q.expectedFillTime) : ''
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <PageHeader title="Bridge" subtitle="Move USDC between Arc and other chains with Across. Networks, tokens, routes and quotes come live from Across." />
+        <PageHeader title="Bridge" subtitle="Move USDC between Arc and other chains with Across or LI.FI. Networks, tokens, routes and quotes come live from the provider you pick." />
+        <div className="segmented mb-3" role="tablist" aria-label="Bridge provider">
+          {PROVIDERS.map((p) => (
+            <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy || (p.id === 'lifi' && !backend)} title={p.id === 'lifi' && !backend ? 'LI.FI needs the Quick Pay backend, which is not connected here.' : undefined} className="seg-item" onClick={() => { setProvider(p.id); setRouteIdx(0) }}>{p.label}</button>
+          ))}
+        </div>
         <div className="space-y-3">
-          <Notice tone="warn">Bridging moves <strong>real funds</strong> across chains and cannot be reversed. A route is offered only when Across lists it.</Notice>
-          {chains.isError && <Notice tone="danger" action={fallbackLink}>Could not load supported networks from Across. You can bridge directly on across.to.</Notice>}
+          <Notice tone="warn">Bridging moves <strong>real funds</strong> across chains and cannot be reversed. A route is offered only when {providerInfo.label} lists it.</Notice>
+          {chains.isError && <Notice tone="danger" action={fallbackLink}>Could not load supported networks from {providerInfo.label}. You can bridge directly on {providerInfo.site}.</Notice>}
         </div>
       </div>
 
       <div className="card space-y-4 p-5">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="From network">
-            {chains.isLoading ? <Skeleton className="h-12" /> : (
-              <select className="field" value={origin} onChange={(e) => { const v = Number(e.target.value); setOrigin(v); if (v === destination) setDestination(v === ARC_CHAIN_ID ? 1 : ARC_CHAIN_ID); setRouteIdx(0) }}>
-                {originOptions.map((c) => <option key={c.chainId} value={c.chainId}>{c.name}</option>)}
-              </select>
-            )}
-          </Field>
-          <Field label="To network">
-            {chains.isLoading ? <Skeleton className="h-12" /> : (
-              <select className="field" value={destination} onChange={(e) => { setDestination(Number(e.target.value)); setRouteIdx(0) }}>
-                {destinationOptions.map((c) => <option key={c.chainId} value={c.chainId}>{c.name}</option>)}
-              </select>
-            )}
-          </Field>
-        </div>
+        {/* Input card: always dark glass so it reads the same in either theme. */}
+        <div data-theme="dark" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-white shadow-xl">
+          <NetworkRow label="FROM" value={origin} options={originOptions} loading={chains.isLoading} className="mb-3" onChange={(v) => { setOrigin(v); if (v === destination) setDestination(v === ARC_CHAIN_ID ? 1 : ARC_CHAIN_ID); setRouteIdx(0) }} />
+          <ReverseButton onClick={reverse} disabled={!canReverse} title={canReverse ? 'Swap From and To' : `Bridging from ${name(destination)} is not available in this wallet`} />
+          <NetworkRow label="TO" value={destination} options={destinationOptions} loading={chains.isLoading} className="mb-4 mt-1" onChange={(v) => { setDestination(v); setRouteIdx(0) }} />
 
-        {routes.isLoading ? <Skeleton className="h-12" /> : routes.isError ? (
-          <Notice tone="danger" action={fallbackLink}>Could not check routes with Across. Try again shortly.</Notice>
-        ) : !routes.data || routes.data.length === 0 ? (
-          <Notice tone="warn" action={fallbackLink}>Unavailable: Across does not list an ERC-20 route from {name(origin)} to {name(destination)}. Quick Pay will not offer one. You can check across.to for other options.</Notice>
-        ) : (
-          <>
-            <Field label="Token">
-              <select className="field" value={routeIdx} onChange={(e) => setRouteIdx(Number(e.target.value))}>
-                {routes.data.map((r, i) => <option key={`${r.originToken}-${r.destinationToken}`} value={i}>{r.originTokenSymbol} → {r.destinationTokenSymbol}</option>)}
-              </select>
-            </Field>
-            <div>
-              <AmountInput
+          {routes.isLoading ? <Skeleton className="h-24" /> : routes.data && routes.data.length > 0 ? (
+            <div className="space-y-3">
+              {routes.data.length > 1 && (
+                <select aria-label="Token" className="field" value={routeIdx} onChange={(e) => setRouteIdx(Number(e.target.value))}>
+                  {routes.data.map((r, i) => <option key={`${r.originToken}-${r.destinationToken}`} value={i}>{r.originTokenSymbol} → {r.destinationTokenSymbol}</option>)}
+                </select>
+              )}
+              <BridgeAmount
                 value={amount}
                 onChange={setAmount}
                 symbol={route?.originTokenSymbol}
                 balance={balance.data}
+                decimals={decimals.data}
                 balanceLoading={balance.isLoading}
                 onMax={balance.data !== undefined && decimals.data !== undefined ? () => setAmount(displayUnits(balance.data, decimals.data, 0, decimals.data).replace(/,/g, '')) : undefined}
               />
- {tooManyDecimals && <p role="alert" className="mt-1.5 text-xs" style={{ color: 'var(--danger)' }}>{route?.originTokenSymbol} supports at most {decimals.data} decimal places.</p>}
-              {overBalance && <p role="alert" className="mt-1.5 text-xs" style={{ color: 'var(--danger)' }}>Amount is larger than your balance on {name(origin)}.</p>}
-              {origin === ARC_CHAIN_ID && route?.originTokenSymbol === 'USDC' && <p className="mt-1.5 text-xs" style={{ color: 'var(--muted)' }}>USDC is also Arc's gas token. Leave a little for the network fee.</p>}
+              {routes.data.length === 1 && route && route.originTokenSymbol !== route.destinationTokenSymbol && <p className="text-xs text-slate-400">You receive {route.destinationTokenSymbol} on {name(destination)}.</p>}
             </div>
-            <div className="flex justify-center"><span className="inner flex size-9 items-center justify-center rounded-full"><ArrowDown className="size-4" aria-hidden /></span></div>
+          ) : null}
+        </div>
+
+        {routes.isError && <Notice tone="danger" action={fallbackLink}>Could not check routes with {providerInfo.label}. Try again shortly.</Notice>}
+        {!routes.isLoading && !routes.isError && (!routes.data || routes.data.length === 0) && (
+          <Notice tone="warn" action={fallbackLink}>Unavailable: {providerInfo.label} does not list an ERC-20 route from {name(origin)} to {name(destination)}. Quick Pay will not offer one. Try the other provider or check {providerInfo.site}.</Notice>
+        )}
+        {route && (
+          <>
+            {tooManyDecimals && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{route.originTokenSymbol} supports at most {decimals.data} decimal places.</p>}
+            {overBalance && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>Amount is larger than your balance on {name(origin)}.</p>}
+            {origin === ARC_CHAIN_ID && route.originTokenSymbol === 'USDC' && <p className="text-xs" style={{ color: 'var(--muted)' }}>USDC is also Arc's gas token. Leave a little for the network fee.</p>}
             <Field label="Recipient on destination (defaults to your wallet)" error={recipientError} hint={recipient ? 'Funds will be sent to this address, not your wallet.' : undefined}>
               <input className="field mono" placeholder={wallet.address ?? '0x…'} value={recipient} onChange={(e) => setRecipient(e.target.value.trim())} spellCheck={false} />
             </Field>
@@ -294,7 +322,7 @@ export default function Bridge() {
             {line(bridgeFees?.destinationGas) && <Row label="  Destination gas">{line(bridgeFees?.destinationGas)}</Row>}
             {line(details?.app) && Number(details?.app?.amount) > 0 && <Row label="  App fee">{line(details?.app)}</Row>}
             <Row label="Estimated arrival">{arrival}</Row>
-            <Row label="Route">Across · {name(origin)} → {name(destination)} · {q.inputToken.symbol} → {q.outputToken.symbol}{q.crossSwapType ? ` (${q.crossSwapType})` : ''}</Row>
+            <Row label="Route">{q.provider === 'lifi' ? `LI.FI${q.via ? ` via ${q.via}` : ''}` : 'Across'} · {name(origin)} → {name(destination)} · {q.inputToken.symbol} → {q.outputToken.symbol}{q.crossSwapType ? ` (${q.crossSwapType})` : ''}</Row>
             <Row label="Quote expires">
               <span className="inline-flex items-center gap-2">
                 {expired ? <span style={{ color: 'var(--danger)' }}>Expired</span> : <span className="tabular-nums">in {secondsLeft}s</span>}
@@ -315,7 +343,7 @@ export default function Bridge() {
             {expired ? 'Quote expired, refreshing…' : 'Review bridge'}
           </button>
         )}
-        <p className="text-center text-xs" style={{ color: 'var(--muted)' }}>Powered by <a className="underline" href={ACROSS_URL} target="_blank" rel="noopener noreferrer">Across Protocol</a>. Prefer the official app? Use it directly at across.to.</p>
+        <p className="text-center text-xs" style={{ color: 'var(--muted)' }}>Powered by <a className="underline" href={providerInfo.url} target="_blank" rel="noopener noreferrer">{provider === 'lifi' ? 'LI.FI' : 'Across Protocol'}</a>. Prefer the official app? Use it directly at {providerInfo.site}.</p>
       </div>
 
       <section className="card p-5">
@@ -344,7 +372,7 @@ export default function Bridge() {
               <Row label="Contract"><span className="mono text-xs">{shortAddress(q.swapTx.to, 8, 6)}</span></Row>
               <Row label="Steps">{needsApproval ? 'Switch network if needed, approve exact amount, deposit' : 'Switch network if needed, deposit'}</Row>
             </div>
-            <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>Irreversible. If Across cannot fill the transfer it is refunded to your address on the source chain. Nothing is sent until you confirm in your wallet.</p>
+            <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>Irreversible. {q.provider === 'lifi' ? 'If the transfer cannot be completed, what happens to your funds depends on the bridge LI.FI used for this route.' : 'If Across cannot fill the transfer it is refunded to your address on the source chain.'} Nothing is sent until you confirm in your wallet.</p>
             <TxProgress stage={run.stage} hash={run.hash} error={run.error} walletText={run.note} successText={run.note ?? 'Deposit confirmed'} />
             {run.stage === 'confirming' && run.note && <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{run.note}</p>}
             {run.stage === 'success' || run.unconfirmed ? (

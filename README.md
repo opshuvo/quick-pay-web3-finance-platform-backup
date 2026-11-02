@@ -1,6 +1,6 @@
 # Quick Pay
 
-Quick Pay is a USDC payment and finance app for Arc Mainnet. Send, receive and scan to pay, create shareable payment requests, split bills, swap tokens through Uniswap, bridge with Across, and keep a searchable history of your wallet activity.
+Quick Pay is a USDC payment and finance app for Arc Mainnet. Send, receive and scan to pay, create shareable payment requests, split bills, swap tokens through Uniswap, bridge with Across or LI.FI, and keep a searchable history of your wallet activity.
 
 Built with [Arc Studio](https://studio.arc.io)
 
@@ -13,8 +13,9 @@ Built with [Arc Studio](https://studio.arc.io)
 - Receive with a QR code, and scan a QR code or paste a code to fill in payment details (scanning never sends anything)
 - Payment requests with shareable links, plus split payments built on them
 - Swap tokens on Arc through Uniswap, with live quotes, route, price impact, minimum received, slippage, exact approvals and quote expiry
-- Bridge between Arc and other networks with Across, using only routes Across reports as available, with fee breakdown, arrival estimate and a progress tracker that shows Complete only after delivery is verified on the destination chain
-- Transaction history with search, filters, CSV export and verified Swap and Bridge categories
+- Bridge between Arc and other networks with Across or LI.FI (you pick the provider), using only routes the provider reports as available, with fee breakdown, arrival estimate and a progress tracker that shows Complete only after delivery is verified on the destination chain
+- Transaction history with Sent, Received, Pending and Failed tabs, search, filters, CSV export and verified Swap and Bridge categories
+- Neon Glass look in dark and light themes
 - Analytics from your indexed history, with clear notes when history is still being backfilled
 - A payment request and receipt contract (not deployed by default; the Smart Contracts page shows "Not Deployed" until you configure a real deployment)
 
@@ -40,6 +41,7 @@ Server only (never exposed to the browser):
 - `DATABASE_URL` PostgreSQL connection string for history, payment requests and verified swap/bridge activity
 - `UNISWAP_API_KEY` Uniswap Trading API key. Optional: without it, Swap quotes and executes against Uniswap's pools directly on-chain and says so on screen
 - `ACROSS_API_KEY`, `ACROSS_INTEGRATOR_ID` Optional Across credentials for production usage
+- `LIFI_API_KEY`, `LIFI_INTEGRATOR` Optional LI.FI API key and integrator name (default `quickpay`). LI.FI works without a key at lower rate limits
 - `ARC_RPC_URL` Optional Arc RPC override
 - `RPC_PROXY_BASE_URL`, `RPC_PROXY_TOKEN`, `RPC_PROXY_CHAINS` Optional, provisioned by Arc Studio; outside Arc Studio the public Arc RPC is used
 - `PORT` Backend port (default 3001)

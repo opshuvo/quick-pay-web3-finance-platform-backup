@@ -1,6 +1,6 @@
 import { createElement } from 'react'
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Repeat2, Waypoints, type LucideIcon } from 'lucide-react'
-import { ExplorerLink, StatusBadge } from '@/components/ui'
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ExternalLink, Repeat2, Waypoints, type LucideIcon } from 'lucide-react'
+import { CopyButton, StatusBadge } from '@/components/ui'
 import { ARC_USDC, arcTxUrl } from '@/lib/arc'
 import { displayUnits, displayUsdc, formatDateTime, shortAddress, shortHash } from '@/lib/format'
 import type { HistoryRow } from '@/hooks/useHistory'
@@ -74,7 +74,13 @@ export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: His
       ) : (
         <div className="flex min-h-[56px] min-w-0 flex-1 items-center gap-3 px-2">{body}</div>
       )}
-      <span className="hidden shrink-0 sm:block"><ExplorerLink href={arcTxUrl(row.txHash)}>Tx</ExplorerLink></span>
+      <span className="flex shrink-0 items-center gap-0.5">
+        <a href={arcTxUrl(row.txHash)} target="_blank" rel="noopener noreferrer" aria-label="View transaction on Arc Etherscan (opens in a new tab)" className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-1.5 text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95" style={{ color: 'var(--accent)' }}>
+          <span className="hidden sm:inline">Tx</span>
+          <ExternalLink className="size-3.5" aria-hidden />
+        </a>
+        <CopyButton value={row.txHash} label="Copy transaction hash" className="!size-11 transition-transform duration-200 hover:scale-110 active:scale-90" />
+      </span>
     </li>
   )
 }

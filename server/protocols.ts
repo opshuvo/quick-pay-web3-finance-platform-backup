@@ -12,6 +12,7 @@ export const SWAP_COUNTERPARTIES = [
 
 export const BRIDGE_COUNTERPARTIES = [
   '0x9b4a302a548c7e313c2b74c461db7b84d3074a84', // Across spoke pool entry point on Arc
+  '0xa4072583658fae592a3506a42431cb6316a8d40b', // LI.FI Diamond on Arc (diamondAddress in LI.FI's chain list)
 ] as const
 
 const list = (values: readonly string[]) => `array[${values.map((v) => `'${v}'`).join(',')}]::text[]`

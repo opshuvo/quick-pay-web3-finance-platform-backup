@@ -14,22 +14,26 @@ import { chainCsv } from '@/lib/chainHistory/read'
 import { historyServerUsable } from '@/lib/chainHistory/mode'
 import { formatNumber } from '@/lib/format'
 
-export type ExplorerTab = 'all' | 'out' | 'in' | 'swap' | 'bridge'
+export type ExplorerTab = 'all' | 'out' | 'in' | 'pending' | 'failed' | 'swap' | 'bridge'
 
 const TABS: { id: ExplorerTab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'out', label: 'Sent' },
   { id: 'in', label: 'Received' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'failed', label: 'Failed' },
   { id: 'swap', label: 'Swap' },
   { id: 'bridge', label: 'Bridge' },
 ]
 
-const TAB_FILTERS: Record<ExplorerTab, Pick<HistoryFilters, 'direction' | 'type'>> = {
-  all: { direction: 'all', type: 'all' },
-  out: { direction: 'out', type: 'all' },
-  in: { direction: 'in', type: 'all' },
-  swap: { direction: 'all', type: 'swap' },
-  bridge: { direction: 'all', type: 'bridge' },
+const TAB_FILTERS: Record<ExplorerTab, Pick<HistoryFilters, 'direction' | 'type' | 'status'>> = {
+  all: { direction: 'all', type: 'all', status: 'all' },
+  out: { direction: 'out', type: 'all', status: 'confirmed' },
+  in: { direction: 'in', type: 'all', status: 'confirmed' },
+  pending: { direction: 'all', type: 'all', status: 'pending' },
+  failed: { direction: 'all', type: 'all', status: 'failed' },
+  swap: { direction: 'all', type: 'swap', status: 'all' },
+  bridge: { direction: 'all', type: 'bridge', status: 'all' },
 }
 
 interface Props {
@@ -143,6 +147,9 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
             <button className="font-semibold underline" onClick={() => { setSearch(''); set({ q: '' }) }}>Clear</button>
           </p>
         )}
+        {(activeTab === 'pending' || activeTab === 'failed') && (
+          <Notice tone="info">{activeTab === 'pending' ? 'Transactions you signed in Quick Pay that Arc has not confirmed yet. They move to Sent when confirmed.' : 'Transactions you signed in Quick Pay that reverted or were never mined. No funds moved. A failed transaction writes nothing to the chain history, so only this device records it.'}</Notice>
+        )}
         {(activeTab === 'swap' || activeTab === 'bridge') && (
           <Notice tone="info">{activeTab === 'swap' ? 'Swaps are detected from transfers with known Uniswap contracts on Arc.' : 'Bridges are detected from transfers with the Across contract on Arc.'} Some routes, such as swaps through v3 pools or inbound bridge fills, may not be labelled and will appear under All.</Notice>
         )}
@@ -160,7 +167,7 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
         ) : data && data.rows.length === 0 ? (
           <EmptyState
             title={data.coverage.status === 'complete' ? 'No transactions found' : 'Nothing found so far'}
-            body={data.coverage.status === 'complete' ? 'No USDC token transfers match these filters for this wallet. Native-value transfers, pending and failed transactions are not indexed.' : 'The indexer is still scanning older blocks. Matching transactions may appear as the backfill progresses.'}
+            body={data.coverage.status === 'complete' ? 'No USDC token transfers match these filters for this wallet. Pending and failed transactions are listed under their own tabs.' : 'The indexer is still scanning older blocks. Matching transactions may appear as the backfill progresses.'}
           />
         ) : (
           <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>

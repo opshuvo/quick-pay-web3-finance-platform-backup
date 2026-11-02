@@ -6,6 +6,8 @@ export interface StoredBridge {
   amount: string
   symbol: string
   createdAt: number
+  /** Which service quoted and tracks this transfer. Missing means Across. */
+  provider?: 'across' | 'lifi'
   /** Quote metadata kept so the history record can be written once Across has indexed the deposit. */
   wallet?: string
   inputToken?: string

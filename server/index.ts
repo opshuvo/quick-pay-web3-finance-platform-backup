@@ -4,6 +4,7 @@
  */
 import { listActivity, recordBridge, recordSwap, refreshBridge } from './activity'
 import { proxyAcross } from './across'
+import { proxyLifi } from './lifi'
 import { requireWallet } from './auth'
 import { HttpError, migrate, requireDb, sql } from './db'
 import { config } from './env'
@@ -56,6 +57,10 @@ async function route(req: Request, ip: string): Promise<Response> {
   }
 
   if (parts[0] === 'across' && method === 'GET') return proxyAcross(`/${parts.slice(1).join('/')}`, url.searchParams)
+  if (parts[0] === 'lifi' && method === 'GET') {
+    rateLimit(`lifi:${ip}`, 120, 60_000)
+    return proxyLifi(`/${parts.slice(1).join('/')}`, url.searchParams)
+  }
 
   if (parts[0] === 'uniswap') {
     rateLimit(`uniswap:${ip}`, 90, 60_000)

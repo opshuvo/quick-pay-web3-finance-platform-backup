@@ -86,3 +86,25 @@ bun install
 bun run server
 bun run dev
 ```
+
+## Deployments
+
+- QuickPayRouter (Arc Mainnet, chain 5042): 0x1593C6fdEAB15228c90da354913a919fDA08b7E4. Set via VITE_QUICKPAY_ROUTER_ADDRESS in .env. Provided by the owner; not deployed or verified by Arc Studio. The app only routes sends through it after live checks on Arc.
+
+## Neon Glass UI and history status tabs
+
+- Design tokens live in `src/index.css` (dark default, light available). Fonts: Sora (display) and Manrope (body). Dashboard pieces are in `src/components/dashboard.tsx`.
+- History tabs All / Sent / Received / Pending / Failed / Swap / Bridge are in `src/components/TransferExplorer.tsx`. `status` is a history filter; Pending and Failed come only from the device ledger (`src/lib/txLedger.ts`), also when a history server is in use (`useHistory`).
+- Sandbox: Postgres runs in Docker (`postgres` container, volume `pgdata`), `DATABASE_URL` is in the gitignored `.env`. The backend is started with `ARC_RPC_URL=https://rpc.mainnet.arc.io bun run server` because the Studio RPC proxy refused the backend.
+- `.env` also sets VITE_QUICKPAY_REGISTRY_ADDRESS to the registry above.
+
+## Explorer links
+
+All transaction and address links use Arc Etherscan (`https://arc.etherscan.io/tx/{hash}`, `/address/{address}`), defined once in `src/lib/arc.ts` (`ARC_EXPLORER`, `arcTxUrl`, `arcAddressUrl`) and opened in a new tab. Arc docs list `explorer.arc.io` (Blockscout) as the official explorer, which is still in `src/onchain-facts.ts`.
+
+## Bridge providers (Across and LI.FI)
+
+- The Bridge page has a provider switch. LI.FI goes through `server/lifi.ts` (allow-listed proxy: `/lifi/chains`, `/lifi/routes`, `/lifi/quote`, `/lifi/status`) and `src/lib/lifi.ts`, which maps a LI.FI quote into the Across quote shape so the guard (`bridgeGuard.ts`) and the confirm flow are shared.
+- `lifiToQuote` refuses a quote unless the recipient and sender match, the chain matches, and the transaction targets LI.FI's own `diamondAddress` for the source chain (from LI.FI's chain list; Arc: `0xA4072583658Fae592A3506A42431cb6316a8d40b`, also in `BRIDGE_COUNTERPARTIES`). Approval is exact-amount. LI.FI quotes have no expiry, so they are treated as valid for 55 seconds.
+- Routes offered for LI.FI: same-symbol pairs of USDC, EURC, USDT, WETH, WBTC, cirBTC only.
+- LI.FI transfers are tracked with `/lifi/status`; "Complete" needs the destination receipt read from the destination chain by this app (only possible for chains in `src/config.ts`), otherwise it says "Delivered (per LI.FI)". Verified server-side bridge activity (`server/activity.ts`) is Across-only.

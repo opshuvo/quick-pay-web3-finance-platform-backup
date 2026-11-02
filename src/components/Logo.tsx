@@ -10,13 +10,13 @@ export function LogoMark({ size = 36 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Quick Pay">
       <defs>
         <linearGradient id={`${id}-g`} x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#2fd4f0" />
-          <stop offset="0.5" stopColor="#5b8cff" />
-          <stop offset="1" stopColor="#8b6cff" />
+          <stop stopColor="#22e4ff" />
+          <stop offset="0.5" stopColor="#a855ff" />
+          <stop offset="1" stopColor="#ff3dcb" />
         </linearGradient>
         <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#0d1a3a" />
-          <stop offset="1" stopColor="#050a18" />
+          <stop stopColor="#0a0b1e" />
+          <stop offset="1" stopColor="#05060f" />
         </linearGradient>
       </defs>
       <rect width="64" height="64" rx="18" fill={`url(#${id}-bg)`} />
