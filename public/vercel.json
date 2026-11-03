@@ -28,6 +28,10 @@
       "destination": "https://app.across.to/api/deposit/status"
     },
     {
+      "source": "/api/lifi/:path*",
+      "destination": "/api/lifi?path=:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

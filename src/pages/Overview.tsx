@@ -6,7 +6,7 @@ import TokenUSDC from '@web3icons/react/icons/tokens/TokenUSDC'
 import { HistoryHint } from '@/components/Coverage'
 import { FlowCard, RouterCard } from '@/components/dashboard'
 import { MonthlyChart } from '@/components/MonthlyChart'
-import { ActivityFeed, AddressRow, GLASS, GlowBlobs, NetworkBadge, PrimaryActions, SecondaryActions, TrendCard, VisibilityToggle } from '@/components/neon'
+import { ActivityFeed, AddressRow, GlowBlobs, NetworkBadge, PrimaryActions, rise, SecondaryActions, TrendCard, VisibilityToggle } from '@/components/neon'
 import { StatTile } from '@/components/StatTile'
 import { TxDetailSheet } from '@/components/TxDetailSheet'
 import { EmptyState, Skeleton, StatusBadge } from '@/components/ui'
@@ -57,15 +57,14 @@ export default function Overview() {
   const hidden = prefs.hideBalances
 
   return (
-    // The dashboard is always dark glass: forcing the dark tokens here keeps every nested component readable in either theme.
-    <div data-theme="dark" className="relative isolate rounded-[2rem] p-0 sm:p-1">
+    <div className="relative isolate">
       <GlowBlobs />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
           {/* Header, balance and actions */}
-          <section className={`${GLASS} p-5 sm:p-7`} aria-label="Balance">
+          <section className="glass rise p-5 sm:p-7" style={rise(0)} aria-label="Balance">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="flex items-center gap-2.5 text-sm font-semibold text-slate-200">
+              <h1 className="flex items-center gap-2.5 text-sm font-semibold">
                 <TokenUSDC variant="branded" size={24} />
                 <span className="display text-lg font-semibold">Available USDC</span>
               </h1>
@@ -75,27 +74,27 @@ export default function Overview() {
             {!wallet.isConnected ? (
               <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="display text-balance text-4xl font-bold text-slate-50 sm:text-5xl">Pay anyone, <span className="gradient-text">instantly.</span></p>
-                  <p className="mt-3 max-w-[46ch] text-pretty text-sm text-slate-400">Connect a wallet to send and receive USDC on Arc, split bills, track every payment, and swap or bridge when you need to.</p>
+                  <p className="display text-balance text-4xl font-bold sm:text-5xl">Pay anyone, <span className="gradient-text">instantly.</span></p>
+                  <p className="mt-3 max-w-[46ch] text-pretty text-sm" style={{ color: 'var(--muted)' }}>Connect a wallet to send and receive USDC on Arc, split bills, track every payment, and swap or bridge when you need to.</p>
                 </div>
                 <WalletButton />
               </div>
             ) : (
               <div className="mt-6">
-                <p className="text-xs font-medium text-slate-400">{hidden ? 'USDC hidden' : 'Showing USDC'}</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{hidden ? 'USDC hidden' : 'Showing USDC'}</p>
                 <div className="mt-1 flex items-center gap-3">
                   {wallet.balanceLoading ? (
                     <Skeleton className="h-14 w-60" />
                   ) : wallet.balanceRaw !== undefined ? (
-                    <span className="display bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-5xl font-bold tabular-nums text-transparent sm:text-6xl">{hidden ? '••••••' : displayUsdc(wallet.balanceRaw)}</span>
+                    <span className="display text-5xl font-bold tabular-nums sm:text-6xl" style={{ color: 'var(--ink)' }}>{hidden ? '••••••' : displayUsdc(wallet.balanceRaw)}</span>
                   ) : (
-                    <span className="display text-2xl font-bold text-slate-400">Balance unavailable</span>
+                    <span className="display text-2xl font-bold" style={{ color: 'var(--muted)' }}>Balance unavailable</span>
                   )}
                   <VisibilityToggle hidden={hidden} onToggle={() => setPref('hideBalances', !hidden)} />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                   {wallet.address && <AddressRow address={wallet.address} />}
-                  <span className="text-xs text-slate-400">This balance is also your gas on Arc</span>
+                  <span className="text-xs" style={{ color: 'var(--muted)' }}>This balance is also your gas on Arc</span>
                 </div>
               </div>
             )}
@@ -106,24 +105,24 @@ export default function Overview() {
             </div>
           </section>
 
-          <TrendCard rows={history.data?.rows} balanceRaw={wallet.balanceRaw} loading={wallet.isConnected && (history.isLoading || wallet.balanceLoading)} connected={wallet.isConnected} hidden={hidden} pageSize={FEED_SIZE} />
+          <TrendCard rows={history.data?.rows} balanceRaw={wallet.balanceRaw} loading={wallet.isConnected && (history.isLoading || wallet.balanceLoading)} connected={wallet.isConnected} hidden={hidden} pageSize={FEED_SIZE} style={rise(1)} />
 
-          <ActivityFeed address={wallet.address} rows={history.data?.rows.slice(0, FEED_SHOWN)} loading={history.isLoading} connected={wallet.isConnected} error={history.isError} onSelect={setSelected} />
+          <ActivityFeed address={wallet.address} rows={history.data?.rows.slice(0, FEED_SHOWN)} loading={history.isLoading} connected={wallet.isConnected} error={history.isError} onSelect={setSelected} style={rise(2)} />
           {stats.data && !complete && <HistoryHint coverage={stats.data.coverage} />}
         </div>
 
         <aside className="min-w-0 space-y-6">
-          <FlowCard sent={stats.data?.totalSent} received={stats.data?.totalReceived} suffix={suffix} loading={wallet.isConnected && stats.isLoading} hidden={hidden} error={wallet.isConnected && stats.isError} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="rise" style={rise(1)}><FlowCard sent={stats.data?.totalSent} received={stats.data?.totalReceived} suffix={suffix} loading={wallet.isConnected && stats.isLoading} hidden={hidden} error={wallet.isConnected && stats.isError} /></div>
+          <div className="rise grid grid-cols-2 gap-3" style={rise(2)}>
             <StatTile label="Transactions" loading={wallet.isConnected && stats.isLoading} value={wallet.isConnected && stats.data ? formatNumber(stats.data.transactionCount) : '—'} sub={complete ? 'USDC token transfers' : stats.data ? 'In scanned range' : wallet.isConnected ? '' : 'Connect to see'} />
             <StatTile label="Latest block" loading={health.isLoading} value={health.data?.headBlock ? formatNumber(health.data.headBlock) : '—'} sub={health.data?.rpc === 'ok' ? 'Arc RPC online' : health.isError ? 'Service offline' : ''} />
           </div>
-          <RouterCard />
+          <div className="rise" style={rise(3)}><RouterCard /></div>
 
-          <section className="card p-4 sm:p-5">
+          <section className="card defer rise p-4 sm:p-5" style={rise(4)}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="display text-lg font-semibold">Payment requests</h2>
-              <Link to="/requests" className="text-sm font-semibold text-cyan-300">Manage</Link>
+              <Link to="/requests" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>Manage</Link>
             </div>
             {!wallet.isConnected ? (
               <EmptyState title="No wallet connected" body="Connect to see requests you created." />
@@ -151,7 +150,7 @@ export default function Overview() {
             )}
           </section>
 
-          <section className="card p-4 sm:p-5">
+          <section className="card defer rise p-4 sm:p-5" style={rise(5)}>
             <h2 className="display mb-4 text-lg font-semibold">Monthly activity</h2>
             {!wallet.isConnected ? (
               <EmptyState title="Connect a wallet" body="Monthly sent and received totals are calculated from your indexed transactions." />

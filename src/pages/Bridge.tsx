@@ -13,7 +13,6 @@ import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { useDebounced } from '@/hooks/useDebounced'
 import { useGasCheck } from '@/hooks/useGasCheck'
-import { useHealth } from '@/hooks/useHealth'
 import { useNow } from '@/hooks/useNow'
 import { BRIDGE_ORIGIN_CHAIN_IDS } from '@/config'
 import { ACROSS_URL, acrossApi, cachedChains, rememberChains, type AcrossChain, type AcrossQuote, type FeeLine } from '@/lib/across'
@@ -59,8 +58,6 @@ export default function Bridge() {
   const [storeVersion, setStoreVersion] = useState(0)
   const lock = useRef(false)
 
-  // LI.FI is reached through the Quick Pay backend. A static host without it keeps Across (which has direct rewrites).
-  const backend = useHealth().data?.mode === 'server'
   const providerInfo = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0]
   const fallbackLink = (
     <a className="btn btn-ghost" href={providerInfo.url} target="_blank" rel="noopener noreferrer">{providerInfo.site} <ExternalLink className="size-4" aria-hidden /></a>
@@ -258,7 +255,7 @@ export default function Bridge() {
         <PageHeader title="Bridge" subtitle="Move USDC between Arc and other chains with Across or LI.FI. Networks, tokens, routes and quotes come live from the provider you pick." />
         <div className="segmented mb-3" role="tablist" aria-label="Bridge provider">
           {PROVIDERS.map((p) => (
-            <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy || (p.id === 'lifi' && !backend)} title={p.id === 'lifi' && !backend ? 'LI.FI needs the Quick Pay backend, which is not connected here.' : undefined} className="seg-item" onClick={() => { setProvider(p.id); setRouteIdx(0) }}>{p.label}</button>
+            <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy} className="seg-item" onClick={() => { setProvider(p.id); setRouteIdx(0) }}>{p.label}</button>
           ))}
         </div>
         <div className="space-y-3">

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Share2, Trash2 } from 'lucide-react'
+import { Share2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { RequestShare } from '@/components/RequestShare'
@@ -99,7 +99,6 @@ export default function SplitDetail() {
 
   return (
     <div>
-      <Link to="/split" className="mb-3 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--muted)' }}><ArrowLeft className="size-4" /> All splits</Link>
       <PageHeader title={split.title} subtitle={`${split.description ? `${split.description} · ` : ''}${split.mode === 'equal' ? 'Equal split' : 'Custom split'} · created ${formatDateTime(split.createdAt)}`} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">

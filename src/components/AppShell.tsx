@@ -5,9 +5,11 @@ import { ChevronDown, ExternalLink, Moon, MoreHorizontal, Search, ShieldAlert, S
 import { clsx } from 'clsx'
 import { Avatar } from '@/components/Avatar'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
+import { BackButton } from '@/components/BackButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { Logo } from '@/components/Logo'
+import { MobileNav } from '@/components/MobileNav'
 import { NetworkBanner } from '@/components/NetworkBanner'
 import { NotificationsMenu } from '@/components/NotificationsMenu'
 import { Skeleton } from '@/components/ui'
@@ -22,7 +24,7 @@ function ThemeButton() {
   const { theme, toggle } = useTheme()
   return (
     <button type="button" onClick={toggle} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} className="btn btn-ghost !min-h-[44px] !px-3">
-      {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      <span key={theme} className="theme-spin inline-flex">{theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}</span>
     </button>
   )
 }
@@ -116,12 +118,12 @@ export function AppShell() {
               <button type="button" aria-label={searchOpen ? 'Close search' : 'Search'} onClick={() => setSearchOpen((v) => !v)} className="btn btn-ghost !min-h-[44px] !px-3 lg:hidden">
                 {searchOpen ? <X className="size-4" /> : <Search className="size-4" />}
               </button>
-              <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" aria-label="Open Arc Etherscan in a new tab" className="btn btn-ghost !min-h-[44px] !px-3 transition-all duration-200 hover:scale-105 active:scale-95">
+              <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" aria-label="Open Arc Etherscan in a new tab" className="btn btn-ghost hidden sm:inline-flex !min-h-[44px] !px-3 transition-all duration-200 hover:scale-105 active:scale-95">
                 <ExternalLink className="size-4" aria-hidden />
                 <span className="hidden md:inline">Explorer</span>
               </a>
-              <div className="hidden sm:block"><ThemeButton /></div>
               <NotificationsMenu />
+              <ThemeButton />
               <WalletButton />
               <div className="hidden sm:block"><ProfileLink /></div>
             </div>
@@ -131,6 +133,7 @@ export function AppShell() {
 
         <main className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 sm:px-6 lg:pb-12">
           <NetworkBanner />
+          <BackButton />
           <ErrorBoundary resetKey={location.pathname}>
             <Suspense
               fallback={
@@ -140,34 +143,14 @@ export function AppShell() {
                 </div>
               }
             >
-              <Outlet />
+              <div key={location.pathname} className="page-in"><Outlet /></div>
             </Suspense>
           </ErrorBoundary>
         </main>
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 items-end border-t px-1 pb-[env(safe-area-inset-bottom)] lg:hidden" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 96%, transparent)' }}>
-        {PRIMARY_NAV.map(({ to, label, short, icon: Icon }) => {
-          const center = to === '/scan'
-          return (
-            <NavLink key={to} to={to} aria-label={label} className="flex min-h-[60px] min-w-0 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold" style={({ isActive }) => ({ color: isActive ? 'var(--cyan)' : 'var(--muted)' })}>
-              {center ? (
-                <span className="-mt-5 flex size-12 items-center justify-center rounded-2xl text-white" style={{ background: 'linear-gradient(130deg, var(--accent), var(--accent-2))', boxShadow: '0 10px 24px -8px var(--glow), inset 0 1px 0 rgba(255,255,255,.3)' }}>
-                  <Icon className="size-5" aria-hidden />
-                </span>
-              ) : (
-                <Icon className="size-5" aria-hidden />
-              )}
-              <span className="max-w-full truncate">{short ?? label}</span>
-            </NavLink>
-          )
-        })}
-        <button type="button" onClick={() => setMore(true)} aria-label="More pages" className="flex min-h-[60px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold" style={{ color: moreActive ? 'var(--cyan)' : 'var(--muted)' }}>
-          <MoreHorizontal className="size-5" aria-hidden />
-          More
-        </button>
-      </nav>
+      <MobileNav moreActive={moreActive} onMore={() => setMore(true)} />
 
       <ConfirmSheet open={more} onClose={() => setMore(false)} title="More">
         <div className="space-y-4">

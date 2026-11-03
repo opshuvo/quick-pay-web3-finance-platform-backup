@@ -1,26 +1,24 @@
 import { useConfig, useDisconnect } from 'wagmi'
 import { Moon, Sun } from 'lucide-react'
 import { toast } from 'sonner'
-import { AddressChip, PageHeader, Row, Skeleton, StatusBadge } from '@/components/ui'
+import { AddressChip, PageHeader, Row, StatusBadge } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
-import { useHealth } from '@/hooks/useHealth'
 import { clearSession } from '@/hooks/useSession'
 import { useTheme } from '@/hooks/useTheme'
 import { ARC_CHAIN_ID, ARC_EXPLORER, ARC_RPC_URL, ARC_USDC, arcAddressUrl } from '@/lib/arc'
-import { formatNumber } from '@/lib/format'
+import { env } from '@/lib/env'
 
 export default function Settings() {
   const { theme, setTheme } = useTheme()
   const wallet = useArcWallet()
-  const health = useHealth()
   const config = useConfig()
   const { disconnect } = useDisconnect()
   const chainName = config.chains.find((c) => c.id === wallet.chainId)?.name
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader title="Settings" subtitle="Appearance, wallet, network, and service status." />
+      <PageHeader title="Settings" subtitle="Appearance, wallet, network, and contract addresses." />
 
       <section className="card p-5">
         <h2 className="display mb-3 text-lg font-semibold">Appearance</h2>
@@ -65,16 +63,14 @@ export default function Settings() {
         </div>
       </section>
 
-      <section className="card p-5">
-        <h2 className="display mb-2 text-lg font-semibold">Service status</h2>
-        {health.isLoading ? <Skeleton className="h-24" /> : (
-          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            <Row label="Quick Pay API">{health.isError ? <StatusBadge tone="danger">Unreachable</StatusBadge> : health.data?.mode === 'browser' ? <StatusBadge tone="warn">Not connected (reading Arc directly)</StatusBadge> : <StatusBadge tone="success">Online</StatusBadge>}</Row>
-            <Row label="Database">{health.data?.database === 'ok' ? <StatusBadge tone="success">Connected</StatusBadge> : health.data?.database === 'unconfigured' ? <StatusBadge tone="warn">Not configured</StatusBadge> : <StatusBadge tone="danger">Error</StatusBadge>}</Row>
-            <Row label="Arc RPC">{health.data?.rpc === 'ok' ? <StatusBadge tone="success">Online ({health.data.rpcSource === 'proxy' ? 'keyed' : 'public'})</StatusBadge> : <StatusBadge tone="danger">Unreachable</StatusBadge>}</Row>
-            <Row label="Latest block">{health.data?.headBlock ? formatNumber(health.data.headBlock) : '—'}</Row>
-          </div>
-        )}
+      <section className="card p-5" aria-label="Contract addresses">
+        <h2 className="display mb-1 text-lg font-semibold">Contract addresses</h2>
+        <p className="mb-2 text-xs" style={{ color: 'var(--muted)' }}>The contracts Quick Pay uses on Arc Mainnet. Copy an address or open it on the explorer.</p>
+        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+          <Row label="Quick Pay Router">{env.routerAddress ? <AddressChip address={env.routerAddress} /> : <StatusBadge tone="neutral">Not configured</StatusBadge>}</Row>
+          <Row label="Quick Pay Registry">{env.registryAddress ? <AddressChip address={env.registryAddress} /> : <StatusBadge tone="neutral">Not configured</StatusBadge>}</Row>
+          <Row label="USDC (official)"><AddressChip address={ARC_USDC} /></Row>
+        </div>
       </section>
 
       <p className="text-xs" style={{ color: 'var(--muted)' }}>Quick Pay is software that helps you build and send blockchain transactions. It has not been independently audited. You approve every transaction in your own wallet.</p>

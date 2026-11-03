@@ -27,7 +27,7 @@ const SCREENS: [string, RegExp][] = [
   ['/bridge', /Move USDC between Arc and other chains with Across/],
   ['/analytics', /Analytics/],
   ['/contracts', /QuickPayRegistry/],
-  ['/settings', /Appearance/],
+  ['/settings', /Appearance[\s\S]*Contract addresses[\s\S]*Quick Pay Router/],
 ]
 
 let root: Root | undefined

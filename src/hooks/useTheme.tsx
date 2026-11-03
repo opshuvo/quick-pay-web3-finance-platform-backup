@@ -20,8 +20,15 @@ const ThemeContext = createContext<ThemeValue | null>(null)
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(initial)
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
+    const root = document.documentElement
+    // Cross-fade colours on a switch, but not on the very first paint.
+    const switching = root.dataset.theme !== undefined && root.dataset.theme !== theme
+    if (switching) root.classList.add('theme-fade')
+    root.dataset.theme = theme
     localStorage.setItem(KEY, theme)
+    if (!switching) return
+    const timer = setTimeout(() => root.classList.remove('theme-fade'), 360)
+    return () => clearTimeout(timer)
   }, [theme])
   const toggle = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), [])
   const value = useMemo(() => ({ theme, setTheme, toggle }), [theme, toggle])

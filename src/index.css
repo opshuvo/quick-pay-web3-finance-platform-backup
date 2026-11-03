@@ -81,6 +81,18 @@ body {
   overflow-x: hidden;
   font-family: 'Manrope', sans-serif;
   color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* The backdrop lives on its own fixed layer instead of `background-attachment: fixed`, which repaints the whole page on
+   every scroll frame on phones. A fixed layer is painted once and composited. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(900px 520px at 90% -12%, var(--glow), transparent 62%),
     radial-gradient(760px 520px at -8% 6%, var(--glow-2), transparent 60%),
@@ -88,8 +100,7 @@ body {
     linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 44px 44px,
     linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 44px 44px,
     linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
-  background-attachment: fixed;
-  -webkit-font-smoothing: antialiased;
+  transform: translateZ(0);
 }
 
 .display {
@@ -333,6 +344,408 @@ body {
     border-color: var(--border-strong);
     box-shadow: 0 10px 28px -14px var(--glow);
   }
+}
+
+/* Mobile bottom bar */
+.mnav {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+.mnav-pill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+  /* A small overshoot makes the glide feel physical without looking bouncy. */
+  transition: transform 420ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 200ms ease;
+}
+.mnav-pill > span {
+  position: absolute;
+  inset: 6px 7px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), 0 6px 18px -8px var(--glow);
+}
+.mnav-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  display: flex;
+  min-height: 60px;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--subtle);
+  -webkit-tap-highlight-color: transparent;
+  transition: color 200ms ease;
+}
+.mnav-item.active,
+.mnav-item[data-current='true'] {
+  color: var(--accent);
+}
+.mnav-icon {
+  position: relative;
+  display: inline-flex;
+  height: 30px;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.mnav-icon[data-active='true'] {
+  animation: mnav-hop 520ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.mnav-item:active .mnav-icon {
+  transform: scale(0.86);
+}
+.mnav-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.mnav-item.active .mnav-label,
+.mnav-item[data-current='true'] .mnav-label {
+  font-weight: 700;
+}
+.mnav-label[data-active='true'] {
+  animation: mnav-label-in 360ms ease-out;
+}
+.mnav-ripple {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: mnav-ripple 560ms ease-out forwards;
+}
+@keyframes mnav-hop {
+  0% { transform: translateY(0) scale(0.9); }
+  35% { transform: translateY(-7px) scale(1.16); }
+  70% { transform: translateY(1px) scale(0.98); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes mnav-label-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes mnav-ripple {
+  to { transform: scale(16); opacity: 0; }
+}
+
+/* Back button */
+.back-enter {
+  animation: back-in 260ms ease-out;
+}
+.back-btn {
+  transition: transform 160ms ease, background-color 200ms ease, border-color 200ms ease;
+}
+.back-btn:hover {
+  border-color: var(--border-strong);
+}
+.back-btn:active {
+  transform: scale(0.95);
+}
+.back-arrow {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.back-btn:hover .back-arrow,
+.back-btn:active .back-arrow {
+  transform: translateX(-3px);
+}
+@keyframes back-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Dashboard surfaces. Theme-aware glass: blurred only where the GPU can afford it (large screens). */
+.glass {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, var(--panel-hi), var(--surface) 42%);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--panel-hi);
+  transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (min-width: 1024px) {
+  .glass {
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+  }
+}
+@media (hover: hover) {
+  .glass-lift:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow), 0 14px 36px -18px var(--glow);
+  }
+}
+/* Below-the-fold cards are laid out and painted only when they scroll near the screen. */
+.defer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+/* Entrance: sections rise in one after another. --i is the position in the sequence. */
+.rise {
+  animation: rise-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+/* Sparkline: the line draws itself, then the fill fades in. */
+.draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line 1100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms forwards;
+}
+.fade-area {
+  opacity: 0;
+  animation: fade-in 700ms ease-out 700ms forwards;
+}
+@keyframes draw-line { to { stroke-dashoffset: 0; } }
+@keyframes fade-in { to { opacity: 1; } }
+/* Theme switch: colours cross-fade for a moment instead of snapping. */
+html.theme-fade *,
+html.theme-fade *::before,
+html.theme-fade *::after {
+  transition: background-color 320ms ease, border-color 320ms ease, color 320ms ease, fill 320ms ease, stroke 320ms ease, box-shadow 320ms ease !important;
+}
+.theme-spin {
+  animation: theme-spin 480ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+@keyframes theme-spin {
+  from { transform: rotate(-120deg) scale(0.4); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+/* Soft glow behind the dashboard: radial gradients are far cheaper to paint than large blurred elements. */
+.aura {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* Dashboard Send / Receive: one solid colour each (blue = money out, green = money in), a light sweep on hover, and an
+   arrow that moves the way the money does. */
+.act {
+  --a1: #2563eb;
+  --a2: #1d4ed8;
+  --ring: rgba(37, 99, 235, 0.45);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border-radius: 1rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, var(--a1), var(--a2));
+  box-shadow: 0 10px 26px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 220ms ease, filter 220ms ease;
+  animation: act-breathe 3.8s ease-in-out infinite;
+}
+.act-receive {
+  --a1: #10b981;
+  --a2: #047857;
+  --ring: rgba(16, 185, 129, 0.45);
+  animation-delay: 1.9s;
+}
+/* A diagonal light band that sweeps across on hover and press. */
+.act::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.32) 50%, transparent 65%);
+  transform: translateX(-120%);
+}
+.act-icon {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background-color 200ms ease;
+}
+@media (hover: hover) {
+  .act:hover {
+    transform: translateY(-2px) scale(1.03);
+    filter: saturate(1.1);
+    box-shadow: 0 16px 34px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  }
+  .act:hover::after {
+    transform: translateX(120%);
+    transition: transform 700ms ease;
+  }
+  .act:hover .act-icon {
+    background: rgba(255, 255, 255, 0.28);
+  }
+  .act-send:hover .act-icon svg {
+    animation: act-send 900ms ease-in-out infinite;
+  }
+  .act-receive:hover .act-icon svg {
+    animation: act-receive 900ms ease-in-out infinite;
+  }
+}
+.act:active {
+  transform: scale(0.95);
+  transition-duration: 90ms;
+}
+.act-send:active .act-icon svg {
+  animation: act-send 400ms ease-in-out;
+}
+.act-receive:active .act-icon svg {
+  animation: act-receive 400ms ease-in-out;
+}
+.act:active::after {
+  transform: translateX(120%);
+  transition: transform 450ms ease;
+}
+@keyframes act-send {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, -3px); }
+}
+@keyframes act-receive {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-3px, 3px); }
+}
+@keyframes act-breathe {
+  0%, 100% { box-shadow: 0 10px 26px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18); }
+  50% { box-shadow: 0 14px 32px -10px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18); }
+}
+
+/* Dashboard utility tiles (Scan, Split, Swap, Bridge). */
+.tile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  min-height: 70px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), border-color 200ms ease, background-color 200ms ease, box-shadow 220ms ease;
+}
+.tile-icon {
+  display: inline-flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  transition: background-color 200ms ease, color 200ms ease, transform 220ms ease;
+}
+.tile-label {
+  letter-spacing: 0.01em;
+}
+.tile-wave {
+  position: absolute;
+  z-index: -1;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: tile-wave 600ms ease-out forwards;
+}
+@keyframes tile-wave {
+  to { transform: scale(18); opacity: 0; }
+}
+@media (hover: hover) {
+  .tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    background: color-mix(in srgb, var(--accent) 6%, var(--surface-muted));
+    box-shadow: 0 10px 22px -14px var(--glow);
+  }
+  .tile:hover .tile-icon {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .tile:hover .tile-icon svg {
+    animation: var(--tile-motion) 650ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+.tile:active {
+  transform: scale(0.94);
+  transition-duration: 90ms;
+}
+.tile:active .tile-icon {
+  background: var(--accent);
+  color: var(--accent-ink);
+  transform: scale(1.08);
+}
+.tile:active .tile-icon svg {
+  animation: var(--tile-motion) 650ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* One motion per tile, in the spirit of what it does. */
+.tile[data-kind='scan'] { --tile-motion: tile-scan; }
+.tile[data-kind='split'] { --tile-motion: tile-split; }
+.tile[data-kind='swap'] { --tile-motion: tile-swap; }
+.tile[data-kind='bridge'] { --tile-motion: tile-bridge; }
+@keyframes tile-scan {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-3px); }
+  70% { transform: translateY(3px); }
+}
+@keyframes tile-split {
+  0%, 100% { transform: scaleX(1); }
+  45% { transform: scaleX(1.28); }
+}
+@keyframes tile-swap {
+  from { transform: rotate(0); }
+  to { transform: rotate(180deg); }
+}
+@keyframes tile-bridge {
+  0%, 100% { transform: rotate(0) scale(1); }
+  30% { transform: rotate(-10deg) scale(1.12); }
+  65% { transform: rotate(8deg) scale(1.12); }
+}
+
+/* Taps respond at once (no double-tap-zoom wait) and screens ease in when you move between them. */
+a,
+button,
+[role='tab'],
+[role='radio'],
+select,
+summary {
+  touch-action: manipulation;
+}
+.page-in {
+  animation: page-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes shimmer {

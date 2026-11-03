@@ -1,5 +1,5 @@
-import { useId, useMemo, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useId, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ExternalLink, Eye, EyeOff, Wallet, type LucideIcon } from 'lucide-react'
 import { Skeleton, EmptyState, CopyButton } from '@/components/ui'
 import { TxRow } from '@/components/TxRow'
@@ -9,27 +9,30 @@ import { ARC_USDC, arcAddressUrl } from '@/lib/arc'
 import { displayUsdc, shortAddress } from '@/lib/format'
 import type { HistoryRow } from '@/hooks/useHistory'
 
-export const GLASS = 'rounded-3xl border border-slate-800 bg-slate-900/60 shadow-[0_0_40px_-18px_rgba(99,102,241,0.55)] backdrop-blur-xl'
-const PRESS = 'transition-all duration-200 hover:scale-105 active:scale-95'
+const muted: CSSProperties = { color: 'var(--muted)' }
+const subtle: CSSProperties = { color: 'var(--subtle)' }
+const PRESS = 'transition-all duration-200 hover:scale-[1.04] active:scale-95'
 
-/** Ambient Indigo and Cyan glow blobs behind the dashboard. Decorative only. */
+/** Staggered entrance: `i` is the position in the sequence. */
+export const rise = (i: number): CSSProperties => ({ ['--i' as string]: i })
+
+/** Soft colour behind the dashboard. Radial gradients, not blurred elements: they cost almost nothing to paint. */
 export function GlowBlobs() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute -left-24 -top-24 size-[26rem] rounded-full bg-indigo-500/25 blur-3xl" />
-      <div className="absolute -right-20 top-40 size-[24rem] rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="absolute -bottom-24 left-1/3 size-[22rem] rounded-full bg-indigo-600/15 blur-3xl" />
+      <div className="aura -left-24 -top-24 size-[30rem]" style={{ background: 'radial-gradient(closest-side, var(--glow-2), transparent)' }} />
+      <div className="aura -right-20 top-40 size-[28rem]" style={{ background: 'radial-gradient(closest-side, var(--glow), transparent)' }} />
     </div>
   )
 }
 
 export function NetworkBadge({ wrongNetwork }: { wrongNetwork: boolean }) {
-  const dot = wrongNetwork ? 'bg-amber-400' : 'bg-emerald-400'
+  const color = wrongNetwork ? 'var(--warn)' : 'var(--success)'
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/50 px-3 py-1 text-xs font-semibold text-slate-200">
+    <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--ink-2)' }}>
       <span className="relative flex size-2">
-        <span className={`absolute inline-flex size-full animate-pulse rounded-full opacity-75 ${dot}`} />
-        <span className={`relative inline-flex size-2 rounded-full ${dot}`} />
+        <span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: color }} />
+        <span className="relative inline-flex size-2 rounded-full" style={{ background: color }} />
       </span>
       {wrongNetwork ? 'Wallet on another network' : 'Arc Mainnet'}
     </span>
@@ -42,22 +45,45 @@ export function PrimaryActions({ actions }: { actions: ActionDef[] }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {actions.map(({ to, label, icon: Icon }) => (
-        <Link key={to} to={to} className={`${PRESS} flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-400 text-base font-bold text-slate-950 shadow-lg shadow-indigo-500/30 hover:shadow-cyan-400/50`}>
-          <Icon className="size-5" aria-hidden />
-          {label}
+        <Link key={to} to={to} className={`act ${to === '/receive' ? 'act-receive' : 'act-send'}`}>
+          <span className="act-icon"><Icon className="size-5" aria-hidden /></span>
+          <span>{label}</span>
         </Link>
       ))}
     </div>
   )
 }
 
+interface Wave { key: number; index: number; x: number; y: number }
+
+/** Scan, Split, Swap, Bridge. Each tile answers a tap with a ripple from the touch point and its own small icon motion. */
 export function SecondaryActions({ actions }: { actions: ActionDef[] }) {
+  const [wave, setWave] = useState<Wave | null>(null)
+  const navigate = useNavigate()
+  // Let the tap animation play for a moment before the page changes, unless the person prefers reduced motion or is opening a new tab.
+  const go = (to: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    event.preventDefault()
+    setTimeout(() => void navigate(to), 190)
+  }
   return (
     <div className="mt-3 grid grid-cols-4 gap-2">
-      {actions.map(({ to, label, icon: Icon }) => (
-        <Link key={to} to={to} className={`${PRESS} flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl border border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-200 backdrop-blur-xl hover:border-cyan-400/60 hover:shadow-[0_0_22px_-4px_rgba(34,211,238,0.55)]`}>
-          <Icon className="size-[18px] text-cyan-300" aria-hidden />
-          {label}
+      {actions.map(({ to, label, icon: Icon }, index) => (
+        <Link
+          key={to}
+          to={to}
+          data-kind={to.slice(1)}
+          className="tile"
+          onClick={go(to)}
+          onPointerDown={(event) => {
+            const box = event.currentTarget.getBoundingClientRect()
+            setWave({ key: event.timeStamp, index, x: event.clientX - box.left, y: event.clientY - box.top })
+          }}
+        >
+          {wave?.index === index && <span key={wave.key} aria-hidden className="tile-wave" style={{ left: wave.x, top: wave.y }} onAnimationEnd={() => setWave(null)} />}
+          <span className="tile-icon"><Icon className="size-[20px]" aria-hidden /></span>
+          <span className="tile-label">{label}</span>
         </Link>
       ))}
     </div>
@@ -66,7 +92,7 @@ export function SecondaryActions({ actions }: { actions: ActionDef[] }) {
 
 export function VisibilityToggle({ hidden, onToggle }: { hidden: boolean; onToggle: () => void }) {
   return (
-    <button type="button" aria-pressed={hidden} aria-label={hidden ? 'Show balance' : 'Hide balance'} onClick={onToggle} className={`${PRESS} inline-flex size-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/40 text-slate-300 hover:text-cyan-300`}>
+    <button type="button" aria-pressed={hidden} aria-label={hidden ? 'Show balance' : 'Hide balance'} onClick={onToggle} className={`${PRESS} inline-flex size-11 items-center justify-center rounded-xl border`} style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--muted)' }}>
       {hidden ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
     </button>
   )
@@ -74,9 +100,9 @@ export function VisibilityToggle({ hidden, onToggle }: { hidden: boolean; onTogg
 
 export function AddressRow({ address }: { address: string }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/40 py-0.5 pl-3 pr-1">
-      <Wallet className="size-3.5 text-slate-400" aria-hidden />
-      <span className="mono text-sm text-slate-200" title={address}>{shortAddress(address)}</span>
+    <div className="inline-flex items-center gap-1 rounded-xl border py-0.5 pl-3 pr-1" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)' }}>
+      <Wallet className="size-3.5" style={subtle} aria-hidden />
+      <span className="mono text-sm" style={{ color: 'var(--ink-2)' }} title={address}>{shortAddress(address)}</span>
       <CopyButton value={address} label="Copy address" className="!size-9 transition-transform duration-200 hover:scale-110 active:scale-90" />
     </div>
   )
@@ -98,45 +124,47 @@ function Sparkline({ trend }: { trend: Trend }) {
     const line = xy.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
     return { path: line, area: `${line} L${W} ${H} L0 ${H} Z`, last: xy[xy.length - 1] }
   }, [trend])
+  // The key restarts the draw-in animation whenever the chart's data changes.
+  const drawKey = `${trend.points.length}-${trend.change}`
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Balance over the last 24 hours" preserveAspectRatio="none">
+    <svg key={drawKey} viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Balance over the last 24 hours" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`${id}-s`} x1="0" x2="1"><stop offset="0" stopColor="#818cf8" /><stop offset="1" stopColor="#22d3ee" /></linearGradient>
-        <linearGradient id={`${id}-f`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#22d3ee" stopOpacity="0.28" /><stop offset="1" stopColor="#22d3ee" stopOpacity="0" /></linearGradient>
+        <linearGradient id={`${id}-s`} x1="0" x2="1"><stop offset="0" stopColor="var(--accent-2)" /><stop offset="1" stopColor="var(--accent)" /></linearGradient>
+        <linearGradient id={`${id}-f`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity="0.28" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient>
       </defs>
-      <path d={area} fill={`url(#${id}-f)`} />
-      <path d={path} fill="none" stroke={`url(#${id}-s)`} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={last[0]} cy={last[1]} r="4" fill="#22d3ee" />
+      <path d={area} fill={`url(#${id}-f)`} className="fade-area" />
+      <path d={path} pathLength={1} fill="none" stroke={`url(#${id}-s)`} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="draw" />
+      <circle cx={last[0]} cy={last[1]} r="4" fill="var(--accent)" className="fade-area" />
     </svg>
   )
 }
 
 /** 24-hour USDC balance trend, rebuilt from confirmed transfers and the live balance. Never invented. */
-export function TrendCard({ rows, balanceRaw, loading, connected, hidden, pageSize }: { rows: HistoryRow[] | undefined; balanceRaw: bigint | undefined; loading: boolean; connected: boolean; hidden: boolean; pageSize: number }) {
+export function TrendCard({ rows, balanceRaw, loading, connected, hidden, pageSize, style }: { rows: HistoryRow[] | undefined; balanceRaw: bigint | undefined; loading: boolean; connected: boolean; hidden: boolean; pageSize: number; style?: CSSProperties }) {
   const now = useNow(60_000, connected)
   const trend = useMemo(() => (rows && balanceRaw !== undefined ? balanceTrend(rows, balanceRaw, ARC_USDC, now, pageSize) : null), [rows, balanceRaw, pageSize, now])
   const up = trend ? trend.change >= 0n : true
   let body: ReactNode
-  if (!connected) body = <p className="py-6 text-sm text-slate-400">Connect a wallet to see your balance trend.</p>
+  if (!connected) body = <p className="py-6 text-sm" style={muted}>Connect a wallet to see your balance trend.</p>
   else if (loading || balanceRaw === undefined) body = <Skeleton className="h-24" />
-  else if (!trend) body = <p className="py-6 text-sm text-slate-400">No confirmed USDC transfers in the last 24 hours, so there is no trend to draw yet.</p>
+  else if (!trend) body = <p className="py-6 text-sm" style={muted}>No confirmed USDC transfers in the last 24 hours, so there is no trend to draw yet.</p>
   else body = <Sparkline trend={trend} />
   return (
-    <section className={`${GLASS} p-5`} aria-label="24 hour balance trend">
+    <section className="glass glass-lift rise p-5" style={style} aria-label="24 hour balance trend">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">24h balance trend</p>
+          <p className="label">24h balance trend</p>
           {trend && (
-            <p className={`display mt-1 text-xl font-bold tabular-nums ${up ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {hidden ? '••••••' : `${up ? '+' : '−'}${displayUsdc(trend.change < 0n ? -trend.change : trend.change)}`} <span className="text-sm font-medium text-slate-400">USDC</span>
+            <p className="display mt-1 text-xl font-bold tabular-nums" style={{ color: up ? 'var(--success)' : 'var(--danger)' }}>
+              {hidden ? '••••••' : `${up ? '+' : '−'}${displayUsdc(trend.change < 0n ? -trend.change : trend.change)}`} <span className="text-sm font-medium" style={muted}>USDC</span>
             </p>
           )}
         </div>
-        {trend && <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300">{trend.transfers} transfer{trend.transfers === 1 ? '' : 's'}</span>}
+        {trend && <span className="chip">{trend.transfers} transfer{trend.transfers === 1 ? '' : 's'}</span>}
       </div>
       {body}
       {trend && (
-        <p className="mt-2 text-pretty text-xs text-slate-500">
+        <p className="mt-2 text-pretty text-xs" style={subtle}>
           {trend.truncated ? 'Starts at the oldest transfer read. ' : ''}Rebuilt from confirmed USDC transfers and your live balance; network fees are not included.
         </p>
       )}
@@ -145,15 +173,15 @@ export function TrendCard({ rows, balanceRaw, loading, connected, hidden, pageSi
 }
 
 /** Compact scrollable feed of recent activity, newest first. */
-export function ActivityFeed({ address, rows, loading, connected, error, onSelect }: { address?: string; rows: HistoryRow[] | undefined; loading: boolean; connected: boolean; error: boolean; onSelect: (row: HistoryRow) => void }) {
+export function ActivityFeed({ address, rows, loading, connected, error, onSelect, style }: { address?: string; rows: HistoryRow[] | undefined; loading: boolean; connected: boolean; error: boolean; onSelect: (row: HistoryRow) => void; style?: CSSProperties }) {
   return (
-    <section className={`${GLASS} p-4 sm:p-5`} aria-label="Recent activity">
+    <section className="glass rise p-4 sm:p-5" style={style} aria-label="Recent activity">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="display text-lg font-semibold text-slate-100">Recent activity</h2>
-        <Link to="/history" className="text-sm font-semibold text-cyan-300 transition-colors hover:text-cyan-200">View all</Link>
+        <h2 className="display text-lg font-semibold">Recent activity</h2>
+        <Link to="/history" className="text-sm font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--accent)' }}>View all</Link>
       </div>
       {address && (
-        <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mb-2 flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-cyan-400/30 bg-gradient-to-r from-indigo-500/15 to-cyan-400/10 px-4 text-sm font-semibold text-cyan-200 transition-all duration-200 hover:scale-[1.02] hover:border-cyan-300/70 hover:shadow-[0_0_24px_-6px_rgba(34,211,238,0.6)] active:scale-95">
+        <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mb-2 flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all duration-200 hover:scale-[1.015] active:scale-95" style={{ borderColor: 'var(--border-strong)', background: 'linear-gradient(90deg, var(--glow-2), var(--glow))', color: 'var(--ink)' }}>
           <span className="min-w-0 truncate">View full address history on Arc Etherscan</span>
           <ExternalLink className="size-4 shrink-0" aria-hidden />
         </a>
