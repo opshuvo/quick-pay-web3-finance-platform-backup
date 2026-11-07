@@ -118,7 +118,7 @@ export function AppShell() {
               <button type="button" aria-label={searchOpen ? 'Close search' : 'Search'} onClick={() => setSearchOpen((v) => !v)} className="btn btn-ghost !min-h-[44px] !px-3 lg:hidden">
                 {searchOpen ? <X className="size-4" /> : <Search className="size-4" />}
               </button>
-              <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" aria-label="Open Arc Etherscan in a new tab" className="btn btn-ghost hidden sm:inline-flex !min-h-[44px] !px-3 transition-all duration-200 hover:scale-105 active:scale-95">
+              <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" aria-label="Open Arc Explorer in a new tab" className="btn btn-ghost hidden sm:inline-flex !min-h-[44px] !px-3 transition-all duration-200 hover:scale-105 active:scale-95">
                 <ExternalLink className="size-4" aria-hidden />
                 <span className="hidden md:inline">Explorer</span>
               </a>

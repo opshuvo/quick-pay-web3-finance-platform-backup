@@ -75,7 +75,7 @@ export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: His
         <div className="flex min-h-[56px] min-w-0 flex-1 items-center gap-3 px-2">{body}</div>
       )}
       <span className="flex shrink-0 items-center gap-0.5">
-        <a href={arcTxUrl(row.txHash)} target="_blank" rel="noopener noreferrer" aria-label="View transaction on Arc Etherscan (opens in a new tab)" className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-1.5 text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95" style={{ color: 'var(--accent)' }}>
+        <a href={arcTxUrl(row.txHash)} target="_blank" rel="noopener noreferrer" aria-label="View transaction on Arc Explorer (opens in a new tab)" className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-1.5 text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95" style={{ color: 'var(--accent)' }}>
           <span className="hidden sm:inline">Tx</span>
           <ExternalLink className="size-3.5" aria-hidden />
         </a>

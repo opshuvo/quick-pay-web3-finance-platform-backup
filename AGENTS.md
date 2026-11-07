@@ -100,11 +100,4 @@ bun run dev
 
 ## Explorer links
 
-All transaction and address links use Arc Etherscan (`https://arc.etherscan.io/tx/{hash}`, `/address/{address}`), defined once in `src/lib/arc.ts` (`ARC_EXPLORER`, `arcTxUrl`, `arcAddressUrl`) and opened in a new tab. Arc docs list `explorer.arc.io` (Blockscout) as the official explorer, which is still in `src/onchain-facts.ts`.
-
-## Bridge providers (Across and LI.FI)
-
-- The Bridge page has a provider switch. LI.FI goes through `server/lifi.ts` (allow-listed proxy: `/lifi/chains`, `/lifi/routes`, `/lifi/quote`, `/lifi/status`) and `src/lib/lifi.ts`, which maps a LI.FI quote into the Across quote shape so the guard (`bridgeGuard.ts`) and the confirm flow are shared.
-- `lifiToQuote` refuses a quote unless the recipient and sender match, the chain matches, and the transaction targets LI.FI's own `diamondAddress` for the source chain (from LI.FI's chain list; Arc: `0xA4072583658Fae592A3506A42431cb6316a8d40b`, also in `BRIDGE_COUNTERPARTIES`). Approval is exact-amount. LI.FI quotes have no expiry, so they are treated as valid for 55 seconds.
-- Routes offered for LI.FI: same-symbol pairs of USDC, EURC, USDT, WETH, WBTC, cirBTC only.
-- LI.FI transfers are tracked with `/lifi/status`; "Complete" needs the destination receipt read from the destination chain by this app (only possible for chains in `src/config.ts`), otherwise it says "Delivered (per LI.FI)". Verified server-side bridge activity (`server/activity.ts`) is Across-only.
+All transaction and address links use Arc's official explorer (`https://explorer.arc.io/tx/{hash}`, `/address/{address}`, Blockscout), taken from `src/onchain-facts.ts` through `ARC_EXPLORER` in `src/lib/arc.ts`, and open in a new tab. (They briefly pointed at arc.etherscan.io; the owner switched back.)

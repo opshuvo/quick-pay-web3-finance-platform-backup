@@ -182,7 +182,7 @@ export function ActivityFeed({ address, rows, loading, connected, error, onSelec
       </div>
       {address && (
         <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mb-2 flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all duration-200 hover:scale-[1.015] active:scale-95" style={{ borderColor: 'var(--border-strong)', background: 'linear-gradient(90deg, var(--glow-2), var(--glow))', color: 'var(--ink)' }}>
-          <span className="min-w-0 truncate">View full address history on Arc Etherscan</span>
+          <span className="min-w-0 truncate">View full address history on Arc Explorer</span>
           <ExternalLink className="size-4 shrink-0" aria-hidden />
         </a>
       )}
