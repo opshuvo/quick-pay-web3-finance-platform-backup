@@ -65,6 +65,12 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     }
   }
   if (response.ok && !isJson) throw new ApiError(503, 'backend_unavailable', 'The Quick Pay backend is not connected to this deployment.')
+  // On a static host (for example Vercel without a backend) every /api path is rewritten to the app's index.html, which
+  // answers GET with that page (handled above) but refuses POST with "405 Method Not Allowed". Quick Pay's own backend
+  // always answers errors as JSON, so a 405, or a 404 or 501 that is not JSON, means no backend routes this path.
+  if (!response.ok && (response.status === 405 || (!isJson && (response.status === 404 || response.status === 501)))) {
+    throw new ApiError(503, 'backend_unavailable', 'The Quick Pay backend is not connected to this deployment.')
+  }
   if (!response.ok) {
     const body = data as { error?: string; message?: string } | null
     throw new ApiError(response.status, body?.error ?? 'error', body?.message ?? `Request failed (${response.status})`)

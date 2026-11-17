@@ -18,7 +18,9 @@ function check(name: string, ok: boolean, detail?: unknown) {
 async function call(path: string, init: RequestInit & { token?: string } = {}) {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   if (init.token) headers.authorization = `QuickPay ${init.token}`
-  const res = await fetch(`${base}${path}`, { ...init, headers })
+  // A burst of brand-new local connections can be reset by the OS while the indexer is busy; one retry is safe for these idempotent reads.
+  const send = () => fetch(`${base}${path}`, { ...init, headers })
+  const res = await send().catch(() => (init.method && init.method !== 'GET' ? Promise.reject(new Error('request failed')) : send()))
   const text = await res.text()
   let body: unknown = text
   try { body = JSON.parse(text) } catch { /* csv or empty */ }
@@ -81,7 +83,7 @@ const burst = await Promise.all(Array.from({ length: 20 }, () => call(`/history/
 check('a burst of 20 reads is served without per-read chain scans', burst.every((r) => r.status === 200) && Date.now() - burstStart < 15_000, Date.now() - burstStart)
 const badSearch = await call(`/history/${account.address}?q=${encodeURIComponent("x'; drop table transfers;--")}`)
 check('non-hex search is rejected', badSearch.status === 400, badSearch)
-const csv = await fetch(`${base}/history/${account.address}?format=csv`)
+const csv = await fetch(`${base}/history/${account.address}?format=csv`).catch(() => fetch(`${base}/history/${account.address}?format=csv`))
 check('CSV export works', csv.status === 200 && (await csv.text()).startsWith('timestamp,tx_hash'), csv.status)
 const stats = await call(`/analytics/${account.address}`)
 check('analytics returns totals + coverage', stats.status === 200 && stats.body.totalSent === '0' && Boolean(stats.body.coverage), stats)

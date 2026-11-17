@@ -4,6 +4,25 @@
 
 The live site is a static build on Vercel. Wallet history is not computed in the browser. It needs the Quick Pay backend (`server/`, a Bun process with an indexer) and a PostgreSQL database. Neither is part of a static deployment, so `/api/*` on the live site falls through to `index.html` and the app reports "backend not connected". Nothing was lost: the transactions are on Arc, and the indexer rebuilds history from the chain.
 
+## The error "The history database is not configured on this server"
+
+The backend answers this (HTTP 503, code `database_not_configured`) when `DATABASE_URL` is empty. Nothing else is missing: tables are created automatically the first time the backend starts with a working connection string (`server/db.ts`, `migrate()`, all `create table if not exists` and additive `alter table`), and existing rows are never deleted.
+
+### Local or sandbox database
+
+```bash
+PW=$(openssl rand -hex 24)
+docker run -d --name quickpay-db --restart unless-stopped \
+  -e POSTGRES_USER=quickpay -e POSTGRES_PASSWORD="$PW" -e POSTGRES_DB=quickpay \
+  -v quickpay_pgdata:/var/lib/postgresql -p 5432:5432 --memory=1g postgres:18-alpine
+printf 'DATABASE_URL=postgres://quickpay:%s@127.0.0.1:5432/quickpay\n' "$PW" >> .env
+bun run server        # restart it so it reads .env; /health must show "database":"ok"
+```
+
+Data lives in the named volume `quickpay_pgdata`, so it survives restarts. `.env` is git-ignored; never put `DATABASE_URL` in a `VITE_` variable or in code.
+
+What is stored, and where: Send and Receive (USDC `Transfer` logs, including router and registry payments) in `transfers`; Swap and Bridge records in `defi_activity` (verified from receipts via the `tx_queue`); Payment Requests and Splits in `payment_requests`; indexing progress per wallet in `wallets`.
+
 ## Without a backend (what the live site does today)
 
 When `/api/health` does not return JSON with `database: ok`, the app reads Arc directly in the browser. It scans USDC Transfer logs for the connected wallet newest first (5,000-block ranges, the largest the public RPC accepts), reads the receipt behind each outgoing or swap/bridge-related transfer, and shows swaps (from the receipt's real token movements), USDC transfers, and bridge deposits. A progress notice states how much of the chain has been scanned, and "complete" appears only after block 0 is reached. Measured limits: the public RPC allows roughly one or two requests per second per client, so a full scan from block 0 takes hours (recent activity appears within seconds). Progress is cached in that browser's local storage as a speed-up only; another device or a cleared browser scans again. Bridge deposits are shown as "Deposit confirmed on Arc": the destination chain is not checked in this mode.

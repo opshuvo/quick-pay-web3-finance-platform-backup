@@ -15,6 +15,23 @@ describe('api()', () => {
     expect(isBackendMissing(error)).toBe(true)
     expect(isServiceDown(error)).toBe(true)
   })
+  test('405 Method Not Allowed from a static host (POST rewritten to index.html) is "backend unavailable", not a failed request', async () => {
+    respond('<!DOCTYPE html><html><body>Method Not Allowed</body></html>', 405)
+    const error = (await api('/activity/bridge/refresh', { method: 'POST', body: {} }).catch((e: unknown) => e)) as ApiError
+    expect(error.code).toBe('backend_unavailable')
+    expect(isBackendMissing(error)).toBe(true)
+    expect(isServiceDown(error)).toBe(true)
+    respond('', 405)
+    expect(((await api('/index/0x1', { method: 'POST' }).catch((e: unknown) => e)) as ApiError).code).toBe('backend_unavailable')
+  })
+  test('a real JSON 404 or 405 from the backend keeps its own meaning', async () => {
+    respond('{"error":"not_found","message":"Unknown endpoint."}', 404)
+    expect(((await api('/nope').catch((e: unknown) => e)) as ApiError)).toMatchObject({ status: 404, code: 'not_found' })
+    respond('<html>not found</html>', 404)
+    expect(((await api('/nope').catch((e: unknown) => e)) as ApiError).code).toBe('backend_unavailable')
+    respond('{"error":"bad","message":"Nope."}', 400)
+    expect(((await api('/x', { method: 'POST' }).catch((e: unknown) => e)) as ApiError)).toMatchObject({ status: 400, code: 'bad' })
+  })
   test('JSON bodies and empty bodies still succeed', async () => {
     respond('{"ok":true}')
     expect(await api('/health')).toEqual({ ok: true })

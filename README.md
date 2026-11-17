@@ -38,7 +38,7 @@ bun run dev               # frontend on port 5173, proxies /api to the backend
 
 Server only (never exposed to the browser):
 
-- `DATABASE_URL` PostgreSQL connection string for history, payment requests and verified swap/bridge activity
+- `DATABASE_URL` PostgreSQL connection string for history, payment requests and verified swap/bridge activity. Without it the backend answers "The history database is not configured on this server." Tables are created on first start; see `docs/history-deployment.md` for a local Docker database and for production hosting
 - `UNISWAP_API_KEY` Uniswap Trading API key. Optional: without it, Swap quotes and executes against Uniswap's pools directly on-chain and says so on screen
 - `ACROSS_API_KEY`, `ACROSS_INTEGRATOR_ID` Optional Across credentials for production usage
 - `LIFI_API_KEY`, `LIFI_INTEGRATOR` Optional LI.FI API key and integrator name (default `quickpay`). LI.FI works without a key at lower rate limits
