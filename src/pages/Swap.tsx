@@ -34,6 +34,7 @@ export default function Swap() {
   const publicClient = usePublicClient({ chainId: ARC_CHAIN_ID })
   const { data: walletClient } = useWalletClient({ chainId: ARC_CHAIN_ID })
   const list = useTokenList()
+  const [flips, setFlips] = useState(0)
   const [tokenIn, setTokenIn] = useState<string>(ARC_USDC)
   const [tokenOut, setTokenOut] = useState<string>(DEFAULT_RECEIVE_TOKEN)
   const [amount, setAmount] = useState('')
@@ -145,6 +146,7 @@ export default function Swap() {
   function flip() {
     setTokenIn(tokenOut)
     setTokenOut(tokenIn)
+    setFlips((n) => n + 1)
     setAmount('')
     setAcceptLoss(false)
   }
@@ -210,7 +212,7 @@ export default function Swap() {
       </div>
 
       <div className="card space-y-3 p-5">
-        <div>
+        <div key={`pay-${flips}`} className={flips > 0 ? 'swap-in-down' : undefined}>
           <span className="label mb-1.5 block">You pay</span>
           <TokenPicker label="Pay token" value={tokenIn} tokens={list.tokens} unavailable={list.unavailable} loading={list.isLoading} exclude={tokenOut} onChange={(a) => { setTokenIn(a); setAmount(''); setAcceptLoss(false) }} onAdd={list.add} onRemove={list.remove} />
           <div className="mt-2">
@@ -221,18 +223,18 @@ export default function Swap() {
         </div>
 
         <div className="flex justify-center">
-          <button type="button" aria-label="Swap direction" onClick={flip} className="inner flex size-10 items-center justify-center rounded-full transition-transform hover:rotate-180">
+          <button type="button" aria-label="Swap direction" onClick={flip} data-flipped={flips % 2 === 1} className="swap-flip inner flex size-11 items-center justify-center rounded-full">
             <ArrowDownUp className="size-4" aria-hidden />
           </button>
         </div>
 
-        <div>
+        <div key={`recv-${flips}`} className={flips > 0 ? 'swap-in-up' : undefined}>
           <span className="label mb-1.5 block">You receive (estimated)</span>
           <TokenPicker label="Receive token" value={tokenOut} tokens={list.tokens} unavailable={list.unavailable} loading={list.isLoading} exclude={tokenIn} onChange={(a) => { setTokenOut(a); setAcceptLoss(false) }} onAdd={list.add} onRemove={list.remove} />
           <div className="inner mt-2 p-4">
             <p className="display text-3xl font-bold tabular-nums" aria-live="polite">
               {fetchingQuote ? <Skeleton className="h-9 w-40" /> : shownQuote && outTok ? formatTokenAmount(shownQuote.amountOut, outTok.decimals) : <span style={{ color: 'var(--subtle)' }} title="No live quote yet">—</span>}
-              <span className="ml-2 text-base font-semibold" style={{ color: 'var(--subtle)' }}>{outTok?.symbol}</span>
+              <span key={outTok?.symbol} className="token-pop ml-2 inline-block text-base font-semibold" style={{ color: 'var(--subtle)' }}>{outTok?.symbol}</span>
             </p>
             {fetchingQuote && <p className="mt-1 text-xs" role="status" style={{ color: 'var(--muted)' }}>Fetching a live quote…</p>}
           </div>

@@ -60,10 +60,16 @@ export default function Scan() {
       <div className="card p-4">
         {mode === 'camera' ? (
           <div>
-            <div className="relative aspect-square w-full overflow-hidden rounded-2xl" style={{ background: 'var(--surface-muted)' }}>
+            <div className="scan-frame relative aspect-square w-full overflow-hidden rounded-2xl" style={{ background: 'var(--surface-muted)' }}>
               <video ref={videoRef} muted playsInline className={clsx('size-full object-cover', scanner.state !== 'scanning' && 'hidden')} />
               {scanner.state === 'scanning' && (
-                <div className="pointer-events-none absolute inset-8 rounded-3xl border-2" style={{ borderColor: 'var(--accent)' }} aria-hidden />
+                <div className="pointer-events-none absolute inset-0" aria-hidden>
+                  <span className="scan-line" />
+                  <span className="scan-bracket" data-c="tl" />
+                  <span className="scan-bracket" data-c="tr" />
+                  <span className="scan-bracket" data-c="bl" />
+                  <span className="scan-bracket" data-c="br" />
+                </div>
               )}
               {scanner.state !== 'scanning' && (
                 <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center">

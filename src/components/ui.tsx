@@ -81,7 +81,7 @@ export function StatusBadge({ tone, children }: { tone: 'success' | 'danger' | '
   const color = tone === 'success' ? 'var(--success)' : tone === 'danger' ? 'var(--danger)' : tone === 'warn' ? 'var(--warn)' : 'var(--muted)'
   return (
     <span className="chip" style={{ color, borderColor: color }}>
-      <span className="size-1.5 rounded-full" style={{ background: color }} />
+      <span className="live-dot" data-live={tone === 'warn'} style={{ width: 6, height: 6 }} />
       {children}
     </span>
   )

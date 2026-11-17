@@ -107,3 +107,8 @@ All transaction and address links use Arc's official explorer (`https://explorer
 - Circle's USDC bridge uses CCTP V2 through the App Kit SDK, loaded on demand (`src/lib/circle.ts`, UI in `src/components/CircleBridge.tsx`). Chains come from the SDK registry, fees from `estimateBridge`. Status (`src/lib/circleStatus.ts`) is Complete only when the destination mint receipt is read from the destination chain. A stopped transfer is stored on the device and resumed with the SDK's retry, never re-burned.
 - Across and LI.FI go through `/api/across/*` and `/api/lifi/*`; if no backend answers, `src/lib/across.ts` and `src/lib/lifi.ts` call the providers' public APIs directly from the browser. LI.FI route discovery is shared in `shared/lifiRoutes.ts`.
 - `bun run test:bridge-live` runs read-only live checks against Arc Mainnet.
+
+## Design system (Midnight Glass)
+- Tokens live in `src/index.css` (`--bg`, `--accent`, `--grad`, `--grad-btn`, dark and light). Do not hardcode palette colours in components.
+- Motion kit at the end of `src/index.css` uses transform and opacity only; the reduced-motion rule turns it all off. New motion must follow that.
+- `Logo.tsx` is the Q mark (rings, arch, tail); `Splash.tsx` shows once per session; `StatusRing.tsx` renders wallet, pending, success and failed states from real wallet and receipt state only; `BridgeProgress.tsx` has `BridgeFlow` (source to destination).

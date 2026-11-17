@@ -15,7 +15,7 @@ Built with [Arc Studio](https://studio.arc.io)
 - Swap tokens on Arc through Uniswap, with live quotes, route, price impact, minimum received, slippage, exact approvals and quote expiry
 - Bridge between Arc and other networks with Across, LI.FI or Circle's official USDC bridge (you pick the provider), using only routes the provider reports as available, with live fee estimates, arrival times and a progress tracker that shows Complete only after delivery is read back from the destination chain. A Circle transfer that stops part-way can be resumed from Bridge progress without burning twice. Without a Quick Pay backend, Across and LI.FI are reached directly from the browser
 - Transaction history with Sent, Received, Pending and Failed tabs, search, filters, CSV export and verified Swap and Bridge categories
-- Neon Glass look in dark and light themes
+- Midnight Glass look in dark and light themes: midnight navy canvas, electric blue, cyan and violet light, an animated splash, animated transaction states and bridge progress, and reduced-motion support
 - Analytics from your indexed history, with clear notes when history is still being backfilled
 - A payment request and receipt contract (not deployed by default; the Smart Contracts page shows "Not Deployed" until you configure a real deployment)
 

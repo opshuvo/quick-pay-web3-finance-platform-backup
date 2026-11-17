@@ -62,7 +62,9 @@ export default function Overview() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
           {/* Header, balance and actions */}
-          <section className="glass rise p-5 sm:p-7" style={rise(0)} aria-label="Balance">
+          <section className="glass card-hero rise relative overflow-hidden p-5 sm:p-7" style={rise(0)} aria-label="Balance">
+            <span className="hero-ring" aria-hidden />
+            <span className="hero-ring" data-b aria-hidden />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h1 className="flex items-center gap-2.5 text-sm font-semibold">
                 <TokenUSDC variant="branded" size={24} />

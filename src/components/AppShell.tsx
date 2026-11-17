@@ -63,7 +63,7 @@ export function AppShell() {
     <div className="min-h-dvh lg:grid lg:grid-cols-[272px_minmax(0,1fr)]" onPointerOver={prefetchFromEvent} onTouchStart={prefetchFromEvent} onFocus={prefetchFromEvent}>
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-5 border-r px-5 py-5 lg:flex" style={{ borderColor: 'var(--border)', background: 'var(--sidebar)', backdropFilter: 'blur(20px)' }}>
-        <Link to="/" aria-label="Quick Pay home" className="px-1"><Logo /></Link>
+        <Link to="/" aria-label="Quick Pay home" className="px-1"><Logo animated /></Link>
         <nav aria-label="Main" className="-mr-2 flex flex-1 flex-col gap-5 overflow-y-auto pr-2">
           <div className="flex flex-col gap-0.5 pl-2">
             {PRIMARY_NAV.map(({ to, label, icon: Icon }) => (

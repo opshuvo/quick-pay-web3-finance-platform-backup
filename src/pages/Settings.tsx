@@ -2,6 +2,7 @@ import { useConfig, useDisconnect } from 'wagmi'
 import { Moon, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddressChip, PageHeader, Row, StatusBadge } from '@/components/ui'
+import { Avatar } from '@/components/Avatar'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { clearSession } from '@/hooks/useSession'
@@ -24,15 +25,19 @@ export default function Settings() {
         <h2 className="display mb-3 text-lg font-semibold">Appearance</h2>
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Theme">
           {([['dark', 'Dark', Moon], ['light', 'Light', Sun]] as const).map(([id, label, Icon]) => (
-            <button key={id} role="radio" aria-checked={theme === id} onClick={() => setTheme(id)} className="btn" style={{ background: theme === id ? 'linear-gradient(135deg, var(--accent), var(--accent-2))' : 'var(--surface-muted)', color: theme === id ? 'var(--accent-ink)' : 'var(--ink)', border: '1px solid var(--border)' }}>
+            <button key={id} role="radio" aria-checked={theme === id} onClick={() => setTheme(id)} className="btn" style={{ background: theme === id ? 'var(--grad-btn)' : 'var(--surface-muted)', color: theme === id ? 'var(--accent-ink)' : 'var(--ink)', border: '1px solid var(--border)' }}>
               <Icon className="size-4" /> {label}
             </button>
           ))}
         </div>
       </section>
 
-      <section className="card p-5">
-        <h2 className="display mb-2 text-lg font-semibold">Wallet</h2>
+      <section className="card card-hero relative overflow-hidden p-5">
+        <span className="hero-ring" aria-hidden />
+        <div className="mb-3 flex items-center gap-3">
+          {wallet.isConnected && wallet.address && <Avatar address={wallet.address} label="Wallet" size={44} />}
+          <h2 className="display text-lg font-semibold">Wallet</h2>
+        </div>
         {wallet.isConnected && wallet.address ? (
           <>
             <div className="divide-y" style={{ borderColor: 'var(--border)' }}>

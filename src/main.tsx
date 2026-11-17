@@ -20,6 +20,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, useTheme } from '@/hooks/useTheme'
+import { Splash } from '@/components/Splash'
 import { WalletModalMount } from '@/components/WalletModalMount'
 import { installShareSync } from '@/lib/share'
 import { config } from './config'
@@ -34,6 +35,7 @@ function Providers() {
   return (
     <>
       <App />
+      <Splash />
       <WalletModalMount />
       <StudioWatermark />
       <Toaster position="top-center" theme={theme} />

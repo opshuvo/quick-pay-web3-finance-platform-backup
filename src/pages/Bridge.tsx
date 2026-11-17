@@ -33,10 +33,10 @@ import { displayUnits, shortAddress } from '@/lib/format'
 import { parseUnitsExact } from '@/onchain-money'
 
 type Provider = 'across' | 'lifi' | 'circle'
-const PROVIDERS: { id: Provider; label: string; site: string; url: string }[] = [
-  { id: 'across', label: 'Across', site: 'across.to', url: ACROSS_URL },
-  { id: 'lifi', label: 'LI.FI', site: 'li.fi', url: LIFI_URL },
-  { id: 'circle', label: 'Circle', site: 'circle.com', url: CIRCLE_URL },
+const PROVIDERS: { id: Provider; label: string; site: string; url: string; tag: string }[] = [
+  { id: 'across', label: 'Across', site: 'across.to', url: ACROSS_URL, tag: 'Intent-based transfers filled by relayers' },
+  { id: 'lifi', label: 'LI.FI', site: 'li.fi', url: LIFI_URL, tag: 'Routes found across many bridges' },
+  { id: 'circle', label: 'Circle', site: 'circle.com', url: CIRCLE_URL, tag: 'Native USDC: burned on one chain, minted on the other' },
 ]
 
 const line = (l: FeeLine | undefined) =>
@@ -262,6 +262,7 @@ export default function Bridge() {
             <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy} className="seg-item" onClick={() => { setProvider(p.id); setRouteIdx(0) }}>{p.label}</button>
           ))}
         </div>
+        <p key={provider} className="swap-in-up mb-3 text-xs" style={{ color: 'var(--muted)' }}>{providerInfo.tag}</p>
         <div className="space-y-3">
           <Notice tone="warn">Bridging moves <strong>real funds</strong> across chains and cannot be reversed. A route is offered only when {providerInfo.label} lists it.</Notice>
           {chains.isError && <Notice tone="danger" action={fallbackLink}>Could not load supported networks from {providerInfo.label}. You can bridge directly on {providerInfo.site}.</Notice>}

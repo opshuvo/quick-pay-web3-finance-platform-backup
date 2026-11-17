@@ -1,10 +1,10 @@
 const PALETTES = [
-  ['#22e4ff', '#a855ff'],
-  ['#a855ff', '#ff3dcb'],
-  ['#ff3dcb', '#ff3dcb'],
-  ['#22e4ff', '#22e4ff'],
-  ['#a855ff', '#22e4ff'],
-  ['#3dffb0', '#a855ff'],
+  ['#22d3ee', '#8b5cf6'],
+  ['#3b82f6', '#8b5cf6'],
+  ['#8b5cf6', '#22d3ee'],
+  ['#22d3ee', '#3b82f6'],
+  ['#6366f1', '#22d3ee'],
+  ['#34f5b5', '#3b82f6'],
 ]
 
 /** Deterministic gradient avatar derived from the wallet address. No image upload, no tracking. */

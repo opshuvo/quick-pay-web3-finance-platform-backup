@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { recordConfirmedTx } from '@/lib/chainHistory/record'
 import { ARC_CHAIN_ID } from '@/lib/arc'
-import { BridgeProgress } from '@/components/BridgeProgress'
+import { BridgeFlow, BridgeProgress } from '@/components/BridgeProgress'
 import { isTerminal, trackedSummary, type Tracked } from '@/lib/bridgeStatus'
 import { ExplorerLink, StatusBadge } from '@/components/ui'
 import { activityApi } from '@/lib/activity'
@@ -116,8 +116,13 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
           {gotUrl && <ExplorerLink href={gotUrl}>Received</ExplorerLink>}
         </div>
       </div>
+      {!tracked.isError && (
+        <div className="mt-3">
+          <BridgeFlow from={item.originChainId} to={item.destinationChainId} fromName={chainLabel(chains, item.originChainId)} toName={chainLabel(chains, item.destinationChainId)} state={!tracked.data ? 'idle' : summary.tone === 'success' ? 'done' : summary.tone === 'danger' ? 'failed' : 'active'} />
+        </div>
+      )}
       {(expanded || !isTerminal(tracked.data)) && !tracked.isError && (
-        <div className="mt-3"><BridgeProgress steps={summary.steps} /></div>
+        <div className="mt-4"><BridgeProgress steps={summary.steps} /></div>
       )}
       {tracked.data?.source === 'circle' && (tracked.data.track.phase === 'awaiting-mint' || tracked.data.track.phase === 'mint-failed') && <CircleResume item={item} />}
       {activity?.amountOut && activity.destinationVerified && (

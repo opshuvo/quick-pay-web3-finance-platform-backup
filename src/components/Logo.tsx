@@ -1,37 +1,49 @@
 import { useId } from 'react'
 
 /**
- * Quick Pay mark: a ring (the "Q") with a lightning bolt at its core and a forward-moving tail.
- * The gradient runs cyan to electric blue to violet.
+ * Quick Pay mark. A Q built from three ideas: concentric rings (the Circle family), an arch at its core (Arc's
+ * geometry) and a swooping tail that points forward (payment in motion). The gradient runs cyan, electric blue, violet.
+ * `animated` slowly turns the inner ring and breathes the glow; it is still when reduced motion is on.
  */
-export function LogoMark({ size = 36 }: { size?: number }) {
+export function LogoMark({ size = 36, animated = false, tile = true }: { size?: number; animated?: boolean; tile?: boolean }) {
   const id = useId()
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Quick Pay">
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Quick Pay" className={animated ? 'qp-mark qp-mark-live' : 'qp-mark'}>
       <defs>
-        <linearGradient id={`${id}-g`} x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#22e4ff" />
-          <stop offset="0.5" stopColor="#a855ff" />
-          <stop offset="1" stopColor="#ff3dcb" />
+        <linearGradient id={`${id}-g`} x1="8" y1="8" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#22d3ee" />
+          <stop offset="0.5" stopColor="#3b82f6" />
+          <stop offset="1" stopColor="#8b5cf6" />
         </linearGradient>
         <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#0a0b1e" />
-          <stop offset="1" stopColor="#05060f" />
+          <stop stopColor="#0b1634" />
+          <stop offset="1" stopColor="#02050d" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="18" fill={`url(#${id}-bg)`} />
-      <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="17.25" fill="none" stroke="rgba(140,165,255,0.28)" strokeWidth="1.5" />
-      <path d="M45.5 41.6A16.5 16.5 0 1 1 48 30" fill="none" stroke={`url(#${id}-g)`} strokeWidth="5" strokeLinecap="round" />
-      <path d="M34.5 17.5 24.5 33h7l-3 12.5L40 28.5h-7.2z" fill={`url(#${id}-g)`} />
-      <path d="M41 43l9.5 9.5" stroke={`url(#${id}-g)`} strokeWidth="5" strokeLinecap="round" />
+      {tile && (
+        <>
+          <rect width="64" height="64" rx="18" fill={`url(#${id}-bg)`} />
+          <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="17.25" fill="none" stroke="rgba(120,160,255,0.3)" strokeWidth="1.5" />
+        </>
+      )}
+      {/* Outer ring, open at the lower right where the tail leaves */}
+      <circle cx="32" cy="32" r="21" fill="none" stroke={`url(#${id}-g)`} strokeWidth="4.5" strokeLinecap="round" strokeDasharray="110 22" transform="rotate(62 32 32)" />
+      {/* Inner ring: thinner, turning */}
+      <g className="qp-ring-inner">
+        <circle cx="32" cy="32" r="14" fill="none" stroke={`url(#${id}-g)`} strokeWidth="1.8" strokeLinecap="round" strokeDasharray="58 30" opacity="0.6" />
+      </g>
+      {/* Arc arch at the core */}
+      <path d="M25.5 39.5V31.5a6.5 6.5 0 0 1 13 0v8" fill="none" stroke={`url(#${id}-g)`} strokeWidth="3.6" strokeLinecap="round" />
+      {/* Q tail */}
+      <path d="M37.5 41c3.6 0.4 7.6 3.6 12.5 10" fill="none" stroke={`url(#${id}-g)`} strokeWidth="4.5" strokeLinecap="round" />
     </svg>
   )
 }
 
-export function Logo({ compact = false }: { compact?: boolean }) {
+export function Logo({ compact = false, animated = false }: { compact?: boolean; animated?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <LogoMark size={compact ? 32 : 38} />
+      <LogoMark size={compact ? 32 : 40} animated={animated} />
       <div className="leading-none">
         <span className="display block text-[1.15rem] font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
           Quick<span className="gradient-text">Pay</span>
