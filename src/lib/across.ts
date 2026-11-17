@@ -3,7 +3,7 @@
  * forwards an allow-list of Across endpoints and keeps any API key server-side.
  */
 import type { Address, Hex } from 'viem'
-import { api } from '@/lib/api'
+import { api as backendApi, ApiError, isBackendMissing } from '@/lib/api'
 
 export const ACROSS_URL = 'https://across.to/'
 
@@ -79,6 +79,30 @@ export type DepositStatus = {
 
 /** Non-EVM destinations cannot receive to an EVM address, so they are excluded from the chooser. */
 const NON_EVM = new Set([34268394551451, 728126428, 1337, 2337])
+
+const DIRECT_BASE = 'https://app.across.to/api'
+const noBackend = (error: unknown) => isBackendMissing(error) || (error instanceof ApiError && (error.code === 'unreachable' || error.code === 'timeout'))
+
+/**
+ * Across through the Quick Pay backend (or the host's `/api/across/*` rewrite). If neither answers, Across's own
+ * public API is called from the browser, which it allows, so the Bridge never depends on this app's backend being up.
+ */
+async function api<T>(path: `/across/${string}`): Promise<T> {
+  try {
+    return await backendApi<T>(path)
+  } catch (error) {
+    if (!noBackend(error)) throw error
+  }
+  let response: Response
+  try {
+    response = await fetch(`${DIRECT_BASE}${path.slice('/across'.length)}`, { signal: AbortSignal.timeout(25_000) })
+  } catch {
+    throw new ApiError(0, 'across_unreachable', 'Across is not reachable right now.')
+  }
+  const body = (await response.json().catch(() => null)) as { message?: string } | null
+  if (!response.ok) throw new ApiError(response.status, 'across_error', body?.message ?? `Across answered ${response.status}.`)
+  return body as T
+}
 
 export const acrossApi = {
   chains: async () => (await api<AcrossChain[]>('/across/swap/chains')).filter((c) => !NON_EVM.has(c.chainId)),

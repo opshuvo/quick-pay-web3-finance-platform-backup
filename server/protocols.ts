@@ -13,6 +13,10 @@ export const SWAP_COUNTERPARTIES = [
 export const BRIDGE_COUNTERPARTIES = [
   '0x9b4a302a548c7e313c2b74c461db7b84d3074a84', // Across spoke pool entry point on Arc
   '0xa4072583658fae592a3506a42431cb6316a8d40b', // LI.FI Diamond on Arc (diamondAddress in LI.FI's chain list)
+  '0x28b5a0e9c621a5badaa536219b3a228c8168cf5d', // Circle CCTP V2 TokenMessenger on Arc
+  '0x81d40f21f12a8f0e3252bccb954d722d4c464b64', // Circle CCTP V2 MessageTransmitter on Arc
+  '0xb3fa262d0fb521cc93bde83d87b322b8a23daf3f', // Circle App Kit bridge contract on Arc
+  '0x7fb8c7260b63934d8da38af902f87ae6e284a845', // Circle App Kit adapter contract on Arc
 ] as const
 
 const list = (values: readonly string[]) => `array[${values.map((v) => `'${v}'`).join(',')}]::text[]`

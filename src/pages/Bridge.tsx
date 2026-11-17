@@ -6,6 +6,7 @@ import { ExternalLink, RefreshCw } from 'lucide-react'
 import { ActivityList } from '@/components/ActivityList'
 import { BridgeAmount, NetworkRow, ReverseButton } from '@/components/BridgeCard'
 import { BridgeTracker } from '@/components/BridgeTracker'
+import { CircleBridge } from '@/components/CircleBridge'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TxProgress } from '@/components/TxProgress'
 import { Field, Notice, PageHeader, Row, Skeleton, Spinner, StatusBadge } from '@/components/ui'
@@ -18,6 +19,7 @@ import { BRIDGE_ORIGIN_CHAIN_IDS } from '@/config'
 import { ACROSS_URL, acrossApi, cachedChains, rememberChains, type AcrossChain, type AcrossQuote, type FeeLine } from '@/lib/across'
 import { LIFI_URL, lifiApi, lifiToQuote, type LifiChain } from '@/lib/lifi'
 import { ApiError } from '@/lib/api'
+import { CIRCLE_URL, circleChainsAsList, loadCircleChains } from '@/lib/circle'
 import { ARC_CHAIN_ID } from '@/lib/arc'
 import { assertBridgeQuote, BridgeGuardError, describeFillTime, isQuoteStale } from '@/lib/bridgeGuard'
 import { loadBridges, removeBridge, saveBridge, type StoredBridge } from '@/lib/bridgeStore'
@@ -30,10 +32,11 @@ import { arcFeeParams } from '@/lib/fees'
 import { displayUnits, shortAddress } from '@/lib/format'
 import { parseUnitsExact } from '@/onchain-money'
 
-type Provider = 'across' | 'lifi'
+type Provider = 'across' | 'lifi' | 'circle'
 const PROVIDERS: { id: Provider; label: string; site: string; url: string }[] = [
   { id: 'across', label: 'Across', site: 'across.to', url: ACROSS_URL },
   { id: 'lifi', label: 'LI.FI', site: 'li.fi', url: LIFI_URL },
+  { id: 'circle', label: 'Circle', site: 'circle.com', url: CIRCLE_URL },
 ]
 
 const line = (l: FeeLine | undefined) =>
@@ -65,13 +68,14 @@ export default function Bridge() {
   const originClient = usePublicClient({ chainId: origin })
   // The last list Across returned is shown at once and refreshed behind it, so the form never waits on a network call to appear.
   const chains = useQuery<(AcrossChain | LifiChain)[]>({
-    queryKey: [provider === 'lifi' ? 'lifi-chains' : 'across-chains'],
+    queryKey: [provider === 'lifi' ? 'lifi-chains' : provider === 'circle' ? 'circle-chain-list' : 'across-chains'],
     staleTime: 5 * 60_000,
     retry: 1,
     initialData: () => (provider === 'across' ? cachedChains()?.data : undefined),
     initialDataUpdatedAt: () => (provider === 'across' ? cachedChains()?.at : undefined),
     queryFn: async () => {
       if (provider === 'lifi') return lifiApi.chains()
+      if (provider === 'circle') return circleChainsAsList(await loadCircleChains())
       const list = await acrossApi.chains()
       rememberChains(list)
       return list
@@ -88,7 +92,7 @@ export default function Bridge() {
 
   const routes = useQuery({
     queryKey: [provider === 'lifi' ? 'lifi-routes' : 'across-routes', origin, destination],
-    enabled: origin !== destination,
+    enabled: provider !== 'circle' && origin !== destination,
     retry: 1,
     staleTime: 60_000,
     queryFn: async () => ((await (provider === 'lifi' ? lifiApi : acrossApi).routes(origin, destination))).filter((r) => !r.isNative),
@@ -252,7 +256,7 @@ export default function Bridge() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <PageHeader title="Bridge" subtitle="Move USDC between Arc and other chains with Across or LI.FI. Networks, tokens, routes and quotes come live from the provider you pick." />
+        <PageHeader title="Bridge" subtitle="Move USDC between Arc and other chains with Across, LI.FI or Circle. Networks, tokens, routes and quotes come live from the provider you pick." />
         <div className="segmented mb-3" role="tablist" aria-label="Bridge provider">
           {PROVIDERS.map((p) => (
             <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy} className="seg-item" onClick={() => { setProvider(p.id); setRouteIdx(0) }}>{p.label}</button>
@@ -264,6 +268,7 @@ export default function Bridge() {
         </div>
       </div>
 
+      {provider === 'circle' ? <CircleBridge onStarted={() => setStoreVersion((v) => v + 1)} /> : (
       <div className="card space-y-4 p-5">
         {/* Input card: always dark glass so it reads the same in either theme. */}
         <div data-theme="dark" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-white shadow-xl">
@@ -342,6 +347,7 @@ export default function Bridge() {
         )}
         <p className="text-center text-xs" style={{ color: 'var(--muted)' }}>Powered by <a className="underline" href={providerInfo.url} target="_blank" rel="noopener noreferrer">{provider === 'lifi' ? 'LI.FI' : 'Across Protocol'}</a>. Prefer the official app? Use it directly at {providerInfo.site}.</p>
       </div>
+      )}
 
       <section className="card p-5">
         <div className="mb-1 flex items-center justify-between gap-2">

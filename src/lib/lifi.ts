@@ -4,7 +4,8 @@
  * Bridge screen, its safety checks and its confirmation flow are shared by both providers.
  */
 import { isAddress, type Address, type Hex } from 'viem'
-import { api } from '@/lib/api'
+import { api, ApiError, isBackendMissing } from '@/lib/api'
+import { deriveLifiRoutes, LifiRoutesUnavailable } from '../../shared/lifiRoutes'
 import type { AcrossChain, AcrossQuote, AcrossRoute } from '@/lib/across'
 import { BridgeGuardError } from '@/lib/bridgeGuard'
 
@@ -43,23 +44,78 @@ export interface LifiStatus {
 
 export type LifiChain = AcrossChain & { diamond?: Address }
 
+const DIRECT_BASE = 'https://li.quest/v1'
+const INTEGRATOR = 'quickpay'
+
+/** True when no Quick Pay backend answered at all (a static deployment, or the service is down). */
+const noBackend = (error: unknown) => isBackendMissing(error) || (error instanceof ApiError && (error.code === 'unreachable' || error.code === 'timeout'))
+
+/** LI.FI's public API allows browser calls, so a static deployment still reads real routes and quotes from LI.FI itself. */
+async function direct<T>(path: string, params: Record<string, string>): Promise<{ status: number; body: T }> {
+  let response: Response
+  try {
+    response = await fetch(`${DIRECT_BASE}${path}?${new URLSearchParams(params)}`, { signal: AbortSignal.timeout(25_000) })
+  } catch {
+    throw new ApiError(0, 'lifi_unreachable', 'LI.FI is not reachable right now.')
+  }
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch {
+    if (response.ok) throw new ApiError(502, 'lifi_bad_response', 'LI.FI returned an unexpected response.')
+  }
+  return { status: response.status, body: body as T }
+}
+
+async function directOrThrow<T>(path: string, params: Record<string, string>): Promise<T> {
+  const r = await direct<T>(path, params)
+  if (r.status !== 200) throw new ApiError(r.status, 'lifi_error', (r.body as { message?: string } | null)?.message ?? `LI.FI answered ${r.status}.`)
+  return r.body
+}
+
+async function backendOrDirect<T>(viaBackend: () => Promise<T>, viaDirect: () => Promise<T>): Promise<T> {
+  try {
+    return await viaBackend()
+  } catch (error) {
+    if (!noBackend(error)) throw error
+    return viaDirect()
+  }
+}
+
 export const lifiApi = {
-  chains: async (): Promise<LifiChain[]> =>
-    (await api<{ chains: LifiChainDto[] }>('/lifi/chains')).chains.map((c) => ({ chainId: c.id, name: c.name, explorerUrl: c.metamask?.blockExplorerUrls?.[0] ?? '', logoUrl: c.logoURI, diamond: c.diamondAddress })),
-  routes: (origin: number, destination: number) => api<AcrossRoute[]>(`/lifi/routes?fromChain=${origin}&toChain=${destination}`),
-  quote: (p: { amount: bigint; inputToken: Address; outputToken: Address; origin: number; destination: number; depositor: Address; recipient: Address }) =>
-    api<LifiQuote>(
-      `/lifi/quote?${new URLSearchParams({
-        fromChain: String(p.origin),
-        toChain: String(p.destination),
-        fromToken: p.inputToken,
-        toToken: p.outputToken,
-        fromAmount: p.amount.toString(),
-        fromAddress: p.depositor,
-        toAddress: p.recipient,
-      })}`,
+  chains: (): Promise<LifiChain[]> => {
+    const map = (list: LifiChainDto[]): LifiChain[] => list.map((c) => ({ chainId: c.id, name: c.name, explorerUrl: c.metamask?.blockExplorerUrls?.[0] ?? '', logoUrl: c.logoURI, diamond: c.diamondAddress }))
+    return backendOrDirect(
+      async () => map((await api<{ chains: LifiChainDto[] }>('/lifi/chains')).chains),
+      async () => map((await directOrThrow<{ chains: LifiChainDto[] }>('/chains', { chainTypes: 'EVM' })).chains),
+    )
+  },
+  routes: (origin: number, destination: number): Promise<AcrossRoute[]> =>
+    backendOrDirect(
+      () => api<AcrossRoute[]>(`/lifi/routes?fromChain=${origin}&toChain=${destination}`),
+      async () => {
+        try {
+          return await deriveLifiRoutes(async (path, params) => direct(path, params), String(origin), String(destination))
+        } catch (error) {
+          if (error instanceof LifiRoutesUnavailable) throw new ApiError(502, 'lifi_upstream', error.message)
+          throw error
+        }
+      },
     ),
-  status: (hash: string, origin: number, destination: number) => api<LifiStatus>(`/lifi/status?txHash=${hash}&fromChain=${origin}&toChain=${destination}`),
+  quote: (p: { amount: bigint; inputToken: Address; outputToken: Address; origin: number; destination: number; depositor: Address; recipient: Address }) => {
+    const params = { fromChain: String(p.origin), toChain: String(p.destination), fromToken: p.inputToken, toToken: p.outputToken, fromAmount: p.amount.toString(), fromAddress: p.depositor, toAddress: p.recipient }
+    return backendOrDirect(() => api<LifiQuote>(`/lifi/quote?${new URLSearchParams(params)}`), () => directOrThrow<LifiQuote>('/quote', { ...params, integrator: INTEGRATOR }))
+  },
+  status: (hash: string, origin: number, destination: number) => {
+    const params = { txHash: hash, fromChain: String(origin), toChain: String(destination) }
+    return backendOrDirect<LifiStatus>(() => api<LifiStatus>(`/lifi/status?${new URLSearchParams(params)}`), async (): Promise<LifiStatus> => {
+      const r = await direct<LifiStatus>('/status', params)
+      // LI.FI answers 404 until it has indexed the transfer: that is "not found yet", not an error.
+      if (r.status === 404) return { status: 'NOT_FOUND' }
+      if (r.status !== 200) throw new ApiError(r.status, 'lifi_error', `LI.FI answered ${r.status}.`)
+      return r.body
+    })
+  },
 }
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()

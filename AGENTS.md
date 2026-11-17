@@ -101,3 +101,9 @@ bun run dev
 ## Explorer links
 
 All transaction and address links use Arc's official explorer (`https://explorer.arc.io/tx/{hash}`, `/address/{address}`, Blockscout), taken from `src/onchain-facts.ts` through `ARC_EXPLORER` in `src/lib/arc.ts`, and open in a new tab. (They briefly pointed at arc.etherscan.io; the owner switched back.)
+
+## Bridge providers (Across, LI.FI, Circle)
+- `0x1593C6fdEAB15228c90da354913a919fDA08b7E4` is the QuickPayRouter (set as `VITE_QUICKPAY_ROUTER_ADDRESS`), NOT the registry. The registry is `0x3920870225841408E5bfcADA83d1b50F5fcCa58b` (created at block 28830240, `VITE_QUICKPAY_REGISTRY_FROM_BLOCK`).
+- Circle's USDC bridge uses CCTP V2 through the App Kit SDK, loaded on demand (`src/lib/circle.ts`, UI in `src/components/CircleBridge.tsx`). Chains come from the SDK registry, fees from `estimateBridge`. Status (`src/lib/circleStatus.ts`) is Complete only when the destination mint receipt is read from the destination chain. A stopped transfer is stored on the device and resumed with the SDK's retry, never re-burned.
+- Across and LI.FI go through `/api/across/*` and `/api/lifi/*`; if no backend answers, `src/lib/across.ts` and `src/lib/lifi.ts` call the providers' public APIs directly from the browser. LI.FI route discovery is shared in `shared/lifiRoutes.ts`.
+- `bun run test:bridge-live` runs read-only live checks against Arc Mainnet.

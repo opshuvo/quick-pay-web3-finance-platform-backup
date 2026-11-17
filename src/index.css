@@ -791,3 +791,16 @@ summary {
     opacity: 0.85;
   }
 }
+
+/* Phones: 16px inputs stop iOS Safari zooming the page when a field is focused; wide values wrap instead of scrolling sideways. */
+@media (max-width: 640px) {
+  input.field,
+  select.field,
+  textarea.field,
+  #bridge-amount {
+    font-size: 16px;
+  }
+  .card .mono {
+    overflow-wrap: anywhere;
+  }
+}

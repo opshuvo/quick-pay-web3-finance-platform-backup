@@ -6,13 +6,11 @@
 import { isAddress } from 'viem'
 import { HttpError } from './db'
 import { json } from './http'
+import { deriveLifiRoutes, LifiRoutesUnavailable } from '../shared/lifiRoutes'
 
 const BASE = 'https://li.quest/v1'
 const INTEGRATOR = process.env.LIFI_INTEGRATOR?.trim() || 'quickpay'
 const API_KEY = process.env.LIFI_API_KEY?.trim() || undefined
-/** Quick Pay is a USDC app: it offers LI.FI routes only for these well-known assets, not for every vault token LI.FI lists. */
-const OFFERED = new Set(['USDC', 'EURC', 'USDT', 'WETH', 'WBTC', 'CIRBTC'])
-const ZERO = '0x0000000000000000000000000000000000000000'
 
 type Kind = 'int' | 'address' | 'digits' | 'slippage' | 'hash'
 const ALLOWED: Record<string, Record<string, Kind>> = {
@@ -54,41 +52,13 @@ async function lifiGet(path: string, params: Record<string, string>, ttlMs = 0, 
   return { status: upstream.status, body }
 }
 
-interface LifiToken { address: string; symbol: string; decimals: number }
-interface Connection { fromTokens?: { address: string }[]; toTokens?: { address: string }[] }
-
 async function routes(from: string, to: string): Promise<Response> {
-  const [tokens, connections] = await Promise.all([
-    lifiGet('/tokens', { chains: `${from},${to}` }, 10 * 60_000, 30_000),
-    lifiGet('/connections', { fromChain: from, toChain: to }, 5 * 60_000),
-  ])
-  if (tokens.status !== 200 || connections.status !== 200) return json({ error: 'lifi_upstream', message: 'LI.FI could not list routes right now.' }, 502)
-  const byChain = (tokens.body as { tokens?: Record<string, LifiToken[]> }).tokens ?? {}
-  const meta = (chain: string) => new Map((byChain[chain] ?? []).map((t) => [t.address.toLowerCase(), t]))
-  const fromMeta = meta(from)
-  const toMeta = meta(to)
-  const fromSet = new Set<string>()
-  const toSet = new Set<string>()
-  for (const c of ((connections.body as { connections?: Connection[] }).connections ?? [])) {
-    for (const t of c.fromTokens ?? []) fromSet.add(t.address.toLowerCase())
-    for (const t of c.toTokens ?? []) toSet.add(t.address.toLowerCase())
+  try {
+    return json(await deriveLifiRoutes((path, params) => lifiGet(path, params, path === '/connections' ? 5 * 60_000 : 10 * 60_000), from, to))
+  } catch (error) {
+    if (error instanceof LifiRoutesUnavailable) return json({ error: 'lifi_upstream', message: error.message }, 502)
+    throw error
   }
-  const toBySymbol = new Map<string, LifiToken>()
-  for (const a of toSet) {
-    const t = toMeta.get(a)
-    if (t && a !== ZERO && !toBySymbol.has(t.symbol.toUpperCase())) toBySymbol.set(t.symbol.toUpperCase(), t)
-  }
-  const out: { originChainId: number; originToken: string; destinationChainId: number; destinationToken: string; originTokenSymbol: string; destinationTokenSymbol: string; isNative: boolean }[] = []
-  for (const a of fromSet) {
-    const f = fromMeta.get(a)
-    if (!f || a === ZERO || !OFFERED.has(f.symbol.toUpperCase())) continue
-    const t = toBySymbol.get(f.symbol.toUpperCase())
-    if (!t) continue
-    out.push({ originChainId: Number(from), originToken: f.address, destinationChainId: Number(to), destinationToken: t.address, originTokenSymbol: f.symbol, destinationTokenSymbol: t.symbol, isNative: false })
-  }
-  const rank = (s: string) => (s === 'USDC' ? 0 : s === 'EURC' ? 1 : 2)
-  out.sort((x, y) => rank(x.originTokenSymbol) - rank(y.originTokenSymbol) || x.originTokenSymbol.localeCompare(y.originTokenSymbol))
-  return json(out.slice(0, 12))
 }
 
 export async function proxyLifi(path: string, search: URLSearchParams): Promise<Response> {

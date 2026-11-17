@@ -2,16 +2,19 @@ import type { ProgressStep } from '@/components/BridgeProgress'
 import type { ActivityDto } from '@/lib/activity'
 import type { DepositStatus } from '@/lib/across'
 import type { LifiStatus } from '@/lib/lifi'
+import { isCircleTerminal, type CircleTrack } from '@/lib/circleStatus'
 
 export type Tracked =
   | { source: 'verified'; activity: ActivityDto }
   | { source: 'waiting'; reason: string }
   | { source: 'across'; status: DepositStatus | null }
   | { source: 'lifi'; status: LifiStatus | null; destinationVerified: boolean }
+  | { source: 'circle'; track: CircleTrack }
 
 export const isTerminal = (t: Tracked | undefined) =>
   t?.source === 'verified' ? (t.activity.status === 'filled' && t.activity.destinationVerified) || t.activity.status === 'expired' || t.activity.status === 'refunded'
   : t?.source === 'across' ? ['filled', 'expired', 'refunded'].includes(t.status?.status ?? '')
+  : t?.source === 'circle' ? isCircleTerminal(t.track)
   : t?.source === 'lifi' ? t.status?.status === 'FAILED' || (t.status?.status === 'DONE' && (t.destinationVerified || t.status.substatus === 'REFUNDED'))
   : false
 
@@ -21,6 +24,18 @@ export function trackedSummary(t: Tracked | undefined): { label: string; tone: '
   if (!t) return { label: 'Checking…', tone: 'neutral', steps: [source, { label: 'Waiting for Across to index the deposit', state: 'active' }, { label: 'Delivery on destination', state: 'todo' }] }
   if (t.source === 'waiting') {
     return { label: 'Waiting for Across', tone: 'neutral', steps: [source, { label: 'Waiting for Across to index the deposit', detail: t.reason, state: 'active' }, { label: 'Delivery on destination', state: 'todo' }] }
+  }
+  if (t.source === 'circle') {
+    const k = t.track
+    const burned: ProgressStep = { label: 'Burn confirmed on source chain', state: 'done' }
+    const todo = (label: string): ProgressStep => ({ label, state: 'todo' })
+    if (k.phase === 'source-pending') return { label: 'Confirming', tone: 'neutral', steps: [{ label: 'Waiting for the burn to confirm on the source chain', state: 'active' }, todo('Circle attestation'), todo('Mint on destination')] }
+    if (k.phase === 'source-failed') return { label: 'Failed', tone: 'danger', steps: [{ label: 'The burn transaction failed on the source chain. Nothing was bridged.', state: 'failed' }] }
+    if (k.phase === 'attesting') return { label: 'In transit', tone: 'warn', steps: [burned, { label: 'Waiting for Circle to attest the burn', detail: k.delayReason ? `Circle reports a delay: ${k.delayReason.replace(/_/g, ' ')}` : undefined, state: 'active' }, todo('Mint on destination')] }
+    if (k.phase === 'awaiting-mint') return { label: 'Needs mint', tone: 'warn', steps: [burned, { label: 'Circle attested the burn', state: 'done' }, { label: 'Your USDC is not minted yet. Resume the transfer to mint it on the destination chain.', state: 'active' }] }
+    if (k.phase === 'minting') return { label: 'In transit', tone: 'warn', steps: [burned, { label: 'Circle attested the burn', state: 'done' }, { label: k.hash ? 'Mint submitted, waiting for it to confirm' : 'Circle is submitting the mint on the destination chain', state: 'active' }] }
+    if (k.phase === 'mint-failed') return { label: 'Mint failed', tone: 'danger', steps: [burned, { label: 'The mint transaction failed on the destination chain', state: 'failed' }, { label: 'Resume the transfer to retry the mint. Your burned USDC is not lost.', state: 'active' }] }
+    return { label: 'Complete', tone: 'success', steps: [burned, { label: 'Circle attested the burn', state: 'done' }, { label: 'Mint verified on destination chain', state: 'done' }] }
   }
   if (t.source === 'lifi') {
     const s = t.status

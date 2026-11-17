@@ -13,7 +13,7 @@ Built with [Arc Studio](https://studio.arc.io)
 - Receive with a QR code, and scan a QR code or paste a code to fill in payment details (scanning never sends anything)
 - Payment requests with shareable links, plus split payments built on them
 - Swap tokens on Arc through Uniswap, with live quotes, route, price impact, minimum received, slippage, exact approvals and quote expiry
-- Bridge between Arc and other networks with Across or LI.FI (you pick the provider), using only routes the provider reports as available, with fee breakdown, arrival estimate and a progress tracker that shows Complete only after delivery is verified on the destination chain
+- Bridge between Arc and other networks with Across, LI.FI or Circle's official USDC bridge (you pick the provider), using only routes the provider reports as available, with live fee estimates, arrival times and a progress tracker that shows Complete only after delivery is read back from the destination chain. A Circle transfer that stops part-way can be resumed from Bridge progress without burning twice. Without a Quick Pay backend, Across and LI.FI are reached directly from the browser
 - Transaction history with Sent, Received, Pending and Failed tabs, search, filters, CSV export and verified Swap and Bridge categories
 - Neon Glass look in dark and light themes
 - Analytics from your indexed history, with clear notes when history is still being backfilled
@@ -64,6 +64,7 @@ Public (shipped to the browser, so never put secrets here):
 - `bun run test:render` renders every screen in a DOM
 - `bun run perf:report [dir]` prints first-visit download size of a production build (run `bunx vite build` first)
 - `bun run test:smoke` live checks against a running backend (uses the real Arc RPC and Across API)
+- `bun run test:bridge-live` read-only live checks of Across, LI.FI and Circle against Arc Mainnet (sends nothing, needs no wallet)
 - `bun run backend:url https://your-backend` points the production `/api/*` at your hosted backend (see `docs/history-deployment.md`)
 - `bun run contracts:build`, `bun run contracts:test` build and test the contract
 - `bun run contracts:abi` export the contract ABI to the frontend

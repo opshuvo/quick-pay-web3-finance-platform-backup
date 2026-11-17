@@ -10,6 +10,9 @@ import { getPublicClient } from 'wagmi/actions'
 import { config } from '@/config'
 import { acrossApi, type AcrossChain } from '@/lib/across'
 import { lifiApi } from '@/lib/lifi'
+import { CircleResume } from '@/components/CircleResume'
+import { deriveCircleTrack, fetchIris, mintHashOf, type ReceiptState } from '@/lib/circleStatus'
+import { createPublicClient, http } from 'viem'
 import { ApiError, isServiceDown } from '@/lib/api'
 import type { StoredBridge } from '@/lib/bridgeStore'
 import { chainLabel, explorerTxUrl } from '@/lib/chains'
@@ -22,6 +25,24 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
     retry: false,
     refetchInterval: (query) => (isTerminal(query.state.data) ? false : 6_000),
     queryFn: async () => {
+      if (item.provider === 'circle' && item.circle) {
+        // Three independent reads: the burn on the source chain, Circle's message record, and the mint on the destination chain.
+        const c = item.circle
+        const receiptState = async (client: { getTransactionReceipt: (a: { hash: `0x${string}` }) => Promise<{ status: string }> } | undefined, hash: `0x${string}`): Promise<ReceiptState> => {
+          if (!client) return 'unknown'
+          try {
+            return (await client.getTransactionReceipt({ hash })).status === 'success' ? 'success' : 'reverted'
+          } catch {
+            return 'missing'
+          }
+        }
+        const source = await receiptState(getPublicClient(config, { chainId: item.originChainId as never }), item.hash)
+        const iris = source === 'success' ? await fetchIris(c.fromDomain, item.hash).catch(() => null) : null
+        const mint = mintHashOf(iris, c)
+        const destClient = mint ? (c.toRpc ? createPublicClient({ transport: http(c.toRpc) }) : getPublicClient(config, { chainId: item.destinationChainId as never })) : undefined
+        const destReceipt = mint ? await receiptState(destClient, mint) : 'unknown'
+        return { source: 'circle', track: deriveCircleTrack({ mode: c.mode, source, iris, mint, destReceipt }) }
+      }
       if (item.provider === 'lifi') {
         const status = await lifiApi.status(item.hash, item.originChainId, item.destinationChainId)
         // "Complete" needs the destination transaction read back from the destination chain as successful. If this app has
@@ -69,11 +90,11 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
   })
   const summary = trackedSummary(tracked.data)
   const activity = tracked.data?.source === 'verified' ? tracked.data.activity : undefined
-  const destHash = activity?.destinationTxHash ?? (tracked.data?.source === 'across' ? tracked.data.status?.fillTxnRef : tracked.data?.source === 'lifi' ? tracked.data.status?.receiving?.txHash : undefined)
+  const destHash = activity?.destinationTxHash ?? (tracked.data?.source === 'across' ? tracked.data.status?.fillTxnRef : tracked.data?.source === 'lifi' ? tracked.data.status?.receiving?.txHash : tracked.data?.source === 'circle' && 'hash' in tracked.data.track ? tracked.data.track.hash : undefined)
   // A bridge that arrived on Arc: its delivery is read from Arc and listed in History as a bridge, not as a plain receipt.
   const queryClient = useQueryClient()
   const listed = useRef<string | null>(null)
-  const delivered = tracked.data?.source === 'verified' ? (activity?.status === 'filled' && activity.destinationVerified) : tracked.data?.source === 'across' ? tracked.data.status?.status === 'filled' : tracked.data?.source === 'lifi' && tracked.data.destinationVerified
+  const delivered = tracked.data?.source === 'verified' ? (activity?.status === 'filled' && activity.destinationVerified) : tracked.data?.source === 'across' ? tracked.data.status?.status === 'filled' : tracked.data?.source === 'lifi' ? tracked.data.destinationVerified : tracked.data?.source === 'circle' && tracked.data.track.phase === 'delivered' && tracked.data.track.verified
   useEffect(() => {
     if (!delivered || !destHash || !item.wallet || item.destinationChainId !== ARC_CHAIN_ID || listed.current === destHash) return
     listed.current = destHash
@@ -98,6 +119,7 @@ export function BridgeTracker({ item, chains, expanded }: { item: StoredBridge; 
       {(expanded || !isTerminal(tracked.data)) && !tracked.isError && (
         <div className="mt-3"><BridgeProgress steps={summary.steps} /></div>
       )}
+      {tracked.data?.source === 'circle' && (tracked.data.track.phase === 'awaiting-mint' || tracked.data.track.phase === 'mint-failed') && <CircleResume item={item} />}
       {activity?.amountOut && activity.destinationVerified && (
         <p className="mt-2 text-xs" style={{ color: 'var(--success)' }}>
           Received {displayUnits(BigInt(activity.amountOut), activity.tokenOutDecimals ?? 6, 2, 6)} {activity.tokenOutSymbol ?? ''} (read from the destination transaction)

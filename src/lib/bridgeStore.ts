@@ -1,3 +1,5 @@
+import type { CircleRecord } from '@/lib/circleStatus'
+
 /** Bridge transfers started from this browser. Kept on this device only, used just to resume status tracking. */
 export interface StoredBridge {
   hash: `0x${string}`
@@ -7,7 +9,9 @@ export interface StoredBridge {
   symbol: string
   createdAt: number
   /** Which service quoted and tracks this transfer. Missing means Across. */
-  provider?: 'across' | 'lifi'
+  provider?: 'across' | 'lifi' | 'circle'
+  /** Circle (CCTP) details: how the transfer is tracked and, if it stopped part-way, resumed. */
+  circle?: CircleRecord
   /** Quote metadata kept so the history record can be written once Across has indexed the deposit. */
   wallet?: string
   inputToken?: string
