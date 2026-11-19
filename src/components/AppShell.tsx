@@ -107,15 +107,15 @@ export function AppShell() {
       <div className="min-w-0">
         {/* Header */}
         <header className="app-header sticky top-0 z-30 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
-            <Link to="/" aria-label="Quick Pay home" className="lg:hidden"><Logo compact /></Link>
+          <div className="flex items-center gap-1.5 px-3 py-2 sm:gap-3 sm:px-6 sm:py-2.5">
+            <Link to="/" aria-label="Quick Pay home" className="shrink-0 lg:hidden"><Logo compact animated /></Link>
             <GlobalSearch className="hidden max-w-md flex-1 lg:block" />
             <span className="chip ml-auto hidden xl:inline-flex" title="Network">
               <span className="pulse-dot size-1.5 rounded-full" style={{ background: wallet.wrongNetwork ? 'var(--warn)' : 'var(--success)' }} />
               Arc Mainnet · 5042
             </span>
-            <div className="ml-auto flex items-center gap-2 lg:ml-0">
-              <button type="button" aria-label={searchOpen ? 'Close search' : 'Search'} onClick={() => setSearchOpen((v) => !v)} className="btn btn-ghost !min-h-[44px] !px-3 lg:hidden">
+            <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2 lg:ml-0">
+              <button type="button" aria-label={searchOpen ? 'Close search' : 'Search'} aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)} className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0 lg:hidden">
                 {searchOpen ? <X className="size-4" /> : <Search className="size-4" />}
               </button>
               <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" aria-label="Open Arc Explorer in a new tab" className="btn btn-ghost hidden sm:inline-flex !min-h-[44px] !px-3 transition-all duration-200 hover:scale-105 active:scale-95">
@@ -123,15 +123,15 @@ export function AppShell() {
                 <span className="hidden md:inline">Explorer</span>
               </a>
               <NotificationsMenu />
-              <ThemeButton />
+              <span className="hidden sm:inline-flex"><ThemeButton /></span>
               <WalletButton />
               <div className="hidden sm:block"><ProfileLink /></div>
             </div>
           </div>
-          {searchOpen && <div className="px-4 pb-3 lg:hidden"><GlobalSearch /></div>}
+          {searchOpen && <div className="swap-in-down px-3 pb-3 sm:px-6 lg:hidden"><GlobalSearch /></div>}
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 sm:px-6 lg:pb-12">
+        <main className="mx-auto w-full max-w-6xl px-3 pb-32 pt-4 sm:px-6 sm:pt-6 lg:pb-12">
           <NetworkBanner />
           <BackButton />
           <ErrorBoundary resetKey={location.pathname}>
@@ -167,9 +167,14 @@ export function AppShell() {
               </div>
             </div>
           ))}
-          <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-            <span className="text-sm font-semibold">Theme</span>
-            <ThemeButton />
+          <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+            <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" className="btn btn-ghost !px-3 text-sm">
+              <ExternalLink className="size-4" aria-hidden /> Explorer
+            </a>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Theme</span>
+              <ThemeButton />
+            </div>
           </div>
         </div>
       </ConfirmSheet>

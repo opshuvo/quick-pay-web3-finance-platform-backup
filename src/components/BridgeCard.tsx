@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from 'react'
 import { ArrowDownUp, ChevronDown } from 'lucide-react'
 import NetworkArbitrumOne from '@web3icons/react/icons/networks/NetworkArbitrumOne'
 import NetworkAvalanche from '@web3icons/react/icons/networks/NetworkAvalanche'
@@ -7,7 +8,7 @@ import NetworkEthereum from '@web3icons/react/icons/networks/NetworkEthereum'
 import NetworkLinea from '@web3icons/react/icons/networks/NetworkLinea'
 import NetworkOptimism from '@web3icons/react/icons/networks/NetworkOptimism'
 import NetworkPolygon from '@web3icons/react/icons/networks/NetworkPolygon'
-import { LogoMark } from '@/components/Logo'
+import { useChainLogos } from '@/hooks/useChainLogos'
 import { Skeleton } from '@/components/ui'
 import { ARC_CHAIN_ID } from '@/lib/arc'
 import { formatTokenAmount } from '@/lib/swapAmount'
@@ -23,16 +24,44 @@ const NETWORK_ICONS: Record<number, typeof NetworkEthereum> = {
   59144: NetworkLinea,
 }
 
-/** Real brand icon for the chains Quick Pay knows, the Arc mark for Arc, and a neutral initial for anything else. */
-export function ChainIcon({ chainId, name, size = 20 }: { chainId: number; name: string; size?: number }) {
-  if (chainId === ARC_CHAIN_ID) return <LogoMark size={size} />
-  const Icon = NETWORK_ICONS[chainId]
-  if (Icon) return <Icon variant="branded" size={size} />
+/** Arc's mark: an arch inside a ring. Shown only if Arc's published logo cannot be loaded. It is not the Quick Pay logo. */
+function ArcGlyph({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" role="img" aria-label="Arc" className="shrink-0">
+      <circle cx="16" cy="16" r="16" fill="#0b1634" />
+      <path d="M8.5 23v-6a7.5 7.5 0 0 1 15 0v6" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" />
+      <path d="M13 23v-5a3 3 0 0 1 6 0v5" fill="none" stroke="#8b5cf6" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** A published chain logo, with a neutral initial if the image cannot load. */
+function RemoteLogo({ url, name, size, fallback }: { url: string; name: string; size: number; fallback?: ReactNode }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <>{fallback ?? <Initial name={name} size={size} />}</>
+  return <img src={url} alt="" width={size} height={size} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="shrink-0 rounded-full bg-white/5 object-contain" style={{ width: size, height: size }} />
+}
+
+function Initial({ name, size }: { name: string; size: number }) {
   return (
     <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-slate-600 font-bold text-white" style={{ width: size, height: size, fontSize: size * 0.5 }}>
       {name[0]?.toUpperCase() ?? '?'}
     </span>
   )
+}
+
+/**
+ * The real logo of every network the Bridge lists. Well-known chains use their bundled brand icon (instant); every other
+ * chain, and Arc, uses the logo its bridge provider publishes; only if that cannot load is a neutral initial shown.
+ * Arc never shows the Quick Pay mark.
+ */
+export function ChainIcon({ chainId, name, size = 20 }: { chainId: number; name: string; size?: number }) {
+  const logos = useChainLogos()
+  const remote = logos.get(chainId)
+  if (chainId === ARC_CHAIN_ID) return remote ? <RemoteLogo url={remote} name={name} size={size} fallback={<ArcGlyph size={size} />} /> : <ArcGlyph size={size} />
+  const Icon = NETWORK_ICONS[chainId]
+  if (Icon) return <Icon variant="branded" size={size} />
+  return remote ? <RemoteLogo url={remote} name={name} size={size} /> : <Initial name={name} size={size} />
 }
 
 export interface ChainOption { chainId: number; name: string }

@@ -133,4 +133,50 @@ export async function migrate(): Promise<void> {
   await sql`create index if not exists defi_activity_wallet_idx on defi_activity (wallet, block_time desc)`
   await sql`create index if not exists defi_activity_dest_idx on defi_activity (destination_tx_hash)`
   await sql`create index if not exists payment_requests_recipient_idx on payment_requests (recipient, created_at desc)`
+  // Keyset pagination: (block, log index) descending per wallet side, so the newest rows are an index walk, never a sort.
+  await sql`create index if not exists transfers_chain_from_keyset_idx on transfers (chain_id, from_addr, block_number desc, log_index desc)`
+  await sql`create index if not exists transfers_chain_to_keyset_idx on transfers (chain_id, to_addr, block_number desc, log_index desc)`
+  // Transactions the wallet signed, saved the moment they are sent and reconciled with their on-chain receipt.
+  await sql`
+    create table if not exists pending_txs (
+      chain_id bigint not null default 5042,
+      tx_hash text not null,
+      wallet text not null,
+      kind text not null check (kind in ('send','pay_request','swap','bridge','split')),
+      to_addr text not null,
+      token text not null,
+      amount numeric(78,0) not null,
+      symbol text,
+      decimals integer,
+      status text not null default 'pending' check (status in ('pending','confirmed','failed','dropped')),
+      block_number bigint,
+      attempts integer not null default 0,
+      next_attempt_at timestamptz not null default now(),
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now(),
+      primary key (chain_id, tx_hash)
+    )`
+  await sql`create index if not exists pending_txs_wallet_idx on pending_txs (wallet, created_at desc)`
+  await sql`create index if not exists pending_txs_due_idx on pending_txs (next_attempt_at) where status = 'pending'`
+  // Events from the Quick Pay Router and Registry contracts, indexed once for everyone (these contracts emit few events).
+  await sql`
+    create table if not exists contract_events (
+      chain_id bigint not null default 5042,
+      tx_hash text not null,
+      log_index integer not null,
+      block_number bigint not null,
+      block_time timestamptz,
+      contract text not null,
+      name text not null,
+      args jsonb not null default '{}'::jsonb,
+      primary key (chain_id, tx_hash, log_index)
+    )`
+  await sql`create index if not exists contract_events_tx_idx on contract_events (tx_hash)`
+  await sql`create index if not exists contract_events_contract_idx on contract_events (contract, block_number desc)`
+  await sql`
+    create table if not exists indexer_cursors (
+      name text primary key,
+      next_block bigint not null,
+      updated_at timestamptz not null default now()
+    )`
 }

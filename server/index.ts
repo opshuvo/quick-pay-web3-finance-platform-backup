@@ -8,7 +8,10 @@ import { proxyLifi } from './lifi'
 import { requireWallet } from './auth'
 import { HttpError, migrate, requireDb, sql } from './db'
 import { config } from './env'
-import { exportCsv, queryAnalytics, queryHistory, type HistoryFilters } from './history'
+import { decodeCursor, exportCsv, queryAnalytics, queryHistory, type HistoryFilters } from './history'
+import { parsePending, recordPending, startPendingWorker } from './pending'
+import { rpcCallCount } from './rpc'
+import { contractIndexStatus, startContractIndexer } from './events'
 import { errorResponse, json, parseAddress, rateLimit, readJson } from './http'
 import { coverage, getHead, registerWallet, startIndexer, syncTip, touchWallet } from './indexer'
 import { queueStats, startTxWorker } from './txqueue'
@@ -18,6 +21,8 @@ import { cancelRequest, createRequest, getRequest, listRequests, verifyPayment }
 await migrate()
 startIndexer()
 startTxWorker()
+startPendingWorker()
+startContractIndexer()
 
 const intParam = (value: string | null, fallback: number, min: number, max: number) => {
   const n = value === null || value.trim() === '' ? Number.NaN : Number(value)
@@ -27,18 +32,22 @@ const intParam = (value: string | null, fallback: number, min: number, max: numb
 function filtersFrom(address: string, params: URLSearchParams): HistoryFilters {
   const direction = params.get('direction')
   const type = params.get('type')
+  const status = params.get('status')
+  const cursorText = params.get('cursor')
   const since = params.get('since') ? new Date(params.get('since') as string) : undefined
   const until = params.get('until') ? new Date(params.get('until') as string) : undefined
   if ((since && Number.isNaN(since.getTime())) || (until && Number.isNaN(until.getTime()))) throw new HttpError(400, 'bad_date', 'Invalid date filter.')
   return {
     address,
     direction: direction === 'in' || direction === 'out' ? direction : 'all',
+    status: status === 'confirmed' || status === 'pending' || status === 'failed' ? status : 'all',
+    cursor: cursorText ? decodeCursor(cursorText.slice(0, 40)) : null,
     type: type === 'transfer' || type === 'request_payment' || type === 'swap' || type === 'bridge' ? type : 'all',
     q: (params.get('q') ?? '').slice(0, 70),
     since,
     until,
     page: intParam(params.get('page'), 1, 1, 100_000),
-    pageSize: intParam(params.get('pageSize'), 25, 1, 100),
+    pageSize: intParam(params.get('pageSize'), 20, 1, 100),
   }
 }
 
@@ -53,7 +62,8 @@ async function route(req: Request, ip: string): Promise<Response> {
     let db: 'ok' | 'unconfigured' | 'error' = sql ? 'ok' : 'unconfigured'
     if (sql) await sql`select 1`.catch(() => { db = 'error' })
     const queue = sql && db === 'ok' ? await queueStats().catch(() => null) : null
-    return json({ ok: true, database: db, verification: queue, rpc: head === null ? 'error' : 'ok', rpcSource: config.rpcSource, headBlock: head === null ? null : Number(head), chainId: config.chainId })
+    const events = sql && db === 'ok' ? await contractIndexStatus().catch(() => null) : null
+    return json({ ok: true, database: db, verification: queue, contractEvents: events, rpcCalls: rpcCallCount(), rpc: head === null ? 'error' : 'ok', rpcSource: config.rpcSource, headBlock: head === null ? null : Number(head), chainId: config.chainId })
   }
 
   if (parts[0] === 'across' && method === 'GET') return proxyAcross(`/${parts.slice(1).join('/')}`, url.searchParams)
@@ -107,7 +117,8 @@ async function route(req: Request, ip: string): Promise<Response> {
     const filters = filtersFrom(address, url.searchParams)
     // Reads never register wallets; registration is POST /index/:address only.
     await touchWallet(address)
-    await syncTip(address, 2)
+    // Answer from the database at once; the tip sync (one per wallet per freshness window) runs in the background.
+    void syncTip(address, 2).catch(() => undefined)
     if (url.searchParams.get('format') === 'csv') {
       rateLimit(`csv:${ip}`, 10, 60_000)
       const csv = await exportCsv(filters)
@@ -117,12 +128,19 @@ async function route(req: Request, ip: string): Promise<Response> {
     return json({ ...result, page: filters.page, pageSize: filters.pageSize, coverage: cov })
   }
 
+  if (parts[0] === 'pending' && parts.length === 1 && method === 'POST') {
+    requireDb()
+    rateLimit(`pending:${ip}`, 90, 60_000)
+    return json(await recordPending(parsePending(await readJson(req))), 201)
+  }
+
   if (parts[0] === 'analytics' && parts.length === 2 && method === 'GET') {
     requireDb()
     const address = parseAddress(parts[1])
     // Reads never register wallets; registration is POST /index/:address only.
     await touchWallet(address)
-    await syncTip(address, 2)
+    // Answer from the database at once; the tip sync (one per wallet per freshness window) runs in the background.
+    void syncTip(address, 2).catch(() => undefined)
     const [analytics, cov] = await Promise.all([queryAnalytics(address), coverage(address)])
     return json({ ...analytics, coverage: cov })
   }

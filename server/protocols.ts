@@ -26,6 +26,7 @@ export const COUNTERPARTY_SQL = (address: string) => `(case when t.from_addr = $
 
 export const TYPE_SQL = (address: string) =>
   `(case when r.id is not null then 'request_payment'
+        when exists (select 1 from contract_events e where e.chain_id = 5042 and e.tx_hash = t.tx_hash and e.name = 'PaymentReceived') then 'request_payment'
         when exists (select 1 from defi_activity d where d.kind = 'swap' and d.source_chain_id = 5042 and d.source_tx_hash = t.tx_hash) then 'swap'
         when exists (select 1 from defi_activity d where d.kind = 'bridge' and ((d.source_chain_id = 5042 and d.source_tx_hash = t.tx_hash) or (d.destination_chain_id = 5042 and d.destination_tx_hash = t.tx_hash))) then 'bridge'
         when exists (select 1 from tx_meta m where m.chain_id = 5042 and m.tx_hash = t.tx_hash and m.status = 'success' and m.tx_from = ${address} and m.tx_to = any(${list(SWAP_COUNTERPARTIES)})) then 'swap'

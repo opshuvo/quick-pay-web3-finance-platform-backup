@@ -1,8 +1,60 @@
-import { createPublicClient, http } from 'viem'
+import { readFileSync } from 'node:fs'
+import { createPublicClient, custom } from 'viem'
 import { config } from './env'
 
+/**
+ * Studio-provisioned RPC proxy tokens expire while the file that holds them is refreshed underneath a running
+ * process. On HTTP 401 the current token is read from `.env` once and the call is retried, so a long-running backend
+ * never needs a manual restart. Anywhere else (a deployed host) there is no such file and nothing changes.
+ */
+function currentRpcUrl(): string {
+  const override = process.env.ARC_RPC_URL?.trim()
+  if (override || config.rpcSource !== 'proxy') return config.rpcUrl
+  try {
+    const env = new Map(readFileSync('.env', 'utf8').split('\n').map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)] as const))
+    const base = env.get('RPC_PROXY_BASE_URL')?.trim()
+    const token = env.get('RPC_PROXY_TOKEN')?.trim()
+    if (base && token) return `${base}/api/rpc/Arc?_rpc_token=${token}`
+  } catch {
+    /* no .env here: keep the URL the process started with */
+  }
+  return config.rpcUrl
+}
+
+let rpcUrl = config.rpcUrl
+let rpcId = 0
+let rpcCalls = 0
+/** How many JSON-RPC requests this process has sent to Arc (shown on /health, so request volume is observable). */
+export const rpcCallCount = () => rpcCalls
+
+async function post(url: string, method: string, params: unknown): Promise<Response> {
+  rpcCalls += 1
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }),
+    signal: AbortSignal.timeout(20_000),
+  })
+}
+
 export const client = createPublicClient({
-  transport: http(config.rpcUrl, { retryCount: 0, timeout: 20_000 }),
+  transport: custom({
+    async request({ method, params }) {
+      let res = await post(rpcUrl, method, params)
+      if (res.status === 401) {
+        const fresh = currentRpcUrl()
+        if (fresh !== rpcUrl) {
+          rpcUrl = fresh
+          res = await post(rpcUrl, method, params)
+        }
+      }
+      const text = await res.text()
+      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`), { status: res.status, details: text.slice(0, 200), headers: res.headers })
+      const body = JSON.parse(text) as { result?: unknown; error?: { code: number; message: string } }
+      if (body.error) throw Object.assign(new Error(body.error.message), { code: body.error.code, details: body.error.message })
+      return body.result
+    },
+  }),
 })
 
 const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))

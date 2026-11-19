@@ -1,5 +1,5 @@
-import { useId, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { ExternalLink, Eye, EyeOff, Wallet, type LucideIcon } from 'lucide-react'
 import { Skeleton, EmptyState, CopyButton } from '@/components/ui'
 import { TxRow } from '@/components/TxRow'
@@ -59,14 +59,6 @@ interface Wave { key: number; index: number; x: number; y: number }
 /** Scan, Split, Swap, Bridge. Each tile answers a tap with a ripple from the touch point and its own small icon motion. */
 export function SecondaryActions({ actions }: { actions: ActionDef[] }) {
   const [wave, setWave] = useState<Wave | null>(null)
-  const navigate = useNavigate()
-  // Let the tap animation play for a moment before the page changes, unless the person prefers reduced motion or is opening a new tab.
-  const go = (to: string) => (event: MouseEvent<HTMLAnchorElement>) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-    event.preventDefault()
-    setTimeout(() => void navigate(to), 190)
-  }
   return (
     <div className="mt-3 grid grid-cols-4 gap-2">
       {actions.map(({ to, label, icon: Icon }, index) => (
@@ -75,7 +67,6 @@ export function SecondaryActions({ actions }: { actions: ActionDef[] }) {
           to={to}
           data-kind={to.slice(1)}
           className="tile"
-          onClick={go(to)}
           onPointerDown={(event) => {
             const box = event.currentTarget.getBoundingClientRect()
             setWave({ key: event.timeStamp, index, x: event.clientX - box.left, y: event.clientY - box.top })

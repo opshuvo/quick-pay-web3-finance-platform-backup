@@ -354,10 +354,9 @@ body::before {
 
 /* Mobile bottom bar */
 .mnav {
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  /* Solid, not blurred: a live blur under a fixed bar is repainted on every scroll frame on phones. */
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
   border-top: 1px solid var(--border);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
 }
 .mnav-pill {
   position: absolute;
@@ -565,13 +564,11 @@ html.theme-fade *::after {
   background: linear-gradient(135deg, var(--a1), var(--a2));
   box-shadow: 0 10px 26px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
   transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 220ms ease, filter 220ms ease;
-  animation: act-breathe 3.8s ease-in-out infinite;
 }
 .act-receive {
   --a1: #06b6d4;
   --a2: #2563eb;
   --ring: rgba(34, 211, 238, 0.45);
-  animation-delay: 1.9s;
 }
 /* A diagonal light band that sweeps across on hover and press. */
 .act::after {
@@ -747,7 +744,7 @@ summary {
   touch-action: manipulation;
 }
 .page-in {
-  animation: page-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: page-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes page-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -853,7 +850,7 @@ summary {
     radial-gradient(40% 36% at 30% 70%, rgba(139, 92, 246, 0.16), transparent 70%),
     linear-gradient(180deg, #02050d, #061029);
   color: #eef3ff;
-  animation: splash-out 520ms ease 1.55s forwards;
+  animation: splash-out 420ms ease 1.05s forwards;
 }
 .splash[data-leaving='true'] {
   pointer-events: none;
@@ -897,7 +894,7 @@ summary {
   border-radius: inherit;
   background: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6);
   transform-origin: left;
-  animation: splash-load 1.4s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+  animation: splash-load 0.85s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
 }
 @keyframes splash-ring {
   0% { transform: scale(0.45); opacity: 0; }
@@ -1074,3 +1071,109 @@ summary {
 
 /* Cards rise in with a gentle stagger. */
 .card-stagger > * { animation: swap-in-up 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 55ms); }
+
+/* ---------- Phones and tablets: fast first, pretty second. ---------- */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+@media (max-width: 1023px) {
+  /* Decorative loops cost battery and frame time on phones; the static versions look the same at rest. */
+  .hero-ring,
+  .hero-ring[data-b] {
+    animation: none;
+  }
+  .hero-ring { width: 10rem; height: 10rem; right: -2.5rem; top: -2.5rem; }
+  .hero-ring[data-b] { width: 7rem; height: 7rem; right: -0.5rem; top: -0.5rem; }
+  .qp-mark-live,
+  .qp-mark-live .qp-ring-inner {
+    animation: none;
+  }
+  /* Sections arrive together and quickly instead of one by one. */
+  .rise {
+    animation-duration: 300ms;
+    animation-delay: calc(var(--i, 0) * 30ms);
+  }
+  .card-stagger > * {
+    animation-duration: 260ms;
+    animation-delay: calc(var(--i, 0) * 25ms);
+  }
+}
+
+/* ---------- Dashboard logo: reveal, outward pulse rings, turning inner ring, flicking tail ---------- */
+.logo-hero {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+}
+.logo-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.1rem;
+  border: 1.5px solid var(--cyan);
+  opacity: 0;
+  animation: logo-pulse 3s cubic-bezier(0.2, 0.7, 0.3, 1) 0.9s infinite;
+}
+.logo-pulse[data-b] {
+  border-color: var(--accent-2);
+  animation-delay: 2.1s;
+}
+.qp-mark-hero {
+  position: relative;
+  animation: logo-reveal 800ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.qp-mark-hero .qp-outer,
+.qp-mark-hero .qp-arch,
+.qp-mark-hero .qp-tail {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.qp-mark-hero .qp-ring-inner {
+  animation: qp-turn 9s linear infinite;
+}
+.qp-mark-hero .qp-outer {
+  animation: logo-breathe 3.6s ease-in-out infinite;
+}
+.qp-mark-hero .qp-arch {
+  animation: logo-arch 3.6s ease-in-out infinite;
+}
+.qp-mark-hero .qp-tail {
+  transform-origin: 0% 0%;
+  animation: logo-tail 3.6s ease-in-out infinite;
+}
+@keyframes logo-pulse {
+  0% { transform: scale(0.9); opacity: 0.55; }
+  70%, 100% { transform: scale(1.65); opacity: 0; }
+}
+@keyframes logo-reveal {
+  from { opacity: 0; transform: scale(0.55) rotate(-14deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes logo-breathe {
+  50% { transform: scale(1.045) rotate(6deg); }
+}
+@keyframes logo-arch {
+  50% { opacity: 0.72; transform: translateY(-1px); }
+}
+@keyframes logo-tail {
+  0%, 62%, 100% { transform: translate(0, 0); }
+  80% { transform: translate(2.2px, 2.2px); }
+}
+
+/* Header lockup: smaller outward pulse so it stays inside the bar, and a wordmark whose gradient slowly flows. */
+.logo-hero[data-compact='true'] .logo-pulse {
+  animation-name: logo-pulse-sm;
+}
+@keyframes logo-pulse-sm {
+  0% { transform: scale(0.95); opacity: 0.5; }
+  70%, 100% { transform: scale(1.4); opacity: 0; }
+}
+.gradient-flow {
+  background-size: 220% 100%;
+  animation: gradient-flow 4.5s linear infinite;
+}
+@keyframes gradient-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: -220% 50%; }
+}

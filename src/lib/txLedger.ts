@@ -26,6 +26,8 @@ export interface LedgerEntry {
   status: LedgerStatus
 }
 
+import { reportPending } from '@/lib/pendingSync'
+
 const KEY = 'quickpay.txledger.v1'
 const MAX_PER_WALLET = 60
 const KEEP_RESOLVED_MS = 14 * 24 * 60 * 60 * 1000
@@ -79,6 +81,8 @@ export function ledgerAdd(entry: Omit<LedgerEntry, 'status' | 'submittedAt'> & {
   const next: LedgerEntry = { ...entry, wallet, hash, to: norm(entry.to), token: norm(entry.token), status: entry.status ?? existing?.status ?? 'pending', submittedAt: existing?.submittedAt ?? entry.submittedAt ?? now }
   store[wallet] = [next, ...current.filter((e) => e.hash !== hash)].slice(0, MAX_PER_WALLET)
   write(store)
+  // A new submission is also saved on the history server (best effort) the moment it is signed.
+  if (!existing && next.status === 'pending') reportPending(next)
 }
 
 /** A wallet sped a transaction up: the same payment now has a new hash. */

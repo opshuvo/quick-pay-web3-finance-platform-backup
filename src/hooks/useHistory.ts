@@ -50,17 +50,21 @@ export interface HistoryFilters {
   status: 'all' | 'confirmed' | 'pending' | 'failed'
   since: string
   until: string
+  /** Keyset position from the server's `nextCursor`. When set, it decides which rows come next and `page` is only the label. */
+  cursor: string
   page: number
   pageSize: number
 }
 
-export const DEFAULT_FILTERS: HistoryFilters = { q: '', direction: 'all', type: 'all', status: 'all', since: '', until: '', page: 1, pageSize: 25 }
+export const DEFAULT_FILTERS: HistoryFilters = { q: '', direction: 'all', type: 'all', status: 'all', since: '', until: '', cursor: '', page: 1, pageSize: 20 }
 
 export interface HistoryResponse {
   rows: HistoryRow[]
   total: number
   page: number
   pageSize: number
+  /** Opaque position of the next (older) page, or null on the last page. Missing when the browser reads Arc directly. */
+  nextCursor?: string | null
   coverage: Coverage
 }
 
@@ -72,6 +76,7 @@ export function historyQuery(filters: HistoryFilters, extra: Record<string, stri
   if (filters.status !== 'all') params.set('status', filters.status)
   if (filters.since) params.set('since', new Date(`${filters.since}T00:00:00`).toISOString())
   if (filters.until) params.set('until', new Date(`${filters.until}T23:59:59`).toISOString())
+  if (filters.cursor) params.set('cursor', filters.cursor)
   params.set('page', String(filters.page))
   params.set('pageSize', String(filters.pageSize))
   for (const [k, v] of Object.entries(extra)) params.set(k, v)
@@ -92,13 +97,17 @@ export function useHistory(address: string | undefined, filters: HistoryFilters,
     queryFn: async ({ signal }) => {
       if (!(await historyServerUsable())) return chainHistoryPage(address ?? '', filters)
       const page = await readWithRegistration<HistoryResponse>(address ?? '', `/history/${address}?${historyQuery(filters)}`, signal)
-      // The server only knows confirmed transfers. Pending and failed transactions exist only in this device's record of
-      // what the wallet signed, so those views are built from it (never from guesses).
-      if (filters.status === 'pending' || filters.status === 'failed') {
-        const rows = rowsFromLedger(address ?? '', ARC_USDC.toLowerCase(), ledgerFor(address ?? '').filter((e) => e.status === filters.status))
-        return { ...page, rows: rows.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize), total: rows.length }
-      }
-      return page
+      // The server saves pending transactions the moment they are sent and reconciles them with their receipts. A
+      // transaction this device signed that the server has not recorded (it was offline or still unknown to the node) is
+      // added from this device's own record, so a pending or failed payment never disappears. Same hash, never twice.
+      if (filters.page > 1 || filters.cursor || filters.direction === 'in') return page
+      const seen = new Set(page.rows.map((r) => r.txHash.toLowerCase()))
+      const wanted = filters.status === 'all' ? (s: string) => s !== 'confirmed' : (s: string) => s === filters.status
+      const q = filters.q.trim().toLowerCase()
+      const local = rowsFromLedger(address ?? '', ARC_USDC.toLowerCase(), ledgerFor(address ?? '').filter((e) => !seen.has(e.hash) && wanted(e.status) && (!q || e.hash.startsWith(q))))
+        .filter((r) => filters.type === 'all' || r.type === filters.type)
+      if (local.length === 0) return page
+      return { ...page, rows: [...local, ...page.rows], total: page.total + local.length }
     },
   })
 }

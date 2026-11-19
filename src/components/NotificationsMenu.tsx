@@ -35,13 +35,13 @@ export function NotificationsMenu() {
           setOpen((v) => !v)
           if (!open) markRead()
         }}
-        className="btn btn-ghost relative !min-h-[44px] !px-3"
+        className="btn btn-ghost relative !min-h-[44px] !min-w-[44px] !px-0 sm:!px-3"
       >
         <Bell className="size-4" aria-hidden />
         {unread > 0 && <span className="pulse-dot absolute right-2 top-2 size-2 rounded-full" style={{ background: 'var(--cyan)', boxShadow: '0 0 8px var(--cyan)' }} />}
       </button>
       {open && (
-        <div className="card absolute right-0 top-[calc(100%+8px)] z-50 w-[min(360px,calc(100vw-2rem))] p-2" style={{ background: 'var(--bg-2)' }} role="dialog" aria-label="Notifications">
+        <div className="card fixed inset-x-3 top-[62px] z-50 max-h-[70dvh] overflow-y-auto p-2 sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[360px]" style={{ background: 'var(--bg-2)' }} role="dialog" aria-label="Notifications">
           <p className="px-3 pb-1 pt-2 text-sm font-semibold">Notifications</p>
           {!isConnected ? (
             <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>Connect a wallet to see incoming payments.</p>

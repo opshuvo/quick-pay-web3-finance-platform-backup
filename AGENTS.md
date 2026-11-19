@@ -112,3 +112,8 @@ All transaction and address links use Arc's official explorer (`https://explorer
 - Tokens live in `src/index.css` (`--bg`, `--accent`, `--grad`, `--grad-btn`, dark and light). Do not hardcode palette colours in components.
 - Motion kit at the end of `src/index.css` uses transform and opacity only; the reduced-motion rule turns it all off. New motion must follow that.
 - `Logo.tsx` is the Q mark (rings, arch, tail); `Splash.tsx` shows once per session; `StatusRing.tsx` renders wallet, pending, success and failed states from real wallet and receipt state only; `BridgeProgress.tsx` has `BridgeFlow` (source to destination).
+
+## History backend (indexer, cursors, pending)
+- Reads are database-only with keyset cursors (`server/history.ts`, `nextCursor`); the tip sync is background. Router/Registry events: `server/events.ts`. Pending records and receipt reconciliation: `server/pending.ts`, saved from the app by `src/lib/pendingSync.ts` when `ledgerAdd` records a new submission.
+- Local database: Docker container `quickpay-db` (named volume `quickpay_pgdata`), `DATABASE_URL` in `.env`. Restart the backend after changing `.env`.
+- `bun run test:history-live` verifies speed, pagination, dedupe and pending reconciliation against the running backend.

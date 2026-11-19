@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { LogoMark } from '@/components/Logo'
 
 const KEY = 'quickpay.splash.v1'
-const SHOW_MS = 2100
+const SHOW_MS = 1500
 
 /** Shown once per browser session. Tapping it skips it; it never blocks the app, which loads underneath. */
 function alreadyShown(): boolean {
@@ -25,7 +25,7 @@ export function Splash() {
       /* private mode: the splash simply shows again next visit */
     }
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const leave = setTimeout(() => setLeaving(true), reduced ? 500 : 1550)
+    const leave = setTimeout(() => setLeaving(true), reduced ? 400 : 1050)
     const done = setTimeout(() => setVisible(false), reduced ? 700 : SHOW_MS)
     return () => {
       clearTimeout(leave)

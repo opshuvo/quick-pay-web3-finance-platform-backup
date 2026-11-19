@@ -59,10 +59,10 @@ export default function Overview() {
   return (
     <div className="relative isolate">
       <GlowBlobs />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-6">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           {/* Header, balance and actions */}
-          <section className="glass card-hero rise relative overflow-hidden p-5 sm:p-7" style={rise(0)} aria-label="Balance">
+          <section className="glass card-hero rise relative overflow-hidden p-4 sm:p-7" style={rise(0)} aria-label="Balance">
             <span className="hero-ring" aria-hidden />
             <span className="hero-ring" data-b aria-hidden />
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -76,7 +76,7 @@ export default function Overview() {
             {!wallet.isConnected ? (
               <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="display text-balance text-4xl font-bold sm:text-5xl">Pay anyone, <span className="gradient-text">instantly.</span></p>
+                  <p className="display text-balance text-3xl font-bold min-[400px]:text-4xl sm:text-5xl">Pay anyone, <span className="gradient-text">instantly.</span></p>
                   <p className="mt-3 max-w-[46ch] text-pretty text-sm" style={{ color: 'var(--muted)' }}>Connect a wallet to send and receive USDC on Arc, split bills, track every payment, and swap or bridge when you need to.</p>
                 </div>
                 <WalletButton />
@@ -88,7 +88,7 @@ export default function Overview() {
                   {wallet.balanceLoading ? (
                     <Skeleton className="h-14 w-60" />
                   ) : wallet.balanceRaw !== undefined ? (
-                    <span className="display text-5xl font-bold tabular-nums sm:text-6xl" style={{ color: 'var(--ink)' }}>{hidden ? '••••••' : displayUsdc(wallet.balanceRaw)}</span>
+                    <span className="display min-w-0 truncate text-4xl font-bold tabular-nums min-[400px]:text-5xl sm:text-6xl" style={{ color: 'var(--ink)' }}>{hidden ? '••••••' : displayUsdc(wallet.balanceRaw)}</span>
                   ) : (
                     <span className="display text-2xl font-bold" style={{ color: 'var(--muted)' }}>Balance unavailable</span>
                   )}
@@ -101,7 +101,7 @@ export default function Overview() {
               </div>
             )}
 
-            <div className="mt-7">
+            <div className="mt-5 sm:mt-7">
               <PrimaryActions actions={PRIMARY} />
               <SecondaryActions actions={SECONDARY} />
             </div>
@@ -113,7 +113,7 @@ export default function Overview() {
           {stats.data && !complete && <HistoryHint coverage={stats.data.coverage} />}
         </div>
 
-        <aside className="min-w-0 space-y-6">
+        <aside className="min-w-0 space-y-4 sm:space-y-6">
           <div className="rise" style={rise(1)}><FlowCard sent={stats.data?.totalSent} received={stats.data?.totalReceived} suffix={suffix} loading={wallet.isConnected && stats.isLoading} hidden={hidden} error={wallet.isConnected && stats.isError} /></div>
           <div className="rise grid grid-cols-2 gap-3" style={rise(2)}>
             <StatTile label="Transactions" loading={wallet.isConnected && stats.isLoading} value={wallet.isConnected && stats.data ? formatNumber(stats.data.transactionCount) : '—'} sub={complete ? 'USDC token transfers' : stats.data ? 'In scanned range' : wallet.isConnected ? '' : 'Connect to see'} />

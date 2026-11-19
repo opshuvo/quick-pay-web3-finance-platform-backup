@@ -6,15 +6,32 @@ import type { Analytics, HistoryRow } from '../shared/api-types'
 
 export type { Analytics, HistoryRow }
 
+export interface HistoryCursor {
+  block: string
+  logIndex: number
+}
+
 export interface HistoryFilters {
   address: string
   direction: 'all' | 'in' | 'out'
   type: 'all' | 'transfer' | 'request_payment' | 'swap' | 'bridge'
+  status?: 'all' | 'confirmed' | 'pending' | 'failed'
   q: string
   since?: Date
   until?: Date
+  /** Keyset position: rows strictly older than this (block, log index). Wins over `page`. */
+  cursor?: HistoryCursor | null
   page: number
   pageSize: number
+}
+
+export const encodeCursor = (c: HistoryCursor) => Buffer.from(`${c.block}:${c.logIndex}`).toString('base64url')
+
+export function decodeCursor(text: string): HistoryCursor {
+  const plain = Buffer.from(text, 'base64url').toString('utf8')
+  const m = /^(\d{1,15}):(\d{1,9})$/.exec(plain)
+  if (!m) throw new HttpError(400, 'bad_cursor', 'Invalid page cursor.')
+  return { block: m[1], logIndex: Number(m[2]) }
 }
 
 
@@ -29,7 +46,7 @@ export const SCANNED_SQL = (blockColumn: string, addressParam: string) =>
 const HEX_PREFIX = /^0x[0-9a-f]{1,64}$/
 
 /** Builds a parameterized WHERE clause. Values are never interpolated into SQL text. */
-export function buildWhere(f: HistoryFilters): { text: string; params: unknown[] } {
+export function buildWhere(f: HistoryFilters, withCursor = true): { text: string; params: unknown[] } {
   const params: unknown[] = [f.address]
   const clauses = [`t.chain_id = ${config.chainId}`, '(t.from_addr = $1 or t.to_addr = $1)', SCANNED_SQL('t.block_number', '$1')]
   const add = (value: unknown) => {
@@ -39,6 +56,7 @@ export function buildWhere(f: HistoryFilters): { text: string; params: unknown[]
   if (f.direction === 'in') clauses.push('(t.to_addr = $1 and t.from_addr <> $1)')
   if (f.direction === 'out') clauses.push('(t.from_addr = $1 and t.to_addr <> $1)')
   if (f.type !== 'all') clauses.push(`${TYPE_SQL('$1')} = '${f.type}'`)
+  if (withCursor && f.cursor) clauses.push(`(t.block_number, t.log_index) < (${add(f.cursor.block)}::bigint, ${add(f.cursor.logIndex)}::int)`)
   if (f.since) clauses.push(`t.block_time >= ${add(f.since)}`)
   if (f.until) clauses.push(`t.block_time <= ${add(f.until)}`)
   const q = f.q.trim().toLowerCase()
@@ -52,23 +70,43 @@ export function buildWhere(f: HistoryFilters): { text: string; params: unknown[]
 
 const FROM = 'from transfers t left join payment_requests r on r.paid_tx_hash = t.tx_hash'
 
-export async function queryHistory(f: HistoryFilters): Promise<{ rows: HistoryRow[]; total: number }> {
-  const db = requireDb()
-  const w = buildWhere(f)
-  const head = await getHead()
-  const limit = `$${w.params.length + 1}`
-  const offset = `$${w.params.length + 2}`
-  const raw = (await db.unsafe(
-    `select t.tx_hash, t.log_index, t.block_number::text as block_number, t.block_time, t.from_addr, t.to_addr, t.token, t.amount::text as amount,
+const KIND_TYPE: Record<string, HistoryRow['type']> = { send: 'transfer', pay_request: 'request_payment', split: 'request_payment', swap: 'swap', bridge: 'bridge' }
+
+const SELECT_ROW = `t.tx_hash, t.log_index, t.block_number::text as block_number, t.block_time, t.from_addr, t.to_addr, t.token, t.amount::text as amount,
             case when t.from_addr = t.to_addr then 'self' when t.from_addr = $1 then 'out' else 'in' end as direction,
             ${TYPE_SQL('$1')} as type, r.id as request_id,
-            (select m.tx_to from tx_meta m where m.chain_id = t.chain_id and m.tx_hash = t.tx_hash) as contract
-     ${FROM} where ${w.text}
-     order by t.block_number desc, t.log_index desc limit ${limit} offset ${offset}`,
-    [...w.params, f.pageSize, (f.page - 1) * f.pageSize],
-  )) as Record<string, unknown>[]
-  const counted = (await db.unsafe(`select count(*)::text as n ${FROM} where ${w.text}`, w.params)) as { n: string }[]
-  const rows = raw.map(
+            (select m.tx_to from tx_meta m where m.chain_id = t.chain_id and m.tx_hash = t.tx_hash) as contract`
+
+/** The default view (no type, text or date filter) needs no join to decide which rows to take: it is two index walks. */
+const isFastPath = (f: HistoryFilters) => f.type === 'all' && !f.q.trim() && !f.since && !f.until
+
+/** Transfer rows, newest first, one more than a page so the caller knows whether another page exists. */
+async function transferRows(f: HistoryFilters, head: bigint): Promise<{ rows: HistoryRow[]; more: boolean }> {
+  const db = requireDb()
+  const take = f.pageSize + 1
+  const offset = f.cursor ? 0 : (f.page - 1) * f.pageSize
+  let text: string
+  let params: unknown[]
+  if (isFastPath(f)) {
+    params = [f.address]
+    const add = (value: unknown) => {
+      params.push(value)
+      return `$${params.length}`
+    }
+    const cursor = f.cursor ? `and (t.block_number, t.log_index) < (${add(f.cursor.block)}::bigint, ${add(f.cursor.logIndex)}::int)` : ''
+    const inner = add(take + offset)
+    const side = (column: 'from_addr' | 'to_addr', extra: string) =>
+      `(select t.* from transfers t where t.chain_id = ${config.chainId} and t.${column} = $1 ${extra} and ${SCANNED_SQL('t.block_number', '$1')} ${cursor} order by t.block_number desc, t.log_index desc limit ${inner})`
+    const sides = f.direction === 'in' ? [side('to_addr', 'and t.from_addr <> $1')] : f.direction === 'out' ? [side('from_addr', 'and t.to_addr <> $1')] : [side('from_addr', ''), side('to_addr', 'and t.from_addr <> $1')]
+    text = `select ${SELECT_ROW} from (${sides.join(' union all ')}) t left join payment_requests r on r.paid_tx_hash = t.tx_hash
+            order by t.block_number desc, t.log_index desc limit ${add(take)} offset ${add(offset)}`
+  } else {
+    const w = buildWhere(f)
+    params = [...w.params, take, offset]
+    text = `select ${SELECT_ROW} ${FROM} where ${w.text} order by t.block_number desc, t.log_index desc limit $${w.params.length + 1} offset $${w.params.length + 2}`
+  }
+  const raw = (await db.unsafe(text, params)) as Record<string, unknown>[]
+  const rows = raw.slice(0, f.pageSize).map(
     (r): HistoryRow => ({
       txHash: r.tx_hash as string,
       logIndex: r.log_index as number,
@@ -86,7 +124,111 @@ export async function queryHistory(f: HistoryFilters): Promise<{ rows: HistoryRo
       status: 'confirmed',
     }),
   )
-  return { rows, total: Number(counted[0]?.n ?? 0) }
+  return { rows, more: raw.length > f.pageSize }
+}
+
+/**
+ * Transactions this wallet signed that the chain scan does not list: still waiting for a receipt (pending), reverted
+ * (failed: a revert writes no logs), or confirmed without a USDC transfer. Each status comes from the receipt the
+ * reconciliation worker read. Once the scan lists the same transaction hash the scanned row wins, so nothing doubles.
+ */
+async function pendingRows(f: HistoryFilters): Promise<HistoryRow[]> {
+  if (f.direction === 'in' || f.cursor || f.page > 1) return []
+  const db = requireDb()
+  const status = f.status && f.status !== 'all' ? f.status : null
+  const q = f.q.trim().toLowerCase()
+  const raw = (await db`
+    select p.tx_hash, p.kind, p.to_addr, p.token, p.amount::text as amount, p.symbol, p.decimals, p.status, p.block_number::text as block_number, p.created_at
+    from pending_txs p
+    where p.chain_id = ${config.chainId} and p.wallet = ${f.address} and p.status in ('pending', 'failed', 'confirmed')
+      and p.created_at > now() - interval '14 days'
+      and (${status}::text is null or p.status = ${status}::text)
+      and (${q}::text = '' or p.tx_hash like ${`${q}%`})
+      and not exists (select 1 from transfers t where t.chain_id = p.chain_id and t.tx_hash = p.tx_hash)
+    order by p.created_at desc limit 20`) as Record<string, unknown>[]
+  return raw
+    .map((r): HistoryRow => {
+      const usdc = (r.token as string) === config.usdc
+      return {
+        txHash: r.tx_hash as string,
+        logIndex: -2,
+        blockNumber: r.block_number ? Number(r.block_number) : 0,
+        timestamp: new Date(r.created_at as string).toISOString(),
+        from: f.address,
+        to: r.to_addr as string,
+        token: r.token as string,
+        amount: r.amount as string,
+        symbol: usdc ? null : ((r.symbol as string | null) ?? null),
+        decimals: usdc ? null : ((r.decimals as number | null) ?? null),
+        direction: 'out',
+        type: KIND_TYPE[r.kind as string] ?? 'transfer',
+        requestId: null,
+        contract: null,
+        confirmations: 0,
+        status: r.status as HistoryRow['status'],
+        local: true,
+      }
+    })
+    .filter((row) => f.type === 'all' || row.type === f.type)
+}
+
+const FIRST_PAGE_COUNT_TTL_MS = 30_000
+const ROWS_TTL_MS = 1_500
+const countCache = new Map<string, { at: number; n: number }>()
+const rowsCache = new Map<string, { at: number; value: HistoryResult }>()
+const inflight = new Map<string, Promise<HistoryResult>>()
+
+export interface HistoryResult {
+  rows: HistoryRow[]
+  total: number
+  /** Opaque keyset position of the next (older) page; null on the last page. */
+  nextCursor: string | null
+}
+
+const keyOf = (f: HistoryFilters, withPaging: boolean) =>
+  JSON.stringify([f.address, f.direction, f.type, f.status ?? 'all', f.q, f.since?.toISOString(), f.until?.toISOString(), ...(withPaging ? [f.cursor?.block, f.cursor?.logIndex, f.page, f.pageSize] : [])])
+
+/** Count with a short cache: counting every page view is the expensive part of a long history, and it changes slowly. */
+async function countRows(f: HistoryFilters): Promise<number> {
+  const key = keyOf(f, false)
+  const hit = countCache.get(key)
+  if (hit && Date.now() - hit.at < FIRST_PAGE_COUNT_TTL_MS) return hit.n
+  const db = requireDb()
+  const w = buildWhere(f, false)
+  const counted = (await db.unsafe(`select count(*)::text as n ${FROM} where ${w.text}`, w.params)) as { n: string }[]
+  const n = Number(counted[0]?.n ?? 0)
+  if (countCache.size > 2000) countCache.clear()
+  countCache.set(key, { at: Date.now(), n })
+  return n
+}
+
+async function compute(f: HistoryFilters): Promise<HistoryResult> {
+  const status = f.status ?? 'all'
+  const head = await getHead()
+  const pending = status === 'confirmed' ? [] : await pendingRows(f)
+  if (status === 'pending' || status === 'failed') return { rows: pending, total: pending.length, nextCursor: null }
+  // Pending rows share the page: the list never grows past the size that was asked for.
+  const [{ rows, more }, total] = await Promise.all([transferRows({ ...f, pageSize: Math.max(1, f.pageSize - pending.length) }, head), countRows(f)])
+  const last = rows[rows.length - 1]
+  return { rows: [...pending, ...rows], total: total + (f.cursor || f.page > 1 ? 0 : pending.length), nextCursor: more && last ? encodeCursor({ block: String(last.blockNumber), logIndex: last.logIndex }) : null }
+}
+
+/** Newest first, from the database only. Identical reads inside a moment share one answer (and one query). */
+export async function queryHistory(f: HistoryFilters): Promise<HistoryResult> {
+  const key = keyOf(f, true)
+  const hit = rowsCache.get(key)
+  if (hit && Date.now() - hit.at < ROWS_TTL_MS) return hit.value
+  const running = inflight.get(key)
+  if (running) return running
+  const promise = compute(f)
+    .then((value) => {
+      if (rowsCache.size > 500) rowsCache.clear()
+      rowsCache.set(key, { at: Date.now(), value })
+      return value
+    })
+    .finally(() => inflight.delete(key))
+  inflight.set(key, promise)
+  return promise
 }
 
 const csvCell = (value: string | number) => {

@@ -53,7 +53,26 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
   const [exporting, setExporting] = useState(false)
   const [selected, setSelected] = useState<HistoryRow | null>(null)
   const query = useHistory(address, filters)
-  const set = (patch: Partial<HistoryFilters>) => setFilters((f) => ({ ...f, ...patch, page: patch.page ?? 1 }))
+  // Cursor pagination: the cursors of the pages already visited, so Previous returns to the exact same rows.
+  const [trail, setTrail] = useState<string[]>([])
+  const set = (patch: Partial<HistoryFilters>) => {
+    setTrail([])
+    setFilters((f) => ({ ...f, ...patch, cursor: '', page: patch.page ?? 1 }))
+  }
+  const goNext = () => {
+    const next = query.data?.nextCursor
+    if (next) {
+      setTrail((t) => [...t, filters.cursor])
+      setFilters((f) => ({ ...f, cursor: next, page: f.page + 1 }))
+    } else set({ page: filters.page + 1 })
+  }
+  const goPrevious = () => {
+    if (trail.length > 0) {
+      const previous = trail[trail.length - 1]
+      setTrail((t) => t.slice(0, -1))
+      setFilters((f) => ({ ...f, cursor: previous, page: f.page - 1 }))
+    } else set({ page: filters.page - 1 })
+  }
 
   function selectTab(next: ExplorerTab) {
     setTab(next)
@@ -180,8 +199,8 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
         <div className="mt-4 flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--muted)' }}>
           <span>{formatNumber(data.total)} transactions · page {data.page} of {formatNumber(pages)}</span>
           <div className="flex gap-2">
-            <button className="btn btn-ghost !px-3" aria-label="Previous page" disabled={filters.page <= 1} onClick={() => set({ page: filters.page - 1 })}><ChevronLeft className="size-4" /></button>
-            <button className="btn btn-ghost !px-3" aria-label="Next page" disabled={filters.page >= pages} onClick={() => set({ page: filters.page + 1 })}><ChevronRight className="size-4" /></button>
+            <button className="btn btn-ghost !px-3" aria-label="Previous page" disabled={filters.page <= 1} onClick={goPrevious}><ChevronLeft className="size-4" /></button>
+            <button className="btn btn-ghost !px-3" aria-label="Next page" disabled={data.nextCursor !== undefined ? data.nextCursor === null : filters.page >= pages} onClick={goNext}><ChevronRight className="size-4" /></button>
           </div>
         </div>
       )}

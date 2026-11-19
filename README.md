@@ -45,6 +45,7 @@ Server only (never exposed to the browser):
 - `ARC_RPC_URL` Optional Arc RPC override
 - `RPC_PROXY_BASE_URL`, `RPC_PROXY_TOKEN`, `RPC_PROXY_CHAINS` Optional, provisioned by Arc Studio; outside Arc Studio the public Arc RPC is used
 - `PORT` Backend port (default 3001)
+- The backend also reads the public `VITE_QUICKPAY_REGISTRY_ADDRESS`, `VITE_QUICKPAY_ROUTER_ADDRESS` and `VITE_QUICKPAY_REGISTRY_FROM_BLOCK` (below) to index Router and Registry events
 - `INDEXER_RANGE`, `INDEXER_RANGE_CEILING`, `INDEXER_MIN_INTERVAL_MS`, `INDEXER_MAX_PENDING_WALLETS` Optional history indexer tuning
 
 Public (shipped to the browser, so never put secrets here):
@@ -64,6 +65,7 @@ Public (shipped to the browser, so never put secrets here):
 - `bun run test:render` renders every screen in a DOM
 - `bun run perf:report [dir]` prints first-visit download size of a production build (run `bunx vite build` first)
 - `bun run test:smoke` live checks against a running backend (uses the real Arc RPC and Across API)
+- `bun run test:history-live` live checks of history speed, cursor pagination, pending reconciliation and duplicates against a running backend and database
 - `bun run test:bridge-live` read-only live checks of Across, LI.FI and Circle against Arc Mainnet (sends nothing, needs no wallet)
 - `bun run backend:url https://your-backend` points the production `/api/*` at your hosted backend (see `docs/history-deployment.md`)
 - `bun run contracts:build`, `bun run contracts:test` build and test the contract

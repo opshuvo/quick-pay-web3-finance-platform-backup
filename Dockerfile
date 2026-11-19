@@ -7,6 +7,7 @@ RUN bun install --production --frozen-lockfile
 COPY server ./server
 COPY shared ./shared
 COPY src/onchain-facts.ts ./src/onchain-facts.ts
+COPY src/contracts ./src/contracts
 ENV PORT=3001
 EXPOSE 3001
 USER bun
