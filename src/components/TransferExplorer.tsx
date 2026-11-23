@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -8,7 +9,7 @@ import { TxRow } from '@/components/TxRow'
 import { EmptyState, ErrorState, Notice, PageHeader, Skeleton, Spinner } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
-import { DEFAULT_FILTERS, historyQuery, useHistory, type HistoryFilters, type HistoryRow } from '@/hooks/useHistory'
+import { DEFAULT_FILTERS, historyQuery, prefetchHistory, useHistory, type HistoryFilters, type HistoryRow } from '@/hooks/useHistory'
 import { isServiceDown } from '@/lib/api'
 import { chainCsv } from '@/lib/chainHistory/read'
 import { historyServerUsable } from '@/lib/chainHistory/mode'
@@ -53,6 +54,8 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
   const [exporting, setExporting] = useState(false)
   const [selected, setSelected] = useState<HistoryRow | null>(null)
   const query = useHistory(address, filters)
+  const queryClient = useQueryClient()
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   // Cursor pagination: the cursors of the pages already visited, so Previous returns to the exact same rows.
   const [trail, setTrail] = useState<string[]>([])
   const set = (patch: Partial<HistoryFilters>) => {
@@ -72,6 +75,28 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
       setTrail((t) => t.slice(0, -1))
       setFilters((f) => ({ ...f, cursor: previous, page: f.page - 1 }))
     } else set({ page: filters.page - 1 })
+  }
+
+  // The next page and the other tabs are fetched quietly once this view has loaded, so opening them takes no wait.
+  const nextCursor = query.data?.nextCursor
+  const fromServer = Boolean(query.data) && query.data?.coverage.source !== 'browser'
+  useEffect(() => {
+    if (nextCursor) prefetchHistory(queryClient, address, { ...filters, cursor: nextCursor, page: filters.page + 1 })
+  }, [nextCursor, queryClient, address, filters])
+  useEffect(() => {
+    if (!fromServer || lockedTab) return
+    for (const t of TABS) if (t.id !== 'all') prefetchHistory(queryClient, address, { ...DEFAULT_FILTERS, ...TAB_FILTERS[t.id] })
+  }, [fromServer, lockedTab, queryClient, address])
+
+  /** Typing searches by itself after a short pause; Enter applies it at once. Short fragments wait for more characters. */
+  function onSearchInput(value: string) {
+    setSearch(value)
+    clearTimeout(searchTimer.current)
+    const next = value.trim().toLowerCase()
+    if (next !== '' && next.length < 4) return
+    searchTimer.current = setTimeout(() => {
+      if (next !== filters.q) set({ q: next })
+    }, 300)
   }
 
   function selectTab(next: ExplorerTab) {
@@ -155,7 +180,7 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
           <label className="relative">
             <span className="sr-only">Search by transaction hash or address</span>
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2" style={{ color: 'var(--subtle)' }} />
-            <input className="field mono !pl-10" placeholder="Search tx hash or wallet address (0x…)" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="field mono !pl-10" placeholder="Search tx hash or wallet address (0x…)" value={search} onChange={(e) => onSearchInput(e.target.value)} />
           </label>
           <input aria-label="From date" type="date" className="field sm:w-40" value={filters.since} onChange={(e) => set({ since: e.target.value })} />
           <input aria-label="To date" type="date" className="field sm:w-40" value={filters.until} onChange={(e) => set({ until: e.target.value })} />
@@ -174,7 +199,8 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
         )}
       </div>
 
-      <div className="card px-2 py-1 sm:px-4">
+      <div className="card relative overflow-hidden px-2 py-1 sm:px-4" aria-busy={query.isFetching}>
+        {query.isFetching && !query.isLoading && <div className="refresh-bar" aria-hidden />}
         {query.isLoading ? (
           <div className="space-y-3 p-3">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14" />)}</div>
         ) : query.isError ? (
@@ -189,13 +215,13 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
             body={data.coverage.status === 'complete' ? 'No USDC token transfers match these filters for this wallet. Pending and failed transactions are listed under their own tabs.' : 'The indexer is still scanning older blocks. Matching transactions may appear as the backfill progresses.'}
           />
         ) : (
-          <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+          <ul className="tx-list divide-y" style={{ borderColor: 'var(--border)' }}>
             {data?.rows.map((row) => <TxRow key={`${row.txHash}-${row.logIndex}`} row={row} onSelect={setSelected} />)}
           </ul>
         )}
       </div>
 
-      {data && data.total > 0 && (
+      {data && data.total > 0 && !query.isPlaceholderData && (
         <div className="mt-4 flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--muted)' }}>
           <span>{formatNumber(data.total)} transactions · page {data.page} of {formatNumber(pages)}</span>
           <div className="flex gap-2">

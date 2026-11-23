@@ -17,21 +17,39 @@ interface ThemeValue {
 
 const ThemeContext = createContext<ThemeValue | null>(null)
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(initial)
-  useEffect(() => {
-    const root = document.documentElement
-    // Cross-fade colours on a switch, but not on the very first paint.
-    const switching = root.dataset.theme !== undefined && root.dataset.theme !== theme
-    if (switching) root.classList.add('theme-fade')
-    root.dataset.theme = theme
+/**
+ * Writes the theme to the page in the same frame as the tap. Transitions are switched off for that one frame, so
+ * every colour changes together instead of hundreds of elements fading one by one.
+ */
+function applyTheme(theme: Theme) {
+  const root = document.documentElement
+  if (root.dataset.theme === theme) return
+  root.classList.add('theme-instant')
+  root.dataset.theme = theme
+  try {
     localStorage.setItem(KEY, theme)
-    if (!switching) return
-    const timer = setTimeout(() => root.classList.remove('theme-fade'), 360)
-    return () => clearTimeout(timer)
+  } catch {
+    // Private mode: the theme still changes, it just is not remembered.
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-instant')))
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>(initial)
+  // First paint: no flash, no switching class.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
   }, [theme])
-  const toggle = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), [])
-  const value = useMemo(() => ({ theme, setTheme, toggle }), [theme, toggle])
+  const setTheme = useCallback((next: Theme) => {
+    applyTheme(next)
+    setThemeState(next)
+  }, [])
+  const toggle = useCallback(() => {
+    const next: Theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'
+    applyTheme(next)
+    setThemeState(next)
+  }, [])
+  const value = useMemo(() => ({ theme, setTheme, toggle }), [theme, setTheme, toggle])
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 

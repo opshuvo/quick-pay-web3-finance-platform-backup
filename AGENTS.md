@@ -117,3 +117,8 @@ All transaction and address links use Arc's official explorer (`https://explorer
 - Reads are database-only with keyset cursors (`server/history.ts`, `nextCursor`); the tip sync is background. Router/Registry events: `server/events.ts`. Pending records and receipt reconciliation: `server/pending.ts`, saved from the app by `src/lib/pendingSync.ts` when `ledgerAdd` records a new submission.
 - Local database: Docker container `quickpay-db` (named volume `quickpay_pgdata`), `DATABASE_URL` in `.env`. Restart the backend after changing `.env`.
 - `bun run test:history-live` verifies speed, pagination, dedupe and pending reconciliation against the running backend.
+
+## Instant History (client)
+- `src/hooks/useHistory.ts`: `historyQueryOptions` is the single read definition. The last confirmed first page per wallet and view is kept in localStorage (`quickpay.history.v1:<wallet>`, 12 views max, never pending rows) and shown while the live read runs. Switching tabs shows the matching rows of the previous view (`narrowRows`) instead of a blank list.
+- `TransferExplorer` prefetches the next page and the other tabs; `AppShell` prefetches History, Sent and Received when a wallet connects. Search applies itself after a 300 ms pause.
+- Server: `getHead` falls back to the newest indexed block when Arc is unreachable, so History keeps answering from the database. `server/rpc.ts` re-reads a quoted `.env` correctly after a 401.

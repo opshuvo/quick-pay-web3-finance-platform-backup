@@ -11,7 +11,9 @@ function currentRpcUrl(): string {
   const override = process.env.ARC_RPC_URL?.trim()
   if (override || config.rpcSource !== 'proxy') return config.rpcUrl
   try {
-    const env = new Map(readFileSync('.env', 'utf8').split('\n').map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)] as const))
+    // Values in .env may be wrapped in quotes; Bun strips them when it loads the file, so this reader does too.
+    const unquote = (v: string) => v.trim().replace(/^(['"])(.*)\1$/, '$2')
+    const env = new Map(readFileSync('.env', 'utf8').split('\n').filter((line) => line.includes('=')).map((line) => [line.slice(0, line.indexOf('=')), unquote(line.slice(line.indexOf('=') + 1))] as const))
     const base = env.get('RPC_PROXY_BASE_URL')?.trim()
     const token = env.get('RPC_PROXY_TOKEN')?.trim()
     if (base && token) return `${base}/api/rpc/Arc?_rpc_token=${token}`

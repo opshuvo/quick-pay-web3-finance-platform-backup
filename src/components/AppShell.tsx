@@ -1,13 +1,14 @@
 import { Suspense, useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { DEFAULT_FILTERS, prefetchHistory } from '@/hooks/useHistory'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { prefetchAllRoutes, prefetchRoute } from '@/routes'
-import { ChevronDown, ExternalLink, Moon, MoreHorizontal, Search, ShieldAlert, Sun, X } from 'lucide-react'
+import { ChevronDown, ExternalLink, Moon, MoreHorizontal, ShieldAlert, Sun } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Avatar } from '@/components/Avatar'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { BackButton } from '@/components/BackButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { GlobalSearch } from '@/components/GlobalSearch'
 import { Logo } from '@/components/Logo'
 import { MobileNav } from '@/components/MobileNav'
 import { NetworkBanner } from '@/components/NetworkBanner'
@@ -50,12 +51,19 @@ function prefetchFromEvent(event: { target: EventTarget }) {
 export function AppShell() {
   const [more, setMore] = useState(false)
   const [sidebarMore, setSidebarMore] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
   const location = useLocation()
   const wallet = useArcWallet()
+  const queryClient = useQueryClient()
   useEffect(() => {
     void prefetchAllRoutes()
   }, [])
+  // As soon as a wallet is connected the History, Sent and Received first pages are read in the background, so those screens open already filled.
+  useEffect(() => {
+    if (!wallet.address) return
+    prefetchHistory(queryClient, wallet.address, DEFAULT_FILTERS)
+    prefetchHistory(queryClient, wallet.address, { ...DEFAULT_FILTERS, direction: 'out', status: 'confirmed' })
+    prefetchHistory(queryClient, wallet.address, { ...DEFAULT_FILTERS, direction: 'in', status: 'confirmed' })
+  }, [wallet.address, queryClient])
   const moreActive = MORE_GROUPS.some((g) => g.items.some((i) => (i.to === '/' ? location.pathname === '/' : location.pathname === i.to || location.pathname.startsWith(`${i.to}/`))))
   const sidebarMoreOpen = sidebarMore || moreActive
 
@@ -109,26 +117,21 @@ export function AppShell() {
         <header className="app-header sticky top-0 z-30 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-1.5 px-3 py-2 sm:gap-3 sm:px-6 sm:py-2.5">
             <Link to="/" aria-label="Quick Pay home" className="shrink-0 lg:hidden"><Logo compact animated /></Link>
-            <GlobalSearch className="hidden max-w-md flex-1 lg:block" />
             <span className="chip ml-auto hidden xl:inline-flex" title="Network">
               <span className="pulse-dot size-1.5 rounded-full" style={{ background: wallet.wrongNetwork ? 'var(--warn)' : 'var(--success)' }} />
               Arc Mainnet · 5042
             </span>
             <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2 lg:ml-0">
-              <button type="button" aria-label={searchOpen ? 'Close search' : 'Search'} aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)} className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0 lg:hidden">
-                {searchOpen ? <X className="size-4" /> : <Search className="size-4" />}
-              </button>
               <a href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer" aria-label="Open Arc Explorer in a new tab" className="btn btn-ghost hidden sm:inline-flex !min-h-[44px] !px-3 transition-all duration-200 hover:scale-105 active:scale-95">
                 <ExternalLink className="size-4" aria-hidden />
                 <span className="hidden md:inline">Explorer</span>
               </a>
               <NotificationsMenu />
-              <span className="hidden sm:inline-flex"><ThemeButton /></span>
+              <ThemeButton />
               <WalletButton />
               <div className="hidden sm:block"><ProfileLink /></div>
             </div>
           </div>
-          {searchOpen && <div className="swap-in-down px-3 pb-3 sm:px-6 lg:hidden"><GlobalSearch /></div>}
         </header>
 
         <main className="mx-auto w-full max-w-6xl px-3 pb-32 pt-4 sm:px-6 sm:pt-6 lg:pb-12">

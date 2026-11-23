@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import { createElement, memo } from 'react'
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ExternalLink, Repeat2, Waypoints, type LucideIcon } from 'lucide-react'
 import { CopyButton, StatusBadge } from '@/components/ui'
 import { ARC_USDC, arcTxUrl } from '@/lib/arc'
@@ -33,7 +33,7 @@ export function rowTitle(row: HistoryRow): string {
 }
 
 /** One verified USDC transfer. Selecting it opens the detail drawer; the explorer link opens the chain explorer. */
-export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: HistoryRow) => void }) {
+function TxRowBase({ row, onSelect }: { row: HistoryRow; onSelect?: (row: HistoryRow) => void }) {
   const incoming = row.direction === 'in'
   const self = row.direction === 'self'
   const counterparty = incoming ? row.from : row.to
@@ -84,3 +84,5 @@ export function TxRow({ row, onSelect }: { row: HistoryRow; onSelect?: (row: His
     </li>
   )
 }
+
+export const TxRow = memo(TxRowBase)

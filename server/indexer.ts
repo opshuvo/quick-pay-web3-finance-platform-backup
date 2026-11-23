@@ -29,7 +29,35 @@ const blockTimes = new Map<bigint, Date>()
 
 /** One shared chain-head lookup: concurrent requests share a single RPC call; a recent value covers short outages. */
 const headValue = new SharedValue<bigint>(1_500, 60_000)
-export const getHead = (): Promise<bigint> => headValue.get(() => rpc(() => client.getBlockNumber()))
+let knownHead: bigint | undefined
+/** After a failed head lookup, reads skip Arc for a few seconds instead of waiting on its retries every time. */
+let headDownUntil = 0
+async function indexedHead(): Promise<bigint | undefined> {
+  if (knownHead !== undefined) return knownHead
+  const rows = (await requireDb().unsafe('select max(newest_scanned)::text as head from wallets').catch(() => [])) as { head: string | null }[]
+  return rows[0]?.head ? BigInt(rows[0].head) : undefined
+}
+/**
+ * The chain head. When Arc cannot be reached for longer than the short-outage grace, reads fall back to the newest
+ * block this server has already indexed (confirmation counts are then a little behind), so History keeps answering
+ * from the database instead of failing. A server that never saw the chain has nothing to fall back on and reports the error.
+ */
+export async function getHead(): Promise<bigint> {
+  if (Date.now() < headDownUntil) {
+    const fallback = await indexedHead()
+    if (fallback !== undefined) return fallback
+  }
+  try {
+    knownHead = await headValue.get(() => rpc(() => client.getBlockNumber()))
+    headDownUntil = 0
+    return knownHead
+  } catch (error) {
+    headDownUntil = Date.now() + 15_000
+    const fallback = await indexedHead()
+    if (fallback !== undefined) return fallback
+    throw error
+  }
+}
 
 interface WalletRow {
   address: string
