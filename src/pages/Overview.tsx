@@ -1,3 +1,4 @@
+import { OrbitalRings } from '@/components/OrbitalRings'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -59,6 +60,7 @@ export default function Overview() {
 
   return (
     <div className="relative isolate">
+      <OrbitalRings className="!-top-5 !bottom-auto -mx-4 h-[640px] sm:!-top-8 sm:-mx-8" />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-8">
         <div className="min-w-0 space-y-5 lg:space-y-8">
           {/* Header, balance and actions */}

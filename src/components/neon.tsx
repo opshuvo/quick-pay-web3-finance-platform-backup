@@ -1,3 +1,4 @@
+import NetworkArc from '@web3icons/react/icons/networks/NetworkArc'
 import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Eye, EyeOff, Wallet, type LucideIcon } from 'lucide-react'
@@ -20,9 +21,8 @@ export function NetworkBadge({ wrongNetwork }: { wrongNetwork: boolean }) {
   const color = wrongNetwork ? 'var(--warn)' : 'var(--success)'
   return (
     <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--ink-2)' }}>
-      <span className="relative flex size-2">
-        <span className="relative inline-flex size-2 rounded-full" style={{ background: color }} />
-      </span>
+      <span className="net-live" style={{ color }} aria-hidden />
+      {!wrongNetwork && <span className="chain-badge" style={{ width: 18, height: 18 }} role="img" aria-label="Arc logo"><NetworkArc variant="branded" size={18} /></span>}
       {wrongNetwork ? 'Wallet on another network' : 'Arc Mainnet'}
     </span>
   )

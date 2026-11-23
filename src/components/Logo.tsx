@@ -42,7 +42,7 @@ export function LogoMark({ size = 36, tile = true }: { size?: number; tile?: boo
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <LogoMark size={compact ? 32 : 40} />
+      <span className="logo-live"><LogoMark size={compact ? 32 : 40} /></span>
       <div className={compact ? 'hidden leading-none min-[400px]:block' : 'leading-none'}>
         <span className="display block text-[1.15rem] font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
           Quick<span className="gradient-text">Pay</span>

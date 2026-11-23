@@ -49,21 +49,29 @@
   --panel-hi: #0f1b30;
   --sidebar: #0a1222;
   --grid: transparent;
+  --grad-send: linear-gradient(135deg, #2f63e0 0%, #6d4de6 100%);
+  --grad-receive: linear-gradient(135deg, #0e7490 0%, #2f63e0 100%);
+  --hero-bg: linear-gradient(160deg, #11213b 0%, #0c182c 100%);
+  --orbit: #5b8cff;
+  --orbit-2: #3ad0e6;
+  --wash-1: rgba(91, 140, 255, 0.12);
+  --wash-2: rgba(58, 208, 230, 0.08);
+  --lift: 0 18px 44px -26px rgba(0, 0, 0, 0.6);
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #ffffff;
+  --bg: #f3f8ff;
   --bg-2: #ffffff;
   --surface: #ffffff;
-  --surface-strong: #f1f5f9;
-  --surface-muted: #f8fafc;
+  --surface-strong: #eaf2ff;
+  --surface-muted: #f6f9ff;
   --ink: #0a2540;
   --ink-2: #2b4467;
   --muted: #566a85;
   --subtle: #586a82;
-  --border: #e6ebf2;
-  --border-strong: #b6c3d6;
+  --border: #dce8fa;
+  --border-strong: #b4c8e6;
   --accent: #1f4fd8;
   --accent-2: #173fb0;
   --accent-btn: #1f4fd8;
@@ -76,7 +84,7 @@
   --emerald: #059669;
   --danger: #c4264f;
   --warn: #946500;
-  --blue-soft: #eef3ff;
+  --blue-soft: #e8f1ff;
   --emerald-soft: #e8f7f0;
   --warn-soft: #fdf3dc;
   --danger-soft: #fdecef;
@@ -87,8 +95,16 @@
   --grad-btn: #1f4fd8;
   --shadow: 0 1px 2px rgba(10, 37, 64, 0.05), 0 4px 14px -6px rgba(10, 37, 64, 0.08);
   --panel-hi: #ffffff;
-  --sidebar: #f8fafc;
+  --sidebar: #f7faff;
   --grid: transparent;
+  --grad-send: linear-gradient(135deg, #2563eb 0%, #6d4de6 100%);
+  --grad-receive: linear-gradient(135deg, #0e7490 0%, #2563eb 100%);
+  --hero-bg: linear-gradient(160deg, #ffffff 0%, #eaf3ff 100%);
+  --orbit: #2f6bff;
+  --orbit-2: #22b8d6;
+  --wash-1: rgba(47, 107, 255, 0.11);
+  --wash-2: rgba(34, 184, 214, 0.1);
+  --lift: 0 18px 44px -26px rgba(31, 79, 216, 0.38);
 }
 
 html {
@@ -1229,3 +1245,106 @@ a.card:hover, button.card:hover { border-color: var(--border-strong); transform:
 /* A figure that changes (a refreshed balance) settles in with a short fade, so an update is noticed without a jump. */
 .value-tick { animation: value-tick var(--dur) var(--ease) both; }
 @keyframes value-tick { from { opacity: 0.55; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* ================================================================================================
+ * Reference dashboard: light-blue canvas, premium balance card, gradient Send / Receive, rounded action
+ * cards, floating bottom navigation, and the Circle / Arc inspired orbital background.
+ * Everything that moves uses transform and opacity only, so it stays on the GPU and never re-lays-out.
+ * ============================================================================================== */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(880px 520px at 88% -6%, var(--wash-1), transparent 62%),
+    radial-gradient(720px 480px at -8% 34%, var(--wash-2), transparent 62%);
+}
+
+/* Balance card */
+.card-hero {
+  background: var(--hero-bg);
+  border-color: var(--border);
+  box-shadow: var(--lift);
+  border-radius: 1.25rem;
+}
+.card-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -60%;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, #ffffff 55%, transparent), transparent);
+  opacity: 0.5;
+  transform: translateX(0) skewX(-14deg);
+  animation: card-sheen 9s var(--ease) 1.2s infinite;
+}
+[data-theme='dark'] .card-hero::after { background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--orbit) 22%, transparent), transparent); opacity: 0.7; }
+@keyframes card-sheen {
+  0%, 70% { transform: translateX(0) skewX(-14deg); }
+  100% { transform: translateX(520%) skewX(-14deg); }
+}
+
+/* Send and Receive */
+.act { border-radius: 1rem; min-height: 56px; font-weight: 650; letter-spacing: 0.005em; overflow: hidden; isolation: isolate; }
+.act-send { color: #fff; background: var(--grad-send); box-shadow: 0 14px 26px -14px rgba(60, 80, 230, 0.7); border: 0; }
+.act-receive { color: #fff; background: var(--grad-receive); box-shadow: 0 14px 26px -14px rgba(14, 116, 144, 0.65); border: 0; }
+.act::after { content: ''; position: absolute; inset: 0; z-index: -1; background: #fff; opacity: 0; transition: opacity var(--dur) var(--ease); }
+.act-icon { border-radius: 999px; background: rgba(255, 255, 255, 0.2); height: 30px; width: 30px; }
+@media (hover: hover) {
+  .act-send:hover { background: var(--grad-send); transform: translateY(-1px); }
+  .act-receive:hover { background: var(--grad-receive); transform: translateY(-1px); }
+  .act:hover::after { opacity: 0.1; }
+}
+
+/* Action cards */
+.tile { border-radius: 1.25rem; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); min-height: 76px; }
+.tile-icon { height: 38px; width: 38px; border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--orbit) 16%, transparent), color-mix(in srgb, var(--orbit-2) 16%, transparent)); color: var(--accent); }
+@media (hover: hover) { .tile:hover { background: var(--surface); border-color: color-mix(in srgb, var(--orbit) 40%, var(--border)); box-shadow: var(--lift); } }
+
+/* Floating bottom navigation */
+.mnav {
+  left: 12px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -16px rgba(10, 37, 64, 0.32), 0 2px 6px rgba(10, 37, 64, 0.06);
+}
+[data-theme='dark'] .mnav { background: #0f1c33; box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.7); }
+.mnav-pill > span { inset: 6px 6px; border-radius: 1.1rem; background: linear-gradient(135deg, color-mix(in srgb, var(--orbit) 18%, transparent), color-mix(in srgb, var(--orbit-2) 14%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orbit) 30%, transparent); }
+
+/* Network indicator: the live dot sends out a soft ripple, the Arc logo sits beside the name. */
+.net-live { position: relative; display: inline-flex; height: 8px; width: 8px; border-radius: 999px; background: currentColor; }
+.net-live::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: net-ripple 2.6s var(--ease) infinite; }
+@keyframes net-ripple { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(3.2); opacity: 0; } }
+
+/* Orbital background (OrbitalRings): rotating arcs, orbiting light, ripples and a slow flowing sweep. */
+.orbit { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; contain: layout paint; --s: min(130vw, 780px); --cx: 70%; --cy: 150px; }
+.orbit > * { position: absolute; left: var(--cx); top: var(--cy); border-radius: 50%; }
+.orbit-ring { width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2); border: 1px solid color-mix(in srgb, var(--orbit) 16%, transparent); animation: orbit-spin var(--t) linear infinite; will-change: transform; }
+.orbit-ring::before { content: ''; position: absolute; inset: -1px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 62%, color-mix(in srgb, var(--orbit) 70%, transparent) 86%, transparent 88%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px)); }
+.orbit-dot { position: absolute; left: 50%; top: 0; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--orbit-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--orbit-2) 22%, transparent), 0 0 14px 4px color-mix(in srgb, var(--orbit-2) 55%, transparent); }
+.orbit-ring-1 { --size: calc(var(--s) * 0.36); --t: 34s; }
+.orbit-ring-2 { --size: calc(var(--s) * 0.62); --t: 52s; animation-direction: reverse; }
+.orbit-ring-2 .orbit-dot { background: var(--orbit); box-shadow: 0 0 0 3px color-mix(in srgb, var(--orbit) 22%, transparent), 0 0 14px 4px color-mix(in srgb, var(--orbit) 50%, transparent); }
+.orbit-ring-3 { --size: calc(var(--s) * 0.9); --t: 78s; }
+.orbit-wave { width: calc(var(--s) * 0.3); height: calc(var(--s) * 0.3); margin: calc(var(--s) * -0.15) 0 0 calc(var(--s) * -0.15); border: 1px solid color-mix(in srgb, var(--orbit) 40%, transparent); opacity: 0; animation: orbit-wave 7.5s cubic-bezier(0.2, 0.7, 0.3, 1) var(--d) infinite; will-change: transform, opacity; }
+.orbit-flow { width: calc(var(--s) * 0.74); height: calc(var(--s) * 0.74); margin: calc(var(--s) * -0.37) 0 0 calc(var(--s) * -0.37); background: conic-gradient(from 0deg, transparent 0 70%, color-mix(in srgb, var(--orbit-2) 30%, transparent) 92%, transparent); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 46px), #000 calc(100% - 45px), transparent 100%); mask: radial-gradient(farthest-side, transparent calc(100% - 46px), #000 calc(100% - 45px), transparent 100%); opacity: 0.55; animation: orbit-spin 22s linear infinite; will-change: transform; }
+@keyframes orbit-spin { to { transform: rotate(360deg); } }
+@keyframes orbit-wave { 0% { transform: scale(0.55); opacity: 0.45; } 100% { transform: scale(2.1); opacity: 0; } }
+@media (max-width: 640px) {
+  .orbit { --s: 150vw; --cx: 78%; --cy: 120px; }
+  .orbit-wave:nth-of-type(n + 3), .orbit-ring-3 { display: none; }
+}
+
+/* Logo: a slow ring of light circles the Q and the mark breathes; a soft ripple leaves it now and then. */
+.logo-live { position: relative; display: inline-flex; flex-shrink: 0; }
+.logo-live::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 70%, color-mix(in srgb, var(--orbit) 85%, transparent) 94%, transparent); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px)); animation: orbit-spin 7s linear infinite; }
+.logo-live::after { content: ''; position: absolute; inset: 0; border-radius: 28%; border: 1px solid color-mix(in srgb, var(--orbit) 55%, transparent); opacity: 0; animation: logo-ripple 5.5s var(--ease) 1s infinite; }
+.logo-live > svg { animation: logo-breathe-soft 5.5s ease-in-out infinite; }
+@keyframes logo-ripple { 0% { transform: scale(1); opacity: 0.55; } 60%, 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes logo-breathe-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }

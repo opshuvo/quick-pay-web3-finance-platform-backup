@@ -71,6 +71,25 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   await page.reload({ waitUntil: 'networkidle' })
   check((await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'saved theme is applied before first paint after reload')
 
+  // Orbital background: present, animating, cheap, and stopped by reduced motion.
+  const orbit = await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="orbital-rings"]')
+    if (!root) return null
+    const items = [...root.querySelectorAll<HTMLElement>('.orbit-ring, .orbit-wave, .orbit-flow')]
+    const running = items.filter((el) => { const cs = getComputedStyle(el); return cs.animationName !== 'none' && cs.display !== 'none' })
+    const r = root.getBoundingClientRect()
+    return { total: items.length, running: running.length, hidden: root.getAttribute('aria-hidden'), pointer: getComputedStyle(root).pointerEvents, width: Math.round(r.width), vw: window.innerWidth }
+  })
+  check(orbit !== null && orbit.running >= 4 && orbit.hidden === 'true' && orbit.pointer === 'none', `orbital rings render and animate on the phone dashboard (${orbit?.running}/${orbit?.total} layers running, decorative, no pointer events)`)
+  check(orbit !== null && orbit.width >= orbit.vw, `orbital layer spans the screen width (${orbit?.width}px of ${orbit?.vw}px)`)
+  const orbitPace = await framePacing(page, 1500)
+  check(orbitPace.worst < 100 && orbitPace.slow <= 6, `dashboard with rings animating: worst frame ${orbitPace.worst.toFixed(0)}ms, ${orbitPace.slow} slow of ${orbitPace.frames} (software-rendered, no GPU)`)
+  const sheet = await page.evaluate(() => ({ send: getComputedStyle(document.querySelector('.act-send') as Element).backgroundImage.slice(0, 30), receive: getComputedStyle(document.querySelector('.act-receive') as Element).backgroundImage.slice(0, 30), nav: getComputedStyle(document.querySelector('.mnav') as Element).borderRadius, left: getComputedStyle(document.querySelector('.mnav') as Element).left }))
+  check(sheet.send.startsWith('linear-gradient') && sheet.receive.startsWith('linear-gradient'), `Send and Receive are gradient buttons (${sheet.send} / ${sheet.receive})`)
+  check(sheet.left === '12px' && parseFloat(sheet.nav) >= 20, `bottom navigation floats inset ${sheet.left} with ${sheet.nav} corners`)
+  const contentClear = await page.evaluate(() => { const nav = document.querySelector('.mnav')!.getBoundingClientRect(); const main = document.querySelector('main')!; return parseFloat(getComputedStyle(main).paddingBottom) >= window.innerHeight - nav.top })
+  check(contentClear, 'page content keeps clear of the floating bottom navigation')
+
   // Bottom navigation and More sheet.
   const nav = await page.locator('nav a, nav button').count()
   check(nav >= 5, `bottom navigation present (${nav} items)`)
@@ -174,6 +193,9 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   const rp = await rm.newPage()
   await rp.goto(`${BASE}/bridge`, { waitUntil: 'networkidle' })
   const dur = await rp.evaluate(() => { const el = document.querySelector('.pane-in'); return el ? getComputedStyle(el).animationDuration : 'n/a' })
+  await rp.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  const ringDur = await rp.evaluate(() => { const el = document.querySelector('.orbit-ring'); return el ? getComputedStyle(el).animationDuration : 'n/a' })
+  check(ringDur === '1e-05s' || ringDur === '0.01s' || ringDur === 'n/a', `reduced motion stops the orbital rings (animation-duration ${ringDur})`)
   check(dur === '0.01s' || dur === '1e-05s' || dur === 'n/a', `reduced motion shortens animations (pane animation-duration ${dur})`)
   await rm.close()
   check(errors.length === 0, `no console or page errors on the desktop run${errors.length ? `: ${errors.slice(0, 2).join(' / ')}` : ''}`)

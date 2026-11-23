@@ -48,10 +48,10 @@ describe.each([['dark', dark], ['light', light]] as const)('%s theme is readable
   })
 })
 
-test('the palettes are navy and white with one blue accent', () => {
+test('the palettes are navy, and white on a light-blue canvas, with one blue accent', () => {
   expect(dark.bg.toLowerCase()).toBe('#0a1222')
   expect(light.surface.toLowerCase()).toBe('#ffffff')
-  expect(light.bg.toLowerCase()).toBe('#ffffff')
+  expect(light.bg.toLowerCase()).toBe('#f3f8ff')
   for (const t of [dark, light]) {
     expect(t['accent-btn']).toMatch(/^#[0-9a-f]{6}$/i)
     expect(t.cyan).toBe(t.accent)
@@ -151,5 +151,50 @@ describe('motion rules', () => {
     const block = sheet.slice(sheet.indexOf('@media (prefers-reduced-motion: reduce)'))
     expect(block).toContain('animation-duration: 0.01ms !important')
     expect(block).toContain('transition-duration: 0.01ms !important')
+  })
+})
+
+describe('reference dashboard', () => {
+  const stops = (value: string) => [...value.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0])
+
+  test('only Send and Receive carry gradients, and white text is readable over every stop', () => {
+    for (const t of [dark, light]) {
+      for (const key of ['grad-send', 'grad-receive']) {
+        expect(t[key]).toContain('linear-gradient')
+        const colours = stops(t[key])
+        expect(colours.length).toBeGreaterThanOrEqual(2)
+        for (const c of colours) expect(contrast('#ffffff', c)).toBeGreaterThanOrEqual(4.5)
+      }
+      expect(t['grad-btn']).toMatch(/^#[0-9a-f]{6}$/i)
+    }
+  })
+
+  test('the orbital background has colours in both themes and the balance card has its own surface', () => {
+    for (const t of [dark, light]) {
+      for (const key of ['orbit', 'orbit-2', 'hero-bg', 'wash-1', 'wash-2']) expect(t[key]).toBeTruthy()
+      for (const c of stops(t['hero-bg'])) expect(contrast(t.ink, c)).toBeGreaterThanOrEqual(7)
+      for (const c of stops(t['hero-bg'])) expect(contrast(t.muted, c)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  test('every orbital, ripple and sheen animation moves only transform and opacity', () => {
+    for (const name of ['orbit-spin', 'orbit-wave', 'card-sheen', 'net-ripple', 'logo-ripple', 'logo-breathe-soft']) {
+      const start = css.indexOf(`@keyframes ${name}`)
+      expect(start).toBeGreaterThan(-1)
+      let depth = 0
+      let end = start
+      for (let i = css.indexOf('{', start); i < css.length; i++) {
+        if (css[i] === '{') depth++
+        if (css[i] === '}' && --depth === 0) { end = i; break }
+      }
+      const props = [...css.slice(css.indexOf('{', start) + 1, end).matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1])
+      for (const prop of props) expect(['transform', 'opacity']).toContain(prop)
+    }
+  })
+
+  test('the floating bottom bar is inset from the screen edges', () => {
+    const bar = css.slice(css.lastIndexOf('/* Floating bottom navigation */'))
+    expect(bar).toMatch(/left:\s*12px/)
+    expect(bar).toMatch(/border-radius:\s*1\.5rem/)
   })
 })

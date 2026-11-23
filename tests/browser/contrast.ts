@@ -52,7 +52,18 @@ for (const theme of ['light', 'dark'] as const) {
         if (r.width === 0 || r.height === 0 || cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue
         if (el.closest('.sr-only, [aria-hidden="true"], script, style, [disabled]')) continue
         let fg = parse(cs.color)
-        const bg = bgOf(el)
+        let bg = bgOf(el)
+        // Text on a gradient is judged against its worst colour stop.
+        let worstStop: RGBA | null = null
+        for (let n: Element | null = el; n; n = n.parentElement) {
+          const img = getComputedStyle(n).backgroundImage
+          if (img.includes('gradient')) {
+            const stops = [...img.matchAll(/rgba?\([^)]+\)/g)].map((m) => parse(m[0])).filter((c) => c[3] === 1)
+            if (stops.length >= 2) worstStop = stops.reduce((w, c) => (ratio(fg, c) < ratio(fg, w) ? c : w))
+            break
+          }
+        }
+        if (worstStop) bg = worstStop
         fg = over(fg, bg)
         const size = parseFloat(cs.fontSize)
         const bold = Number(cs.fontWeight) >= 700
