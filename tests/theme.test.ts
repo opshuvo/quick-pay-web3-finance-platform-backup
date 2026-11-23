@@ -37,7 +37,8 @@ describe.each([['dark', dark], ['light', light]] as const)('%s theme is readable
     expect(contrast(t.muted, t.bg)).toBeGreaterThanOrEqual(4.5)
     expect(contrast(t.muted, t['bg-2'])).toBeGreaterThanOrEqual(4.5)
     // Hints and labels: large or secondary text only, so the WCAG 3:1 bar applies.
-    expect(contrast(t.subtle, t.bg)).toBeGreaterThanOrEqual(3)
+    // Small helper text (labels, nav captions) uses this colour, so it meets the 4.5 text ratio on every surface.
+    for (const surface of [t.bg, t.surface, t['surface-muted'], t['surface-strong']]) expect(contrast(t.subtle, surface)).toBeGreaterThanOrEqual(4.5)
   })
   test('the accent, status colours and focus ring stand out from the canvas', () => {
     for (const key of ['accent', 'success', 'danger', 'warn', 'focus']) expect(contrast(t[key], t.bg)).toBeGreaterThanOrEqual(3)

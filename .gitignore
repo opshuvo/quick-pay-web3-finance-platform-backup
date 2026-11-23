@@ -11,3 +11,4 @@ contracts/broadcast
 traces.jsonl
 console.jsonl
 *.log
+audit-shots/

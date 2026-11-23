@@ -54,8 +54,8 @@ export default function Settings() {
           <Row label="Network">Arc Mainnet</Row>
           <Row label="Chain ID">{ARC_CHAIN_ID} (0x{ARC_CHAIN_ID.toString(16)})</Row>
           <Row label="RPC"><span className="mono text-xs">{ARC_RPC_URL}</span></Row>
-          <Row label="Explorer"><a className="font-semibold underline" href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer">{ARC_EXPLORER.replace('https://', '')}</a></Row>
-          <Row label="USDC contract"><a className="mono text-xs underline" href={arcAddressUrl(ARC_USDC)} target="_blank" rel="noopener noreferrer">{ARC_USDC}</a></Row>
+          <Row label="Explorer"><a className="link-hit font-semibold underline" href={ARC_EXPLORER} target="_blank" rel="noopener noreferrer">{ARC_EXPLORER.replace('https://', '')}</a></Row>
+          <Row label="USDC contract"><a className="link-hit mono text-xs underline" href={arcAddressUrl(ARC_USDC)} target="_blank" rel="noopener noreferrer">{ARC_USDC}</a></Row>
           <Row label="Gas token">USDC (one balance, shown in 6 decimals)</Row>
         </div>
       </section>

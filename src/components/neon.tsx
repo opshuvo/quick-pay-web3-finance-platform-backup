@@ -83,7 +83,7 @@ export function AddressRow({ address }: { address: string }) {
     <div className="inline-flex items-center gap-1 rounded-xl border py-0.5 pl-3 pr-1" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)' }}>
       <Wallet className="size-3.5" style={subtle} aria-hidden />
       <span className="mono text-sm" style={{ color: 'var(--ink-2)' }} title={address}>{shortAddress(address)}</span>
-      <CopyButton value={address} label="Copy address" className="!size-9 transition-transform duration-200 hover:scale-110 active:scale-90" />
+      <CopyButton value={address} label="Copy address" className="!size-10 transition-transform duration-200 sm:!size-9 active:scale-95" />
     </div>
   )
 }
@@ -174,7 +174,7 @@ export function ActivityFeed({ address, rows, loading, connected, error, onSelec
     <section className="card rise p-4 sm:p-5" style={style} aria-label="Recent activity">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="display text-lg font-semibold">Recent activity</h2>
-        <Link to="/history" className="text-sm font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--accent)' }}>View all</Link>
+        <Link to="/history" className="link-hit text-sm font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--accent)' }}>View all</Link>
       </div>
       {address && (
         <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mb-2 flex min-h-[44px] items-center justify-between gap-3 rounded-xl border px-4 text-sm font-semibold transition-colors duration-150 hover:bg-[var(--surface-strong)]" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--ink)' }}>

@@ -21,7 +21,7 @@
   --ink: #e9eef7;
   --ink-2: #c4cee0;
   --muted: #9aa9c2;
-  --subtle: #7486a3;
+  --subtle: #8092ae;
   --border: #1d2d49;
   --border-strong: #35507c;
   --accent: #7aa7ff;
@@ -61,7 +61,7 @@
   --ink: #0a2540;
   --ink-2: #2b4467;
   --muted: #566a85;
-  --subtle: #6b7e99;
+  --subtle: #586a82;
   --border: #e6ebf2;
   --border-strong: #b6c3d6;
   --accent: #1f4fd8;
@@ -1219,3 +1219,13 @@ a.card:hover, button.card:hover { border-color: var(--border-strong); transform:
 /* Lists and tables: rows ease in when a page of results arrives. Stable rows are not re-keyed, so a refresh never flickers. */
 .tx-list > li, .tx-table tbody tr { animation: row-in var(--dur) var(--ease) both; }
 @keyframes row-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Touch: a text link keeps its look but gets a 44px-tall hit area on touch screens, offset so nothing shifts. */
+.link-hit { position: relative; }
+@media (pointer: coarse) {
+  .link-hit { display: inline-flex; align-items: center; min-height: 44px; margin-block: -12px; }
+}
+
+/* A figure that changes (a refreshed balance) settles in with a short fade, so an update is noticed without a jump. */
+.value-tick { animation: value-tick var(--dur) var(--ease) both; }
+@keyframes value-tick { from { opacity: 0.55; transform: translateY(3px); } to { opacity: 1; transform: none; } }

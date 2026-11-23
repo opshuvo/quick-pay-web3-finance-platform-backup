@@ -35,12 +35,13 @@ export function AmountInput({ value, onChange, balance, decimals = 6, balanceLoa
         />
         <span className="text-base font-semibold" style={{ color: 'var(--subtle)' }}>{symbol}</span>
       </div>
-      {onMax && (
+      {/* The balance row is reserved while the balance loads, so the form does not jump when it arrives. */}
+      {(onMax || balanceLoading) && (
         <div className="mt-2 flex items-center justify-between text-xs">
           <span style={{ color: 'var(--subtle)' }}>
             {balanceLoading ? 'Loading balance…' : balance === undefined ? 'Balance unavailable' : `Balance ${formatTokenAmount(balance, decimals, { maxFrac: 6 })} ${symbol}`}
           </span>
-          <button type="button" disabled={balance === undefined || disabled} onClick={onMax} className="min-h-[32px] px-2 font-semibold disabled:opacity-40" style={{ color: 'var(--accent)' }}>
+          <button type="button" disabled={!onMax || balance === undefined || disabled} onClick={onMax} className="min-h-[32px] px-2 font-semibold disabled:opacity-40 [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:px-3" style={{ color: 'var(--accent)' }}>
             Max
           </button>
         </div>

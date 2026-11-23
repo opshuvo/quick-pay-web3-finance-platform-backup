@@ -1,3 +1,4 @@
+import { whenIdle } from '@/lib/idle'
 import { queryOptions, useQuery, type QueryClient } from '@tanstack/react-query'
 import type { Analytics, Coverage, HistoryRow } from '../../shared/api-types'
 import { api } from '@/lib/api'
@@ -162,7 +163,8 @@ export function historyQueryOptions(address: string | undefined, filters: Histor
 /** Warms the cache for views the user is likely to open next, so they open without a wait. Cheap: the server answers from its database. */
 export function prefetchHistory(client: QueryClient, address: string | undefined, filters: HistoryFilters) {
   if (!address) return
-  void client.prefetchQuery({ ...historyQueryOptions(address, filters), staleTime: 5_000 })
+  // Background read: it waits for an idle moment, and does nothing if the same page is already fresh in the cache.
+  whenIdle(() => void client.prefetchQuery({ ...historyQueryOptions(address, filters), staleTime: 5_000 }))
 }
 
 /** `background`: a read nobody is watching closely (the notification bell), so it polls slowly and leaves the CPU to the screen. */

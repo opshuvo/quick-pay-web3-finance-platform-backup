@@ -110,7 +110,7 @@ export function AppShell() {
         {/* Header */}
         <header className="app-header sticky top-0 z-30 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-1.5 px-3 py-2 sm:gap-3 sm:px-6 sm:py-2.5">
-            <Link to="/" aria-label="Quick Pay home" className="shrink-0 lg:hidden"><Logo compact /></Link>
+            <Link to="/" aria-label="Quick Pay home" className="-m-1.5 shrink-0 rounded-xl p-1.5 lg:hidden"><Logo compact /></Link>
             <span className="chip ml-auto hidden xl:inline-flex" title="Network">
               <span className="pulse-dot size-1.5 rounded-full" style={{ background: wallet.wrongNetwork ? 'var(--warn)' : 'var(--success)' }} />
               Arc Mainnet · 5042

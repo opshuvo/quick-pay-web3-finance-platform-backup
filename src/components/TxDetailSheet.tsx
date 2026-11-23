@@ -10,7 +10,7 @@ function AddressLine({ address }: { address: string }) {
   return (
     <span className="inline-flex items-center gap-1">
       <a className="mono break-all text-xs underline" href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer">{address}</a>
-      <CopyButton value={address} label="Copy address" className="!size-8 shrink-0" />
+      <CopyButton value={address} label="Copy address" className="!size-10 shrink-0 sm:!size-8" />
     </span>
   )
 }

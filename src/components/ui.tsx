@@ -112,7 +112,7 @@ export function CopyButton({ value, label = 'Copy', className }: { value: string
 
 export function ExplorerLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+    <a href={href} target="_blank" rel="noopener noreferrer" className="link-hit inline-flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
       {children}
       <ExternalLink className="size-3.5" aria-hidden />
     </a>
@@ -122,10 +122,10 @@ export function ExplorerLink({ href, children }: { href: string; children: React
 export function AddressChip({ address, copy = true }: { address: string; copy?: boolean }) {
   return (
     <span className="inline-flex items-center gap-0.5">
-      <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mono text-sm" style={{ color: 'var(--ink-2)' }} title={address}>
+      <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="link-hit mono text-sm" style={{ color: 'var(--ink-2)' }} title={address}>
         {shortAddress(address)}
       </a>
-      {copy && <CopyButton value={address} label="Copy address" className="!size-8" />}
+      {copy && <CopyButton value={address} label="Copy address" className="!size-10 sm:!size-8" />}
     </span>
   )
 }

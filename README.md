@@ -70,6 +70,7 @@ Public (shipped to the browser, so never put secrets here):
 - `bun run perf:report [dir]` prints first-visit download size of a production build (run `bunx vite build` first)
 - `bun run test:smoke` live checks against a running backend (uses the real Arc RPC and Across API)
 - `bun run test:history-live` live checks of history speed, cursor pagination, pending reconciliation and duplicates against a running backend and database
+- `bun run test:browser` drives the production build in a real Chromium on a phone and a desktop viewport, in light and dark: console errors, layout shift, tap sizes, text contrast, animation frame pacing, and a connected-wallet walk-through with a read-only wallet stand-in that rejects every signature. Needs `bunx vite preview --port 4173`, the backend on :3001 for the connected run, and Playwright's Chromium (`bunx playwright install chromium`)
 - `bun run test:bridge-live` read-only live checks of Across, LI.FI and Circle against Arc Mainnet (sends nothing, needs no wallet)
 - `bun run backend:url https://your-backend` points the production `/api/*` at your hosted backend (see `docs/history-deployment.md`)
 - `bun run contracts:build`, `bun run contracts:test` build and test the contract

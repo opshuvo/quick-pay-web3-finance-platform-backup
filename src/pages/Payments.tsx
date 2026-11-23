@@ -24,7 +24,7 @@ function Section({ title, to, icon: Icon, direction, onSelect }: { title: string
         <h2 className="display flex items-center gap-2 text-lg font-semibold">
           <Icon className="size-[18px]" style={{ color: direction === 'in' ? 'var(--success)' : 'var(--cyan)' }} aria-hidden /> {title}
         </h2>
-        <Link to={to} className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>View all</Link>
+        <Link to={to} className="link-hit text-sm font-semibold" style={{ color: 'var(--accent)' }}>View all</Link>
       </div>
       {!isConnected ? (
         <EmptyState title="Connect a wallet" body="Payments are looked up by your wallet address." />

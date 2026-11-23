@@ -22,7 +22,8 @@
     "perf:report": "bun run ./scripts/perf-report.ts",
     "test:smoke": "bun run tests/api.smoke.ts",
     "test:bridge-live": "bun run tests/bridge.live.ts",
-    "test:history-live": "bun run tests/history.live.ts"
+    "test:history-live": "bun run tests/history.live.ts",
+    "test:browser": "bun tests/browser/audit.ts && bun tests/browser/interactions.ts && bun tests/browser/connected.ts && bun tests/browser/contrast.ts"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.19.2",
@@ -64,6 +65,7 @@
     "happy-dom": "^21.0.4",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "playwright-core": "1.65.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "~7.0.2",

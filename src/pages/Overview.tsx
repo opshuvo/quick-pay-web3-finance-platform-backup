@@ -86,7 +86,7 @@ export default function Overview() {
                   {wallet.balanceLoading ? (
                     <Skeleton className="h-14 w-60" />
                   ) : wallet.balanceRaw !== undefined ? (
-                    <span className="display min-w-0 truncate text-4xl font-bold tabular-nums min-[400px]:text-5xl sm:text-6xl" style={{ color: 'var(--ink)' }}>{hidden ? '••••••' : displayUsdc(wallet.balanceRaw)}</span>
+                    <span key={hidden ? 'hidden' : String(wallet.balanceRaw)} className="value-tick display min-w-0 truncate text-4xl font-bold tabular-nums min-[400px]:text-5xl sm:text-6xl" style={{ color: 'var(--ink)' }}>{hidden ? '••••••' : displayUsdc(wallet.balanceRaw)}</span>
                   ) : (
                     <span className="display text-2xl font-bold" style={{ color: 'var(--muted)' }}>Balance unavailable</span>
                   )}
@@ -123,7 +123,7 @@ export default function Overview() {
           <section className="card defer rise p-4 sm:p-5" style={rise(4)}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="display text-lg font-semibold">Payment requests</h2>
-              <Link to="/requests" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>Manage</Link>
+              <Link to="/requests" className="link-hit text-sm font-semibold" style={{ color: 'var(--accent)' }}>Manage</Link>
             </div>
             {!wallet.isConnected ? (
               <EmptyState title="No wallet connected" body="Connect to see requests you created." />

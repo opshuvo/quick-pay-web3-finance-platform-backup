@@ -12,7 +12,8 @@ import { Notice, PageHeader, Row, Skeleton, Spinner, StatusBadge } from '@/compo
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { useDebounced } from '@/hooks/useDebounced'
-import { useNow } from '@/hooks/useNow'
+import { Countdown } from '@/components/Countdown'
+import { useHasPassed } from '@/hooks/useNow'
 import { QuoteTimeoutError, QuoteUnavailableError, useSwapQuote } from '@/hooks/useSwapQuote'
 import { useSwapExecution } from '@/hooks/useSwapExecution'
 import { useTokenList } from '@/hooks/useTokenList'
@@ -87,8 +88,6 @@ export default function Swap() {
     enabled: deployOk && wallet.onArc && !sameToken && !overBalance,
   })
   const q = quote.data
-  // Tick once a second only while a quote is on screen (the countdown); an idle form does not re-render.
-  const now = useNow(1000, Boolean(q))
   const unavailable = quote.error instanceof QuoteUnavailableError
   const quoteApiError = quote.error instanceof ApiError || quote.error instanceof QuoteTimeoutError ? quote.error.message : null
 
@@ -102,9 +101,9 @@ export default function Swap() {
   })
   const needsApproval = amountRaw !== undefined && (allowance.data ?? 0n) < amountRaw
 
-  const ageMs = q ? now - q.fetchedAt : 0
-  const expired = Boolean(q) && ageMs >= QUOTE_TTL_MS && !quote.isFetching
-  const secondsLeft = q ? Math.max(0, Math.ceil((QUOTE_TTL_MS - ageMs) / 1000)) : 0
+  // One timer flips this at the moment the quote goes stale; the visible countdown re-renders only its own digits.
+  const quoteDeadline = q ? q.fetchedAt + QUOTE_TTL_MS : undefined
+  const expired = useHasPassed(quoteDeadline) && !quote.isFetching
   const impact = q?.priceImpactPct ?? 0
   const highImpact = impact / 100 > PRICE_IMPACT_BLOCK
   const referenceGap = q?.engine === 'uniswap-api' && q.referenceOut && q.referenceOut > 0n ? Number(((q.referenceOut - q.amountOut) * 10_000n) / q.referenceOut) / 10_000 : 0
@@ -260,7 +259,7 @@ export default function Swap() {
             <Row label="Network fee (est.)">{shownQuote.gasUsdc === null ? 'Shown by your wallet' : `≈ ${displayUnits(shownQuote.gasUsdc, 6, 4, 6)} USDC`}</Row>
             <Row label="Quote">
               <span className="inline-flex items-center gap-2">
-                {expired ? <span style={{ color: 'var(--danger)' }}>Expired</span> : <span className="tabular-nums">Fresh for {secondsLeft}s</span>}
+                {expired ? <span style={{ color: 'var(--danger)' }}>Expired</span> : <Countdown deadline={quoteDeadline ?? 0} before="Fresh for " />}
                 <button type="button" aria-label="Refresh quote" onClick={() => void quote.refetch()} disabled={quote.isFetching} className="inline-flex size-8 items-center justify-center rounded-lg">
                   <RefreshCw className={`size-4 ${quote.isFetching ? 'animate-spin' : ''}`} aria-hidden />
                 </button>
@@ -286,7 +285,7 @@ export default function Swap() {
           <summary className="min-h-[36px] cursor-pointer text-sm font-semibold">Slippage tolerance: {(slippageBps / 100).toFixed(2)}%</summary>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {[10, 50, 100].map((bps) => (
-              <button key={bps} className="chip min-h-[36px]" aria-pressed={slippageBps === bps} style={slippageBps === bps ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined} onClick={() => { setSlippageBps(bps); setSlippageText('') }}>{bps / 100}%</button>
+              <button key={bps} className="chip min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[48px]" aria-pressed={slippageBps === bps} style={slippageBps === bps ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined} onClick={() => { setSlippageBps(bps); setSlippageText('') }}>{bps / 100}%</button>
             ))}
             <input aria-label="Custom slippage percent" className="field !min-h-[36px] !w-24" inputMode="decimal" placeholder="Custom %" value={slippageText} onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && applySlippage(e.target.value)} />
           </div>

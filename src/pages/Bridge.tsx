@@ -15,7 +15,8 @@ import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { useDebounced } from '@/hooks/useDebounced'
 import { useGasCheck } from '@/hooks/useGasCheck'
-import { useNow } from '@/hooks/useNow'
+import { Countdown } from '@/components/Countdown'
+import { useHasPassed } from '@/hooks/useNow'
 import { BRIDGE_ORIGIN_CHAIN_IDS } from '@/config'
 import { ACROSS_URL, acrossApi, cachedChains, rememberChains, type AcrossChain, type AcrossQuote, type FeeLine } from '@/lib/across'
 import { LIFI_URL, lifiApi, lifiToQuote, type LifiChain } from '@/lib/lifi'
@@ -137,13 +138,12 @@ export default function Bridge() {
     },
   })
   const q = quote.data
-  // Tick once a second only while a quote is on screen (the countdown); an idle form does not re-render.
-  const now = useNow(1000, Boolean(q))
   const needsApproval = q ? BigInt(q.checks.allowance.actual) < BigInt(q.checks.allowance.expected) : false
   const quoteError = quote.error instanceof ApiError || quote.error instanceof BridgeGuardError ? quote.error.message : quote.isError ? `Could not get a quote from ${providerInfo.label}.` : null
   const gas = useGasCheck(origin, wallet.address, q, needsApproval, amountRaw)
-  const secondsLeft = q ? Math.max(0, Math.floor(q.quoteExpiryTimestamp - now / 1000)) : 0
-  const expired = Boolean(q) && secondsLeft <= 0 && !quote.isFetching
+  // One timer flips this at the moment the quote expires; the visible countdown re-renders only its own digits.
+  const quoteDeadline = q ? q.quoteExpiryTimestamp * 1000 : undefined
+  const expired = useHasPassed(quoteDeadline) && !quote.isFetching
   const details = q?.fees.total.details
   const bridgeFees = details?.bridge?.details
   const canReview = Boolean(q && !expired && !overBalance && !recipientError && gas.ok !== false)
@@ -330,7 +330,7 @@ export default function Bridge() {
             <Row label="Route">{q.provider === 'lifi' ? `LI.FI${q.via ? ` via ${q.via}` : ''}` : 'Across'} · {name(origin)} → {name(destination)} · {q.inputToken.symbol} → {q.outputToken.symbol}{q.crossSwapType ? ` (${q.crossSwapType})` : ''}</Row>
             <Row label="Quote expires">
               <span className="inline-flex items-center gap-2">
-                {expired ? <span style={{ color: 'var(--danger)' }}>Expired</span> : <span className="tabular-nums">in {secondsLeft}s</span>}
+                {expired ? <span style={{ color: 'var(--danger)' }}>Expired</span> : <Countdown deadline={quoteDeadline ?? 0} round="floor" before="in " />}
                 <button type="button" aria-label="Refresh quote" onClick={() => void quote.refetch()} disabled={quote.isFetching} className="inline-flex size-8 items-center justify-center rounded-lg"><RefreshCw className={`size-4 ${quote.isFetching ? 'animate-spin' : ''}`} aria-hidden /></button>
               </span>
             </Row>
