@@ -53,10 +53,10 @@ export function ConfirmSheet({ open, title, onClose, children, locked }: Props) 
             aria-label={title}
             className="card relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-b-none p-5 outline-none sm:rounded-b-3xl"
             style={{ background: 'var(--bg-2)' }}
-            initial={{ y: 40, opacity: 0 }}
+            initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.26, ease: [0.2, 0.8, 0.2, 1] }}
           >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="display text-lg font-semibold">{title}</h2>

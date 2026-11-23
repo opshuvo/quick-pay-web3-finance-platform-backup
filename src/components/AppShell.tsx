@@ -1,3 +1,4 @@
+import { useSegmentedThumb } from '@/hooks/useSegmentedThumb'
 import { Suspense, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { DEFAULT_FILTERS, prefetchHistory } from '@/hooks/useHistory'
@@ -40,6 +41,7 @@ function prefetchFromEvent(event: { target: EventTarget }) {
 }
 
 export function AppShell() {
+  useSegmentedThumb()
   const [more, setMore] = useState(false)
   const [sidebarMore, setSidebarMore] = useState(false)
   const location = useLocation()

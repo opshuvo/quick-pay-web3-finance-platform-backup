@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDownLeft, Bell } from 'lucide-react'
+import { usePresence } from '@/hooks/usePresence'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { displayUsdc, formatRelative, shortAddress } from '@/lib/format'
 
 export function NotificationsMenu() {
   const [open, setOpen] = useState(false)
+  const menu = usePresence(open)
   const ref = useRef<HTMLDivElement>(null)
   const { isConnected } = useArcWallet()
   const { items, unread, markRead, isLoading, isError } = useNotifications()
@@ -40,8 +42,8 @@ export function NotificationsMenu() {
         <Bell className="size-4" aria-hidden />
         {unread > 0 && <span className="pulse-dot absolute right-2 top-2 size-2 rounded-full" style={{ background: 'var(--cyan)', boxShadow: '0 0 8px var(--cyan)' }} />}
       </button>
-      {open && (
-        <div className="card fixed inset-x-3 top-[62px] z-50 max-h-[70dvh] overflow-y-auto p-2 sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[360px]" style={{ background: 'var(--bg-2)' }} role="dialog" aria-label="Notifications">
+      {menu.mounted && (
+        <div data-state={menu.state} className="card pop pop-sheet fixed inset-x-3 top-[62px] z-50 max-h-[70dvh] overflow-y-auto p-2 sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[360px]" style={{ background: 'var(--bg-2)' }} role="dialog" aria-label="Notifications">
           <p className="px-3 pb-1 pt-2 text-sm font-semibold">Notifications</p>
           {!isConnected ? (
             <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>Connect a wallet to see incoming payments.</p>

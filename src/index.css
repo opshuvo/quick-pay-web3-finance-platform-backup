@@ -338,7 +338,7 @@ body::before {
   display: block;
   pointer-events: none;
   /* A small overshoot makes the glide feel physical without looking bouncy. */
-  transition: transform 420ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 200ms ease;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
 }
 .mnav-pill > span {
   position: absolute;
@@ -373,10 +373,10 @@ body::before {
   width: 44px;
   align-items: center;
   justify-content: center;
-  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .mnav-icon[data-active='true'] {
-  animation: mnav-hop 520ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: mnav-hop 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .mnav-item:active .mnav-icon {
   transform: scale(0.86);
@@ -405,13 +405,11 @@ body::before {
   border-radius: 999px;
   pointer-events: none;
   background: color-mix(in srgb, var(--accent) 45%, transparent);
-  animation: mnav-ripple 560ms ease-out forwards;
+  animation: mnav-ripple 400ms ease-out forwards;
 }
 @keyframes mnav-hop {
-  0% { transform: translateY(0) scale(0.9); }
-  35% { transform: translateY(-7px) scale(1.16); }
-  70% { transform: translateY(1px) scale(0.98); }
-  100% { transform: translateY(0) scale(1); }
+  from { transform: translateY(2px) scale(0.94); }
+  to { transform: none; }
 }
 @keyframes mnav-label-in {
   from { opacity: 0; transform: translateY(5px); }
@@ -435,7 +433,7 @@ body::before {
   transform: scale(0.95);
 }
 .back-arrow {
-  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .back-btn:hover .back-arrow,
 .back-btn:active .back-arrow {
@@ -540,7 +538,7 @@ html.theme-instant *::after {
   color: var(--ink);
   font-size: 0.75rem;
   font-weight: 600;
-  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), border-color 200ms ease, background-color 200ms ease, box-shadow 220ms ease;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, background-color 200ms ease, box-shadow 220ms ease;
 }
 .tile-icon {
   display: inline-flex;
@@ -631,7 +629,7 @@ summary {
   touch-action: manipulation;
 }
 .page-in {
-  animation: page-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: page-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes page-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -808,7 +806,7 @@ summary {
 }
 .sr-draw-late { animation-delay: 260ms; }
 .sr-burst { transform-origin: center; animation: sr-burst 750ms ease-out forwards; }
-.sr-shake { animation: sr-shake 460ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+.sr-shake { animation: sr-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
 @keyframes sr-spin { to { transform: rotate(360deg); } }
 @keyframes sr-halo { 0% { transform: scale(0.8); opacity: 0.55; } 100% { transform: scale(1.55); opacity: 0; } }
 @keyframes sr-draw { to { stroke-dashoffset: 0; } }
@@ -913,14 +911,14 @@ summary {
 @keyframes scan-breathe { 50% { opacity: 0.55; transform: scale(0.94); } }
 
 /* Smooth token switching: the panels trade places with a short slide and fade. */
-.swap-flip { transition: transform 0.45s cubic-bezier(0.3, 0.7, 0.2, 1); }
+.swap-flip { transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .swap-flip[data-flipped='true'] { transform: rotate(180deg); }
-.swap-in-up { animation: swap-in-up 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.swap-in-down { animation: swap-in-down 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-@keyframes swap-in-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes swap-in-down { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
-.token-pop { animation: token-pop 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-@keyframes token-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+.swap-in-up { animation: swap-in-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.swap-in-down { animation: swap-in-down 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes swap-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes swap-in-down { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.token-pop { animation: token-pop 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes token-pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* Hero balance: a slowly turning ring of light behind the figure. */
 .hero-ring {
@@ -944,7 +942,7 @@ summary {
 .live-dot[data-live='true']::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; animation: sr-halo 1.6s ease-out infinite; }
 
 /* Cards rise in with a gentle stagger. */
-.card-stagger > * { animation: swap-in-up 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 55ms); }
+.card-stagger > * { animation: swap-in-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 40ms); }
 
 /* ---------- Phones and tablets: fast first, pretty second. ---------- */
 html {
@@ -1089,8 +1087,8 @@ a.card:hover, button.card:hover { border-color: var(--border-strong); transform:
 .scan-bracket { filter: none; border-width: 2px; border-color: var(--accent); }
 .scan-line { background: linear-gradient(180deg, transparent 0%, transparent 92%, color-mix(in srgb, var(--accent) 45%, transparent) 99%, var(--accent) 100%); }
 .mnav-pill > span { box-shadow: none; background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.page-in { animation-duration: 160ms; }
-@keyframes page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.page-in { animation-duration: 240ms; }
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* Launch screen: the mark fades in over the page colour, nothing else moves. */
 .splash { background: var(--bg); animation-duration: 320ms; animation-delay: 0.7s; }
@@ -1146,3 +1144,78 @@ a.card:hover, button.card:hover { border-color: var(--border-strong); transform:
 .route-arrow { height: 1px; flex: 0 0 1.5rem; background: var(--border-strong); position: relative; }
 .route-arrow::after { content: ''; position: absolute; right: 0; top: -3px; width: 6px; height: 6px; border-top: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); transform: rotate(45deg); }
 .pick-row[data-selected='true'] { background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--accent); }
+
+/* ------------------------------------------------------------------------------------------------
+ * Motion system. One easing curve and two durations (220ms for small state changes, 280ms for panes
+ * and sheets). Only transform and opacity animate, so nothing re-lays-out while it moves, and no curve
+ * overshoots, so nothing bounces. Reduced-motion removes all of it (see the media query above).
+ * ---------------------------------------------------------------------------------------------- */
+:root {
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --dur: 220ms;
+  --dur-lg: 280ms;
+}
+
+/* Menus and popovers: open and close, with the panel kept mounted until it has finished leaving. */
+.pop { transform-origin: top right; }
+.net-menu.pop { transform-origin: top center; }
+.pop-sheet { transform-origin: top center; }
+.pop[data-state='open'] { animation: pop-in var(--dur) var(--ease) both; }
+.pop[data-state='closed'] { animation: pop-out 160ms var(--ease-in) both; pointer-events: none; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-4px) scale(0.985); } }
+
+/* Network selection: the chosen logo and name fade in, the check appears, rows ease between states. */
+.chain-swap { animation: chain-swap var(--dur) var(--ease) both; }
+@keyframes chain-swap { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.net-check { animation: check-in var(--dur) var(--ease) both; }
+@keyframes check-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+.net-option, .pick-row, [role='menuitemradio'] { transition: background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), color var(--dur) var(--ease); }
+.net-card, .net-chip { transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+
+/* Panes and route details change with a short fade and slide, never a jump. */
+.pane-in { animation: pane-in var(--dur-lg) var(--ease) both; }
+.fade-slide { animation: pane-in var(--dur) var(--ease) both; }
+@keyframes pane-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Segmented controls: a single pill glides to the selected option (positioned by useSegmentedThumb). */
+.segmented[data-thumb='on'] { position: relative; isolation: isolate; }
+.segmented[data-thumb='on']::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0;
+  width: var(--thumb-w, 0);
+  transform: translateX(var(--thumb-x, 0));
+  border-radius: 0.7rem;
+  background: var(--surface-strong);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.segmented[data-thumb='on'][data-glide='on']::before { transition: transform var(--dur-lg) var(--ease), width var(--dur-lg) var(--ease); }
+.segmented[data-thumb='on'] .seg-item[aria-selected='true'],
+.segmented[data-thumb='on'] .seg-item[aria-pressed='true'] { background: transparent; box-shadow: none; }
+
+/* Buttons and tiles: colours ease over 220ms, a press settles to 98% over 120ms. */
+.btn, .tile, .act {
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), transform 120ms var(--ease), opacity var(--dur) var(--ease);
+}
+.btn:active:not(:disabled), .act:active, .tile:active { transform: scale(0.98); }
+@media (hover: hover) {
+  .tile:hover { transform: translateY(-1px); }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-0.5px); }
+}
+@media (hover: none) {
+  .tile:hover, .btn-primary:hover:not(:disabled) { transform: none; }
+}
+.seg-item { transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+
+/* Loading: a slower, softer shimmer; the refresh bar and spinners stay on the same easing. */
+.skeleton { animation: shimmer 1.6s linear infinite; }
+.btn:focus-visible, .seg-item:focus-visible, .net-chip:focus-visible { transition: box-shadow 120ms var(--ease); }
+/* Lists and tables: rows ease in when a page of results arrives. Stable rows are not re-keyed, so a refresh never flickers. */
+.tx-list > li, .tx-table tbody tr { animation: row-in var(--dur) var(--ease) both; }
+@keyframes row-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }

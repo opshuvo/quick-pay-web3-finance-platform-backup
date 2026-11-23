@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
+import { usePresence } from '@/hooks/usePresence'
 import { THEME_PREFERENCES, useTheme, type ThemePreference } from '@/hooks/useTheme'
 
 const OPTIONS: Record<ThemePreference, { label: string; icon: LucideIcon; hint: string }> = {
@@ -28,14 +29,15 @@ export function ThemeMenu() {
     }
   }, [open])
 
+  const menu = usePresence(open)
   const Current = preference === 'system' ? Monitor : theme === 'dark' ? Moon : Sun
   return (
     <div ref={ref} className="relative">
       <button type="button" aria-label={`Theme: ${OPTIONS[preference].label}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0 sm:!px-3">
         <span key={`${preference}-${theme}`} className="theme-spin inline-flex"><Current className="size-4" aria-hidden /></span>
       </button>
-      {open && (
-        <div role="menu" aria-label="Theme" className="card swap-in-down absolute right-0 top-[calc(100%+8px)] z-50 w-56 p-1.5" style={{ background: 'var(--bg-2)' }}>
+      {menu.mounted && (
+        <div role="menu" aria-label="Theme" data-state={menu.state} className="card pop absolute right-0 top-[calc(100%+8px)] z-50 w-56 p-1.5" style={{ background: 'var(--bg-2)' }}>
           {THEME_PREFERENCES.map((id) => {
             const { label, icon: Icon, hint } = OPTIONS[id]
             return (

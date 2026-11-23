@@ -20,6 +20,7 @@ import NetworkSonic from '@web3icons/react/icons/networks/NetworkSonic'
 import NetworkUnichain from '@web3icons/react/icons/networks/NetworkUnichain'
 import { ProviderLogo, type ProviderId } from '@/components/ProviderLogo'
 import { TokenIcon } from '@/components/TokenIcon'
+import { usePresence } from '@/hooks/usePresence'
 import { useChainLogos } from '@/hooks/useChainLogos'
 import { Skeleton } from '@/components/ui'
 import { ARC_CHAIN_ID } from '@/lib/arc'
@@ -86,6 +87,7 @@ export interface ChainOption { chainId: number; name: string }
  */
 function ChainSelect({ label, value, options, onChange }: { label: 'FROM' | 'TO'; value: number; options: ChainOption[]; onChange: (chainId: number) => void }) {
   const [open, setOpen] = useState(false)
+  const menu = usePresence(open)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const root = useRef<HTMLDivElement>(null)
@@ -125,12 +127,14 @@ function ChainSelect({ label, value, options, onChange }: { label: 'FROM' | 'TO'
   return (
     <div ref={root} className="relative" onKeyDown={open ? onKey : undefined}>
       <button type="button" aria-haspopup="listbox" aria-expanded={open} aria-label={`${label === 'FROM' ? 'From' : 'To'} network: ${name}`} onClick={() => (open ? setOpen(false) : show())} className="net-chip">
-        <ChainIcon chainId={value} name={name} size={26} />
-        <span className="min-w-0 truncate font-semibold">{name}</span>
-        <ChevronDown className="size-4 shrink-0 text-[var(--muted)] transition-transform" style={{ transform: open ? 'rotate(180deg)' : undefined }} aria-hidden />
+        <span key={value} className="chain-swap inline-flex min-w-0 items-center gap-2.5">
+          <ChainIcon chainId={value} name={name} size={26} />
+          <span className="min-w-0 truncate font-semibold">{name}</span>
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-[var(--muted)] transition-transform duration-200" style={{ transform: open ? 'rotate(180deg)' : undefined }} aria-hidden />
       </button>
-      {open && (
-        <div className="net-menu card swap-in-down" style={{ background: 'var(--bg-2)' }}>
+      {menu.mounted && (
+        <div data-state={menu.state} className="net-menu card pop" style={{ background: 'var(--bg-2)' }}>
           {options.length > 7 && (
             <label className="relative block border-b p-2" style={{ borderColor: 'var(--border)' }}>
               <span className="sr-only">Search networks</span>
@@ -146,7 +150,7 @@ function ChainSelect({ label, value, options, onChange }: { label: 'FROM' | 'TO'
                 <li key={o.chainId} id={`${uid}-${o.chainId}`} role="option" aria-selected={selected} data-selected={selected} data-active={i === active} onMouseEnter={() => setActive(i)} onClick={() => choose(o)} className="net-option">
                   <ChainIcon chainId={o.chainId} name={o.name} size={28} />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{o.name}</span>
-                  {selected && <Check className="size-4 shrink-0 text-[var(--accent)]" aria-hidden />}
+                  {selected && <Check className="net-check size-4 shrink-0 text-[var(--accent)]" aria-hidden />}
                 </li>
               )
             })}

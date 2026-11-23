@@ -270,6 +270,7 @@ export default function Bridge() {
         </div>
       </div>
 
+      <div key={provider} className="pane-in">
       {provider === 'circle' ? <CircleBridge onStarted={() => setStoreVersion((v) => v + 1)} /> : (
       <div className="card space-y-4 p-5">
         {/* Input panel: an inset surface that follows the theme. */}
@@ -317,7 +318,7 @@ export default function Bridge() {
         {quote.isFetching && !q && <Skeleton className="h-40" />}
         {quoteError && !q && <Notice tone="warn" action={fallbackLink}>{quoteError}</Notice>}
         {q && route && (
-          <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
+          <div key={`${origin}-${destination}-${routeIdx}`} className="inner fade-slide divide-y px-4" style={{ borderColor: 'var(--border)' }}>
             <Row label="You receive (estimated)">{displayUnits(BigInt(q.expectedOutputAmount), q.outputToken.decimals, 2, 6)} {q.outputToken.symbol}</Row>
             <Row label="Minimum received">{displayUnits(BigInt(q.minOutputAmount), q.outputToken.decimals, 2, 6)} {q.outputToken.symbol}</Row>
             <Row label="Total fees">{displayUnits(BigInt(q.fees.total.amount), q.fees.total.token.decimals, 2, 6)} {q.fees.total.token.symbol} (≈ ${Number(q.fees.total.amountUsd).toFixed(2)})</Row>
@@ -350,6 +351,7 @@ export default function Bridge() {
         <p className="text-center text-xs" style={{ color: 'var(--muted)' }}>Powered by <a className="underline" href={providerInfo.url} target="_blank" rel="noopener noreferrer">{provider === 'lifi' ? 'LI.FI' : 'Across Protocol'}</a>. Prefer the official app? Use it directly at {providerInfo.site}.</p>
       </div>
       )}
+      </div>
 
       <section className="card p-5">
         <div className="mb-1 flex items-center justify-between gap-2">

@@ -39,10 +39,12 @@ export function TokenPicker({ label, value, tokens, unavailable = [], loading, e
         onClick={() => setOpen(true)}
         className="inner flex min-h-[48px] w-full items-center gap-3 px-3 py-2 text-left"
       >
-        {selected ? <TokenIcon symbol={selected.symbol} address={selected.address} size={30} /> : <span className="size-[30px] rounded-full" style={{ background: 'var(--surface-strong)' }} />}
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold">{selected?.symbol ?? (loading ? 'Loading…' : 'Select a token')}</span>
-          {selected && <span className="block truncate text-xs" style={{ color: 'var(--muted)' }}>{selected.name}</span>}
+        <span key={selected?.address ?? 'none'} className="chain-swap flex min-w-0 flex-1 items-center gap-3">
+          {selected ? <TokenIcon symbol={selected.symbol} address={selected.address} size={30} /> : <span className="size-[30px] rounded-full" style={{ background: 'var(--surface-strong)' }} />}
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">{selected?.symbol ?? (loading ? 'Loading…' : 'Select a token')}</span>
+            {selected && <span className="block truncate text-xs" style={{ color: 'var(--muted)' }}>{selected.name}</span>}
+          </span>
         </span>
         {selected?.balance !== undefined && (
           <span className="text-right text-xs tabular-nums" style={{ color: 'var(--muted)' }}>

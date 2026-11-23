@@ -17,13 +17,13 @@ export function TxProgress({ stage, hash, error, txUrl, walletText = 'Confirm in
   return (
     <div role="status" aria-live="polite" className="inner swap-in-up mt-4 p-4">
       {stage === 'wallet' && (
-        <div className="flex items-center gap-3">
+        <div className="fade-slide flex items-center gap-3">
           <StatusRing state="wallet" />
           <p className="text-sm font-semibold">{walletText}</p>
         </div>
       )}
       {stage === 'confirming' && (
-        <div className="flex items-center gap-3">
+        <div className="fade-slide flex items-center gap-3">
           <StatusRing state="pending" />
           <div className="min-w-0 space-y-0.5">
             <p className="text-sm font-semibold">Pending: waiting for confirmation…</p>
@@ -32,7 +32,7 @@ export function TxProgress({ stage, hash, error, txUrl, walletText = 'Confirm in
         </div>
       )}
       {stage === 'success' && (
-        <div className="flex items-start gap-3">
+        <div className="fade-slide flex items-start gap-3">
           <StatusRing state="success" />
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-semibold" style={{ color: 'var(--success)' }}>{successText}</p>
@@ -46,7 +46,7 @@ export function TxProgress({ stage, hash, error, txUrl, walletText = 'Confirm in
         </div>
       )}
       {stage === 'error' && (
-        <div className="flex items-start gap-3">
+        <div className="fade-slide flex items-start gap-3">
           <StatusRing state="failed" />
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>{error ?? 'Something went wrong.'}</p>

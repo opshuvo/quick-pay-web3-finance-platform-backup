@@ -9,6 +9,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { ChainIcon, NetworkRow, RoutePair, type ChainOption } from '../src/components/BridgeCard'
 import { ProviderLogo } from '../src/components/ProviderLogo'
 import { TokenIcon } from '../src/components/TokenIcon'
+import { usePresence } from '../src/hooks/usePresence'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -26,6 +27,8 @@ function mount(node: React.ReactNode) {
   act(() => root?.render(<QueryClientProvider client={client}>{node}</QueryClientProvider>))
   return host
 }
+
+const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 260)) })
 
 const CHAINS: ChainOption[] = [
   { chainId: 1, name: 'Ethereum' }, { chainId: 10, name: 'Optimism' }, { chainId: 137, name: 'Polygon' },
@@ -79,7 +82,7 @@ describe('network picker', () => {
     return <NetworkRow label="FROM" value={value} options={CHAINS} onChange={(id) => { setValue(id); onPick(id) }} />
   }
 
-  test('shows the chosen network with its logo, opens a list with a logo on every row, and marks the chosen one', () => {
+  test('shows the chosen network with its logo, opens a list with a logo on every row, and marks the chosen one', async () => {
     const picked: number[] = []
     const host = mount(<Harness onPick={(id) => picked.push(id)} />)
     const trigger = host.querySelector('button[aria-haspopup="listbox"]') as HTMLButtonElement
@@ -92,11 +95,14 @@ describe('network picker', () => {
     expect(options.filter((o) => o.getAttribute('aria-selected') === 'true').map((o) => o.textContent)).toEqual(['Ethereum'])
     act(() => (options[5] as HTMLElement).click())
     expect(picked).toEqual([5042])
+    // The panel plays its closing animation first, then leaves the page.
+    expect(host.querySelector('.net-menu')?.getAttribute('data-state')).toBe('closed')
+    await settle()
     expect(host.querySelector('[role="listbox"]')).toBeNull()
     expect((host.querySelector('button[aria-haspopup="listbox"]') as HTMLElement).textContent).toContain('Arc')
   })
 
-  test('Escape closes the list without changing the network', () => {
+  test('Escape closes the list without changing the network', async () => {
     const picked: number[] = []
     const host = mount(<Harness onPick={(id) => picked.push(id)} />)
     act(() => (host.querySelector('button[aria-haspopup="listbox"]') as HTMLButtonElement).click())
@@ -106,7 +112,32 @@ describe('network picker', () => {
     })
     const list = host.querySelector('[role="listbox"]')
     act(() => list?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    await settle()
     expect(host.querySelector('[role="listbox"]')).toBeNull()
     expect(picked).toEqual([])
+  })
+})
+
+describe('menu presence', () => {
+  function Panel({ open }: { open: boolean }) {
+    const menu = usePresence(open, 120)
+    return <div>{menu.mounted && <p data-state={menu.state}>panel</p>}</div>
+  }
+  test('opens at once, keeps the panel for its exit animation, then removes it', async () => {
+    const host = mount(<Panel open={false} />)
+    expect(host.querySelector('p')).toBeNull()
+    act(() => root?.render(<Panel open />))
+    expect(host.querySelector('p')?.getAttribute('data-state')).toBe('open')
+    act(() => root?.render(<Panel open={false} />))
+    expect(host.querySelector('p')?.getAttribute('data-state')).toBe('closed')
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)) })
+    expect(host.querySelector('p')).toBeNull()
+  })
+  test('re-opening during the exit cancels the removal', async () => {
+    const host = mount(<Panel open />)
+    act(() => root?.render(<Panel open={false} />))
+    act(() => root?.render(<Panel open />))
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)) })
+    expect(host.querySelector('p')?.getAttribute('data-state')).toBe('open')
   })
 })

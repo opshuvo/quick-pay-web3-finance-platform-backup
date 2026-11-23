@@ -121,3 +121,34 @@ describe('no screen is locked to one theme', () => {
     expect(offenders).toEqual([])
   })
 })
+
+describe('motion rules', () => {
+  const sheet = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  test('no easing curve overshoots, so nothing bounces', () => {
+    const curves = [...sheet.matchAll(/cubic-bezier\(([^)]+)\)/g)].map((m) => m[1].split(',').map(Number))
+    expect(curves.length).toBeGreaterThan(5)
+    for (const [, y1, , y2] of curves) {
+      expect(y1).toBeGreaterThanOrEqual(0)
+      expect(y1).toBeLessThanOrEqual(1)
+      expect(y2).toBeGreaterThanOrEqual(0)
+      expect(y2).toBeLessThanOrEqual(1)
+    }
+  })
+
+  test('the shared timing is 220ms for small changes and 280ms for panes', () => {
+    expect(sheet).toContain('--dur: 220ms;')
+    expect(sheet).toContain('--dur-lg: 280ms;')
+    expect(sheet).toMatch(/--ease: cubic-bezier\(0\.2, 0\.8, 0\.2, 1\)/)
+  })
+
+  test('nothing transitions "all" properties, which makes mobile layouts stutter', () => {
+    expect(/transition:\s*all\b/.test(sheet)).toBe(false)
+  })
+
+  test('reduced motion switches every animation and transition off', () => {
+    const block = sheet.slice(sheet.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(block).toContain('animation-duration: 0.01ms !important')
+    expect(block).toContain('transition-duration: 0.01ms !important')
+  })
+})
