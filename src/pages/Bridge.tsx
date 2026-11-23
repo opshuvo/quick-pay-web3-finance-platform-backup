@@ -4,7 +4,8 @@ import { usePublicClient, useReadContract, useSendTransaction, useSwitchChain, u
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, RefreshCw } from 'lucide-react'
 import { ActivityList } from '@/components/ActivityList'
-import { BridgeAmount, NetworkRow, ReverseButton } from '@/components/BridgeCard'
+import { BridgeAmount, NetworkRow, ReverseButton, RoutePair } from '@/components/BridgeCard'
+import { ProviderLogo } from '@/components/ProviderLogo'
 import { BridgeTracker } from '@/components/BridgeTracker'
 import { CircleBridge } from '@/components/CircleBridge'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
@@ -259,10 +260,10 @@ export default function Bridge() {
         <PageHeader title="Bridge" subtitle="Move USDC between Arc and other chains with Across, LI.FI or Circle. Networks, tokens, routes and quotes come live from the provider you pick." />
         <div className="segmented mb-3" role="tablist" aria-label="Bridge provider">
           {PROVIDERS.map((p) => (
-            <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy} className="seg-item" onClick={() => { setProvider(p.id); setRouteIdx(0) }}>{p.label}</button>
+            <button key={p.id} role="tab" aria-selected={provider === p.id} disabled={busy} className="seg-item provider-tab" onClick={() => { setProvider(p.id); setRouteIdx(0) }}><ProviderLogo id={p.id} size={20} />{p.label}</button>
           ))}
         </div>
-        <p key={provider} className="swap-in-up mb-3 text-xs" style={{ color: 'var(--muted)' }}>{providerInfo.tag}</p>
+        <p key={provider} className="swap-in-up mb-3 flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}><ProviderLogo id={provider} size={22} /><span><strong style={{ color: 'var(--ink-2)' }}>{providerInfo.label}</strong> · {providerInfo.tag}</span></p>
         <div className="space-y-3">
           <Notice tone="warn">Bridging moves <strong>real funds</strong> across chains and cannot be reversed. A route is offered only when {providerInfo.label} lists it.</Notice>
           {chains.isError && <Notice tone="danger" action={fallbackLink}>Could not load supported networks from {providerInfo.label}. You can bridge directly on {providerInfo.site}.</Notice>}
@@ -271,8 +272,8 @@ export default function Bridge() {
 
       {provider === 'circle' ? <CircleBridge onStarted={() => setStoreVersion((v) => v + 1)} /> : (
       <div className="card space-y-4 p-5">
-        {/* Input card: always dark glass so it reads the same in either theme. */}
-        <div data-theme="dark" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-white shadow-xl">
+        {/* Input panel: an inset surface that follows the theme. */}
+        <div className="inner p-4">
           <NetworkRow label="FROM" value={origin} options={originOptions} loading={chains.isLoading} className="mb-3" onChange={(v) => { setOrigin(v); if (v === destination) setDestination(v === ARC_CHAIN_ID ? 1 : ARC_CHAIN_ID); setRouteIdx(0) }} />
           <ReverseButton onClick={reverse} disabled={!canReverse} title={canReverse ? 'Swap From and To' : `Bridging from ${name(destination)} is not available in this wallet`} />
           <NetworkRow label="TO" value={destination} options={destinationOptions} loading={chains.isLoading} className="mb-4 mt-1" onChange={(v) => { setDestination(v); setRouteIdx(0) }} />
@@ -293,7 +294,7 @@ export default function Bridge() {
                 balanceLoading={balance.isLoading}
                 onMax={balance.data !== undefined && decimals.data !== undefined ? () => setAmount(displayUnits(balance.data, decimals.data, 0, decimals.data).replace(/,/g, '')) : undefined}
               />
-              {routes.data.length === 1 && route && route.originTokenSymbol !== route.destinationTokenSymbol && <p className="text-xs text-slate-400">You receive {route.destinationTokenSymbol} on {name(destination)}.</p>}
+              {routes.data.length === 1 && route && route.originTokenSymbol !== route.destinationTokenSymbol && <p className="text-xs text-[var(--muted)]">You receive {route.destinationTokenSymbol} on {name(destination)}.</p>}
             </div>
           ) : null}
         </div>
@@ -367,7 +368,7 @@ export default function Bridge() {
         {q && (
           <div>
             <p className="display text-center text-3xl font-bold tabular-nums">{displayUnits(BigInt(q.inputAmount), q.inputToken.decimals, 2, 6)} {q.inputToken.symbol}</p>
-            <p className="mb-3 text-center text-sm" style={{ color: 'var(--muted)' }}>{name(origin)} → {name(destination)}</p>
+            <RoutePair fromId={origin} fromName={name(origin)} toId={destination} toName={name(destination)} provider={q.provider === 'lifi' ? 'lifi' : 'across'} />
             <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
               <Row label="Receive at least">{displayUnits(BigInt(q.minOutputAmount), q.outputToken.decimals, 2, 6)} {q.outputToken.symbol}</Row>
               <Row label="Total fees">{displayUnits(BigInt(q.fees.total.amount), q.fees.total.token.decimals, 2, 6)} {q.fees.total.token.symbol}</Row>

@@ -4,8 +4,8 @@ import { useTheme } from '@/hooks/useTheme'
 import { walletModal } from '@/lib/walletModal'
 
 const ckTheme = {
-  dark: { '--ck-font-family': "'Manrope', sans-serif", '--ck-body-background': '#061029', '--ck-body-color': '#eef3ff', '--ck-primary-button-background': '#3b82f6', '--ck-border-radius': '16px' },
-  light: { '--ck-font-family': "'Manrope', sans-serif", '--ck-body-background': '#ffffff', '--ck-body-color': '#12143a', '--ck-primary-button-background': '#2563eb', '--ck-border-radius': '16px' },
+  dark: { '--ck-font-family': "'Inter', sans-serif", '--ck-body-background': '#0f1b30', '--ck-body-color': '#e9eef7', '--ck-primary-button-background': '#3f6fe6', '--ck-border-radius': '16px' },
+  light: { '--ck-font-family': "'Inter', sans-serif", '--ck-body-background': '#ffffff', '--ck-body-color': '#0a2540', '--ck-primary-button-background': '#1f4fd8', '--ck-border-radius': '16px' },
 } as const
 
 /** Opens the wallet picker (connect list when disconnected, profile when connected), exactly like ConnectKit's own button does. */

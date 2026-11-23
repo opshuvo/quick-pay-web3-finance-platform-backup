@@ -9,7 +9,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   return (
     <div className="mb-5 flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="display text-balance text-2xl font-bold sm:text-3xl">{title}</h1>
+        <h1 className="page-title display text-balance text-2xl font-bold sm:text-3xl">{title}</h1>
         {subtitle && (
           <p className="mt-1 max-w-[60ch] text-pretty text-sm" style={{ color: 'var(--muted)' }}>
             {subtitle}
@@ -78,9 +78,8 @@ export function Notice({ tone = 'info', children, action }: { tone?: 'info' | 'w
 }
 
 export function StatusBadge({ tone, children }: { tone: 'success' | 'danger' | 'warn' | 'neutral'; children: ReactNode }) {
-  const color = tone === 'success' ? 'var(--success)' : tone === 'danger' ? 'var(--danger)' : tone === 'warn' ? 'var(--warn)' : 'var(--muted)'
   return (
-    <span className="chip" style={{ color, borderColor: color }}>
+    <span className="pill" data-tone={tone === 'neutral' ? undefined : tone}>
       <span className="live-dot" data-live={tone === 'warn'} style={{ width: 6, height: 6 }} />
       {children}
     </span>

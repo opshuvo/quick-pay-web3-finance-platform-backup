@@ -37,14 +37,11 @@ export function Splash() {
   return (
     <div className="splash" data-leaving={leaving} role="status" aria-label="Quick Pay is loading" onClick={() => setVisible(false)}>
       <div className="splash-stage" aria-hidden>
-        <span className="splash-ring" />
-        <span className="splash-ring" />
-        <span className="splash-ring" />
-        <span className="splash-logo"><LogoMark size={92} animated /></span>
+                <span className="splash-logo"><LogoMark size={84} /></span>
       </div>
       <div className="splash-word text-center">
         <p className="display text-3xl font-bold tracking-tight">Quick<span className="gradient-text">Pay</span></p>
-        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: '#93a4cf' }}>USDC payments on Arc</p>
+        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--muted)' }}>USDC payments on Arc</p>
       </div>
       <div className="splash-bar" aria-hidden><span /></div>
     </div>

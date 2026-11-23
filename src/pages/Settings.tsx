@@ -1,17 +1,15 @@
 import { useConfig, useDisconnect } from 'wagmi'
-import { Moon, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddressChip, PageHeader, Row, StatusBadge } from '@/components/ui'
 import { Avatar } from '@/components/Avatar'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
 import { clearSession } from '@/hooks/useSession'
-import { useTheme } from '@/hooks/useTheme'
+import { ThemeSegmented } from '@/components/ThemeMenu'
 import { ARC_CHAIN_ID, ARC_EXPLORER, ARC_RPC_URL, ARC_USDC, arcAddressUrl } from '@/lib/arc'
 import { env } from '@/lib/env'
 
 export default function Settings() {
-  const { theme, setTheme } = useTheme()
   const wallet = useArcWallet()
   const config = useConfig()
   const { disconnect } = useDisconnect()
@@ -23,17 +21,11 @@ export default function Settings() {
 
       <section className="card p-5">
         <h2 className="display mb-3 text-lg font-semibold">Appearance</h2>
-        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Theme">
-          {([['dark', 'Dark', Moon], ['light', 'Light', Sun]] as const).map(([id, label, Icon]) => (
-            <button key={id} role="radio" aria-checked={theme === id} onClick={() => setTheme(id)} className="btn" style={{ background: theme === id ? 'var(--grad-btn)' : 'var(--surface-muted)', color: theme === id ? 'var(--accent-ink)' : 'var(--ink)', border: '1px solid var(--border)' }}>
-              <Icon className="size-4" /> {label}
-            </button>
-          ))}
-        </div>
+        <ThemeSegmented />
+        <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>System follows your device and changes with it. Dark or Light stays as you set it.</p>
       </section>
 
-      <section className="card card-hero relative overflow-hidden p-5">
-        <span className="hero-ring" aria-hidden />
+      <section className="card relative overflow-hidden p-5">
         <div className="mb-3 flex items-center gap-3">
           {wallet.isConnected && wallet.address && <Avatar address={wallet.address} label="Wallet" size={44} />}
           <h2 className="display text-lg font-semibold">Wallet</h2>

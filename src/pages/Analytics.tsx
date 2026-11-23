@@ -1,4 +1,6 @@
+import { Activity, ArrowDownLeft, ArrowUpRight, TrendingUp, type LucideIcon } from 'lucide-react'
 import { CoverageNotice } from '@/components/Coverage'
+import { MonthlyChart } from '@/components/MonthlyChart'
 import { AddressChip, EmptyState, ErrorState, PageHeader, Skeleton } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
@@ -6,12 +8,15 @@ import { useAnalytics } from '@/hooks/useHistory'
 import { isRpcUnavailable, isServiceDown } from '@/lib/api'
 import { displayUsdc, formatNumber } from '@/lib/format'
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({ label, value, sub, icon: Icon, tone }: { label: string; value: string; sub?: string; icon: LucideIcon; tone?: 'success' }) {
   return (
-    <div className="card p-4">
-      <p className="label">{label}</p>
-      <p className="display mt-1.5 text-2xl font-bold tabular-nums">{value}</p>
-      {sub && <p className="mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
+    <div className="card p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="header-card-label">{label}</p>
+        <span className="stat-icon" data-tone={tone}><Icon className="size-4" aria-hidden /></span>
+      </div>
+      <p className="display mt-3 text-2xl font-semibold tabular-nums">{value}</p>
+      {sub && <p className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
     </div>
   )
 }
@@ -38,47 +43,26 @@ export default function Analytics() {
 
   const a = query.data
   const complete = a.coverage.status === 'complete'
-  const max = a.monthly.reduce((m, x) => Math.max(m, Number(BigInt(x.sent) > BigInt(x.received) ? BigInt(x.sent) : BigInt(x.received))), 0)
-  const months = [...a.monthly].reverse()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-8">
       <PageHeader title="Analytics" subtitle="Calculated from USDC transfers indexed from Arc for your wallet. No estimates." />
       <CoverageNotice coverage={a.coverage} />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={complete ? 'Total sent' : 'Sent so far'} value={`${displayUsdc(BigInt(a.totalSent))}`} sub={`${formatNumber(a.sentCount)} payments · USDC`} />
-        <Stat label={complete ? 'Total received' : 'Received so far'} value={`${displayUsdc(BigInt(a.totalReceived))}`} sub={`${formatNumber(a.receivedCount)} payments · USDC`} />
-        <Stat label="Transactions" value={formatNumber(a.transactionCount)} sub={complete ? 'USDC token transfers' : 'In scanned range only'} />
-        <Stat label="Net flow" value={`${BigInt(a.totalReceived) - BigInt(a.totalSent) < 0n ? '' : '+'}${displayUsdc(BigInt(a.totalReceived) - BigInt(a.totalSent))}`} sub={complete ? 'Received minus sent' : 'Incomplete until backfill ends'} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Stat icon={ArrowUpRight} label={complete ? 'Total sent' : 'Sent so far'} value={`${displayUsdc(BigInt(a.totalSent))}`} sub={`${formatNumber(a.sentCount)} payments · USDC`} />
+        <Stat icon={ArrowDownLeft} tone="success" label={complete ? 'Total received' : 'Received so far'} value={`${displayUsdc(BigInt(a.totalReceived))}`} sub={`${formatNumber(a.receivedCount)} payments · USDC`} />
+        <Stat icon={Activity} label="Transactions" value={formatNumber(a.transactionCount)} sub={complete ? 'USDC token transfers' : 'In scanned range only'} />
+        <Stat icon={TrendingUp} tone="success" label="Net flow" value={`${BigInt(a.totalReceived) - BigInt(a.totalSent) < 0n ? '' : '+'}${displayUsdc(BigInt(a.totalReceived) - BigInt(a.totalSent))}`} sub={complete ? 'Received minus sent' : 'Incomplete until backfill ends'} />
       </div>
 
-      <section className="card p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="display text-lg font-semibold">Monthly activity</h2>
-          <div className="flex gap-3 text-xs" style={{ color: 'var(--muted)' }}>
-            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: 'var(--accent)' }} />Sent</span>
-            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: 'var(--success)' }} />Received</span>
-          </div>
-        </div>
-        {months.length === 0 ? (
+      <section className="card p-5 sm:p-6">
+        <h2 className="display mb-1 text-lg font-semibold">Monthly activity</h2>
+        <p className="mb-5 text-sm" style={{ color: 'var(--muted)' }}>USDC sent and received per month, from indexed transfers.</p>
+        {a.monthly.length === 0 ? (
           <EmptyState title="No monthly data yet" body={complete ? 'This wallet has no USDC transfers.' : 'No activity found in the blocks scanned so far.'} />
         ) : (
-          <div className="flex h-48 items-end gap-2 overflow-x-auto" role="img" aria-label="Monthly sent and received USDC">
-            {months.map((m) => {
-              const h = (v: string) => (max === 0 ? 0 : Math.max(2, Math.round((Number(BigInt(v)) / max) * 150)))
-              return (
-                <div key={m.month} className="flex min-w-[44px] flex-1 flex-col items-center gap-1">
-                  <div className="flex h-[150px] items-end gap-1">
-                    <div title={`Sent ${displayUsdc(BigInt(m.sent))} USDC`} className="w-4 rounded-t-md" style={{ height: h(m.sent), background: 'var(--accent)' }} />
-                    <div title={`Received ${displayUsdc(BigInt(m.received))} USDC`} className="w-4 rounded-t-md" style={{ height: h(m.received), background: 'var(--success)' }} />
-                  </div>
-                  <span className="text-[11px] tabular-nums" style={{ color: 'var(--muted)' }}>{m.month.slice(2)}</span>
-                  <span className="text-[10px]" style={{ color: 'var(--subtle)' }}>{m.count} tx</span>
-                </div>
-              )
-            })}
-          </div>
+          <MonthlyChart points={a.monthly} />
         )}
       </section>
 

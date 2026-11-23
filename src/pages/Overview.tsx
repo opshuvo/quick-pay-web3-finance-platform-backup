@@ -6,7 +6,7 @@ import TokenUSDC from '@web3icons/react/icons/tokens/TokenUSDC'
 import { HistoryHint } from '@/components/Coverage'
 import { FlowCard, RouterCard } from '@/components/dashboard'
 import { MonthlyChart } from '@/components/MonthlyChart'
-import { ActivityFeed, AddressRow, GlowBlobs, NetworkBadge, PrimaryActions, rise, SecondaryActions, TrendCard, VisibilityToggle } from '@/components/neon'
+import { ActivityFeed, AddressRow, ChangePill, NetworkBadge, PrimaryActions, rise, SecondaryActions, TrendCard, useBalanceTrend, VisibilityToggle } from '@/components/neon'
 import { StatTile } from '@/components/StatTile'
 import { TxDetailSheet } from '@/components/TxDetailSheet'
 import { EmptyState, Skeleton, StatusBadge } from '@/components/ui'
@@ -54,21 +54,19 @@ export default function Overview() {
 
   const complete = stats.data?.coverage.status === 'complete'
   const suffix = complete ? '' : ' so far'
+  const trend = useBalanceTrend(history.data?.rows, wallet.balanceRaw, wallet.isConnected, FEED_SIZE)
   const hidden = prefs.hideBalances
 
   return (
     <div className="relative isolate">
-      <GlowBlobs />
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4 sm:space-y-6">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-8">
+        <div className="min-w-0 space-y-5 lg:space-y-8">
           {/* Header, balance and actions */}
-          <section className="glass card-hero rise relative overflow-hidden p-4 sm:p-7" style={rise(0)} aria-label="Balance">
-            <span className="hero-ring" aria-hidden />
-            <span className="hero-ring" data-b aria-hidden />
+          <section className="card card-hero rise relative overflow-hidden p-5 sm:p-8" style={rise(0)} aria-label="Balance">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h1 className="flex items-center gap-2.5 text-sm font-semibold">
                 <TokenUSDC variant="branded" size={24} />
-                <span className="display text-lg font-semibold">Available USDC</span>
+                <span className="display text-lg font-semibold">Available balance</span>
               </h1>
               <NetworkBadge wrongNetwork={wallet.wrongNetwork} />
             </div>
@@ -76,15 +74,15 @@ export default function Overview() {
             {!wallet.isConnected ? (
               <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="display text-balance text-3xl font-bold min-[400px]:text-4xl sm:text-5xl">Pay anyone, <span className="gradient-text">instantly.</span></p>
+                  <p className="display text-balance text-3xl font-bold min-[400px]:text-4xl sm:text-5xl">Pay anyone, <span className="gradient-text">instantly</span>.</p>
                   <p className="mt-3 max-w-[46ch] text-pretty text-sm" style={{ color: 'var(--muted)' }}>Connect a wallet to send and receive USDC on Arc, split bills, track every payment, and swap or bridge when you need to.</p>
                 </div>
                 <WalletButton />
               </div>
             ) : (
               <div className="mt-6">
-                <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{hidden ? 'USDC hidden' : 'Showing USDC'}</p>
-                <div className="mt-1 flex items-center gap-3">
+                <p className="header-card-label">{hidden ? 'USDC hidden' : 'USDC on Arc Mainnet'}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-2">
                   {wallet.balanceLoading ? (
                     <Skeleton className="h-14 w-60" />
                   ) : wallet.balanceRaw !== undefined ? (
@@ -93,6 +91,7 @@ export default function Overview() {
                     <span className="display text-2xl font-bold" style={{ color: 'var(--muted)' }}>Balance unavailable</span>
                   )}
                   <VisibilityToggle hidden={hidden} onToggle={() => setPref('hideBalances', !hidden)} />
+                  <ChangePill trend={trend} hidden={hidden} />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                   {wallet.address && <AddressRow address={wallet.address} />}
@@ -113,7 +112,7 @@ export default function Overview() {
           {stats.data && !complete && <HistoryHint coverage={stats.data.coverage} />}
         </div>
 
-        <aside className="min-w-0 space-y-4 sm:space-y-6">
+        <aside className="min-w-0 space-y-5 lg:space-y-8">
           <div className="rise" style={rise(1)}><FlowCard sent={stats.data?.totalSent} received={stats.data?.totalReceived} suffix={suffix} loading={wallet.isConnected && stats.isLoading} hidden={hidden} error={wallet.isConnected && stats.isError} /></div>
           <div className="rise grid grid-cols-2 gap-3" style={rise(2)}>
             <StatTile label="Transactions" loading={wallet.isConnected && stats.isLoading} value={wallet.isConnected && stats.data ? formatNumber(stats.data.transactionCount) : '—'} sub={complete ? 'USDC token transfers' : stats.data ? 'In scanned range' : wallet.isConnected ? '' : 'Connect to see'} />

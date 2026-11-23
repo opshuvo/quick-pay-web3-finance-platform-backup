@@ -114,7 +114,7 @@ export default function SplitDetail() {
           <span className="tabular-nums" style={{ color: 'var(--muted)' }}>{displayUsdc(summary.paid)} of {displayUsdc(collectable)} USDC · {pct.toFixed(0)}%</span>
         </div>
         <div className="h-2.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-strong)' }} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Share of the bill collected">
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, var(--cyan), var(--accent), var(--accent-2))', transition: 'width .5s ease' }} />
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--accent)', transition: 'width .5s ease' }} />
         </div>
         {summary.own > 0n && <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>Your own share of {displayUsdc(summary.own)} USDC is not requested.</p>}
       </div>

@@ -6,74 +6,89 @@
   box-sizing: border-box;
 }
 
-/* Quick Pay "Midnight Glass" tokens: midnight black and navy canvas, frosted glass panels, electric blue, cyan and violet light. */
+/* Quick Pay design tokens.
+   Navy dark and white light, one restrained blue accent, solid surfaces and hairline borders. Every component reads
+   these tokens, so both themes stay consistent. Names such as --cyan and --glow are kept for older components and
+   now map to the same single accent or to a quiet tint. */
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #02050d;
-  --bg-2: #061029;
-  --surface: rgba(110, 150, 255, 0.055);
-  --surface-strong: rgba(120, 160, 255, 0.11);
-  --surface-muted: rgba(110, 150, 255, 0.035);
-  --ink: #eef3ff;
-  --ink-2: #cdd9f6;
-  --muted: #93a4cf;
-  --subtle: #6879a6;
-  --border: rgba(110, 150, 255, 0.16);
-  --border-strong: rgba(56, 189, 248, 0.55);
-  --accent: #38bdf8;
-  --accent-2: #8b5cf6;
-  --blue: #3b82f6;
-  --cyan: #22d3ee;
-  --magenta: #a78bfa;
+  --bg: #0a1222;
+  --bg-2: #0f1b30;
+  --surface: #0f1b30;
+  --surface-strong: #15243d;
+  --surface-muted: #0c172a;
+  --ink: #e9eef7;
+  --ink-2: #c4cee0;
+  --muted: #9aa9c2;
+  --subtle: #7486a3;
+  --border: #1d2d49;
+  --border-strong: #35507c;
+  --accent: #7aa7ff;
+  --accent-2: #5b8ef5;
+  --accent-btn: #3f6fe6;
+  --blue: #7aa7ff;
+  --cyan: #7aa7ff;
+  --magenta: #9db8ee;
   --accent-ink: #ffffff;
-  --focus: #67e8f9;
-  --success: #34f5b5;
-  --danger: #ff5c7a;
-  --warn: #fbbf24;
-  --glow: rgba(34, 211, 238, 0.2);
-  --glow-2: rgba(139, 92, 246, 0.22);
-  --glow-3: rgba(59, 130, 246, 0.2);
-  --grad: linear-gradient(120deg, #22d3ee 0%, #3b82f6 48%, #8b5cf6 100%);
-  --grad-btn: linear-gradient(120deg, #2563eb 0%, #4f6cf5 52%, #7c3aed 100%);
-  --shadow: 0 28px 64px -30px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.02);
-  --panel-hi: rgba(140, 175, 255, 0.09);
-  --sidebar: rgba(3, 8, 22, 0.72);
-  --grid: rgba(120, 160, 255, 0.035);
+  --focus: #8fb4ff;
+  --success: #34d399;
+  --emerald: #34d399;
+  --danger: #ff7a8f;
+  --warn: #e5b04a;
+  --blue-soft: rgba(122, 167, 255, 0.12);
+  --emerald-soft: rgba(52, 211, 153, 0.12);
+  --warn-soft: rgba(229, 176, 74, 0.13);
+  --danger-soft: rgba(255, 122, 143, 0.13);
+  --glow: rgba(122, 167, 255, 0.14);
+  --glow-2: transparent;
+  --glow-3: transparent;
+  --grad: #7aa7ff;
+  --grad-btn: #3f6fe6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --panel-hi: #0f1b30;
+  --sidebar: #0a1222;
+  --grid: transparent;
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #eef3fc;
-  --bg-2: #e0e9fa;
-  --surface: rgba(255, 255, 255, 0.66);
-  --surface-strong: rgba(255, 255, 255, 0.94);
-  --surface-muted: rgba(30, 60, 140, 0.05);
-  --ink: #0d1636;
-  --ink-2: #243263;
-  --muted: #53628f;
-  --subtle: #7683ad;
-  --border: rgba(40, 80, 180, 0.16);
-  --border-strong: rgba(14, 116, 200, 0.55);
-  --accent: #0a74d9;
-  --accent-2: #6d3df0;
-  --blue: #2563eb;
-  --cyan: #0891b2;
-  --magenta: #7c3aed;
+  --bg: #ffffff;
+  --bg-2: #ffffff;
+  --surface: #ffffff;
+  --surface-strong: #f1f5f9;
+  --surface-muted: #f8fafc;
+  --ink: #0a2540;
+  --ink-2: #2b4467;
+  --muted: #566a85;
+  --subtle: #6b7e99;
+  --border: #e6ebf2;
+  --border-strong: #b6c3d6;
+  --accent: #1f4fd8;
+  --accent-2: #173fb0;
+  --accent-btn: #1f4fd8;
+  --blue: #1f4fd8;
+  --cyan: #1f4fd8;
+  --magenta: #3b5bb0;
   --accent-ink: #ffffff;
-  --focus: #0a74d9;
-  --success: #0b8a55;
+  --focus: #1f4fd8;
+  --success: #047857;
+  --emerald: #059669;
   --danger: #c4264f;
   --warn: #946500;
-  --glow: rgba(8, 145, 178, 0.18);
-  --glow-2: rgba(109, 61, 240, 0.14);
-  --glow-3: rgba(37, 99, 235, 0.14);
-  --grad: linear-gradient(120deg, #0891b2 0%, #2563eb 48%, #6d3df0 100%);
-  --grad-btn: linear-gradient(120deg, #1d4ed8 0%, #4338ca 55%, #6d28d9 100%);
-  --shadow: 0 20px 44px -26px rgba(30, 60, 150, 0.4);
-  --panel-hi: rgba(255, 255, 255, 0.88);
-  --sidebar: rgba(255, 255, 255, 0.66);
-  --grid: rgba(40, 80, 180, 0.05);
+  --blue-soft: #eef3ff;
+  --emerald-soft: #e8f7f0;
+  --warn-soft: #fdf3dc;
+  --danger-soft: #fdecef;
+  --glow: rgba(31, 79, 216, 0.1);
+  --glow-2: transparent;
+  --glow-3: transparent;
+  --grad: #1f4fd8;
+  --grad-btn: #1f4fd8;
+  --shadow: 0 1px 2px rgba(10, 37, 64, 0.05), 0 4px 14px -6px rgba(10, 37, 64, 0.08);
+  --panel-hi: #ffffff;
+  --sidebar: #f8fafc;
+  --grid: transparent;
 }
 
 html {
@@ -85,7 +100,8 @@ body {
   margin: 0;
   min-height: 100dvh;
   overflow-x: hidden;
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'tnum' 0;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -94,82 +110,41 @@ body {
 /* The backdrop lives on its own fixed layer instead of `background-attachment: fixed`, which repaints the whole page on
    every scroll frame on phones. A fixed layer is painted once and composited. */
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(900px 520px at 92% -14%, var(--glow-3), transparent 62%),
-    radial-gradient(760px 520px at -8% 4%, var(--glow-2), transparent 60%),
-    radial-gradient(720px 480px at 50% 114%, var(--glow), transparent 64%),
-    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 44px 44px,
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 44px 44px,
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
-  transform: translateZ(0);
+  content: none;
 }
 
 .display {
-  font-family: 'Sora', sans-serif;
-  letter-spacing: -0.03em;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.022em;
 }
+.tabular-nums, .display { font-variant-numeric: tabular-nums; }
 .mono {
   font-family: 'JetBrains Mono', Menlo, monospace;
 }
 .gradient-text {
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
 }
 
 @layer components {
-  /* Glass panel: translucent fill, hairline border, soft top highlight. */
+  /* Surface: solid fill, hairline border, a barely-there shadow. No blur, no glow. */
   .card {
     position: relative;
-    background: linear-gradient(180deg, var(--panel-hi), var(--surface) 38%);
+    background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 1.4rem;
-    box-shadow: var(--shadow), inset 0 1px 0 var(--panel-hi), inset 0 0 40px -28px var(--glow-2);
-    backdrop-filter: blur(26px) saturate(170%);
-    -webkit-backdrop-filter: blur(26px) saturate(170%);
+    border-radius: 1rem;
+    box-shadow: var(--shadow);
   }
-  /* Phones and tablets: a live blur behind every card is re-painted on each scroll frame and is one of the costliest
-     things a mobile GPU does. The page behind a card is a smooth gradient, so without it the cards look the same. */
-  @media (max-width: 1023px) {
-    .card {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
-  }
-  /* Sticky header: same idea. Slightly more opaque on small screens instead of blurred. */
   .app-header {
-    background: color-mix(in srgb, var(--bg) 92%, transparent);
-  }
-  @media (min-width: 1024px) {
-    .app-header {
-      background: color-mix(in srgb, var(--bg) 72%, transparent);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-    }
+    background: var(--bg);
   }
   .card-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, var(--cyan), transparent 36%, transparent 64%, var(--accent-2));
-    opacity: 0.7;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+    content: none;
   }
   .inner {
     background: var(--surface-muted);
     border: 1px solid var(--border);
-    border-radius: 0.95rem;
+    border-radius: 0.65rem;
   }
   .btn {
     display: inline-flex;
@@ -178,10 +153,10 @@ body::before {
     gap: 0.5rem;
     min-height: 44px;
     padding: 0 1.1rem;
-    border-radius: 0.85rem;
+    border-radius: 0.6rem;
     font-weight: 600;
     font-size: 0.9rem;
-    transition: transform 0.15s ease, opacity 0.15s ease, background 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    transition: transform 0.12s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
     cursor: pointer;
   }
   .btn:active:not(:disabled) {
@@ -193,12 +168,10 @@ body::before {
   }
   .btn-primary {
     color: var(--accent-ink);
-    background: var(--grad-btn);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 10px 30px -10px var(--glow-3), 0 0 24px -8px var(--glow-2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: var(--accent-btn);
   }
   .btn-primary:hover:not(:disabled) {
-    filter: brightness(1.12) saturate(1.1);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 14px 38px -10px var(--glow-3), 0 0 34px -4px var(--glow-2), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    background: color-mix(in srgb, var(--accent-btn) 88%, #000);
   }
   .btn-ghost {
     color: var(--ink);
@@ -218,8 +191,8 @@ body::before {
     width: 100%;
     min-height: 48px;
     padding: 0.7rem 0.9rem;
-    border-radius: 0.85rem;
-    background: var(--surface-muted);
+    border-radius: 0.6rem;
+    background: var(--surface);
     border: 1px solid var(--border);
     color: var(--ink);
     outline: none;
@@ -325,22 +298,21 @@ body::before {
     background: var(--surface);
   }
   .nav-link.active {
-    color: var(--ink);
-    background: linear-gradient(90deg, var(--glow), transparent);
+    color: var(--accent);
+    background: var(--blue-soft);
   }
   .nav-link.active::before {
     content: '';
     position: absolute;
     left: -0.6rem;
-    top: 20%;
-    bottom: 20%;
+    top: 22%;
+    bottom: 22%;
     width: 3px;
     border-radius: 3px;
-    background: linear-gradient(180deg, var(--accent), var(--accent-2));
-    box-shadow: 0 0 14px var(--accent), 0 0 4px var(--accent);
+    background: var(--accent);
   }
   .nav-link.active svg {
-    color: var(--cyan);
+    color: var(--accent);
   }
   .hover-lift {
     transition: transform 0.2s ease, border-color 0.2s ease;
@@ -478,22 +450,14 @@ body::before {
 .glass {
   position: relative;
   border: 1px solid var(--border);
-  border-radius: 1.5rem;
-  background: linear-gradient(180deg, var(--panel-hi), var(--surface) 42%);
-  box-shadow: var(--shadow), inset 0 1px 0 var(--panel-hi);
-  transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-@media (min-width: 1024px) {
-  .glass {
-    backdrop-filter: blur(22px) saturate(160%);
-    -webkit-backdrop-filter: blur(22px) saturate(160%);
-  }
+  border-radius: 0.875rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 @media (hover: hover) {
   .glass-lift:hover {
-    transform: translateY(-2px);
     border-color: var(--border-strong);
-    box-shadow: var(--shadow), 0 14px 36px -18px var(--glow);
   }
 }
 /* Below-the-fold cards are laid out and painted only when they scroll near the screen. */
@@ -503,11 +467,11 @@ body::before {
 }
 /* Entrance: sections rise in one after another. --i is the position in the sequence. */
 .rise {
-  animation: rise-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
+  animation: rise-in 280ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 40ms);
 }
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
 /* Sparkline: the line draws itself, then the fill fades in. */
@@ -535,106 +499,29 @@ html.theme-instant *::after {
   from { transform: rotate(-120deg) scale(0.4); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
-/* Soft glow behind the dashboard: radial gradients are far cheaper to paint than large blurred elements. */
-.aura {
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
-}
+.aura { display: none; }
 
-/* Dashboard Send / Receive: one solid colour each (blue = money out, green = money in), a light sweep on hover, and an
-   arrow that moves the way the money does. */
+/* Dashboard Send / Receive: a solid primary button and a quiet secondary one. */
 .act {
-  --a1: #2563eb;
-  --a2: #6d28d9;
-  --ring: rgba(79, 108, 245, 0.5);
   position: relative;
-  overflow: hidden;
-  isolation: isolate;
   display: flex;
-  min-height: 58px;
+  min-height: 52px;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  border-radius: 1rem;
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  background: linear-gradient(135deg, var(--a1), var(--a2));
-  box-shadow: 0 10px 26px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
-  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 220ms ease, filter 220ms ease;
+  border-radius: 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
 }
-.act-receive {
-  --a1: #06b6d4;
-  --a2: #2563eb;
-  --ring: rgba(34, 211, 238, 0.45);
-}
-/* A diagonal light band that sweeps across on hover and press. */
-.act::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.32) 50%, transparent 65%);
-  transform: translateX(-120%);
-}
-.act-icon {
-  display: inline-flex;
-  height: 30px;
-  width: 30px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  transition: background-color 200ms ease;
-}
+.act-send { color: var(--accent-ink); background: var(--accent-btn); }
+.act-receive { color: var(--ink); background: var(--surface); border: 1px solid var(--border-strong); }
+.act-icon { display: inline-flex; height: 24px; width: 24px; align-items: center; justify-content: center; }
 @media (hover: hover) {
-  .act:hover {
-    transform: translateY(-2px) scale(1.03);
-    filter: saturate(1.1);
-    box-shadow: 0 16px 34px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
-  }
-  .act:hover::after {
-    transform: translateX(120%);
-    transition: transform 700ms ease;
-  }
-  .act:hover .act-icon {
-    background: rgba(255, 255, 255, 0.28);
-  }
-  .act-send:hover .act-icon svg {
-    animation: act-send 900ms ease-in-out infinite;
-  }
-  .act-receive:hover .act-icon svg {
-    animation: act-receive 900ms ease-in-out infinite;
-  }
+  .act-send:hover { background: color-mix(in srgb, var(--accent-btn) 88%, #000); }
+  .act-receive:hover { background: var(--surface-strong); }
 }
-.act:active {
-  transform: scale(0.95);
-  transition-duration: 90ms;
-}
-.act-send:active .act-icon svg {
-  animation: act-send 400ms ease-in-out;
-}
-.act-receive:active .act-icon svg {
-  animation: act-receive 400ms ease-in-out;
-}
-.act:active::after {
-  transform: translateX(120%);
-  transition: transform 450ms ease;
-}
-@keyframes act-send {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(3px, -3px); }
-}
-@keyframes act-receive {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-3px, 3px); }
-}
-@keyframes act-breathe {
-  0%, 100% { box-shadow: 0 10px 26px -12px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18); }
-  50% { box-shadow: 0 14px 32px -10px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.18); }
-}
+.act:active { transform: scale(0.985); }
 
 /* Dashboard utility tiles (Scan, Split, Swap, Bridge). */
 .tile {
@@ -837,10 +724,10 @@ summary {
   gap: 1.1rem;
   overflow: hidden;
   background:
-    radial-gradient(60% 50% at 50% 42%, rgba(59, 130, 246, 0.22), transparent 70%),
-    radial-gradient(40% 36% at 30% 70%, rgba(139, 92, 246, 0.16), transparent 70%),
-    linear-gradient(180deg, #02050d, #061029);
-  color: #eef3ff;
+    radial-gradient(60% 50% at 50% 42%, var(--glow), transparent 70%),
+    radial-gradient(40% 36% at 30% 70%, var(--glow-2), transparent 70%),
+    linear-gradient(180deg, var(--bg), var(--bg-2));
+  color: var(--ink);
   animation: splash-out 420ms ease 1.05s forwards;
 }
 .splash[data-leaving='true'] {
@@ -858,7 +745,7 @@ summary {
   inset: 0;
   border-radius: 9999px;
   border: 1.5px solid transparent;
-  background: linear-gradient(#02050d, #02050d) padding-box, linear-gradient(135deg, #22d3ee, #3b82f6, #8b5cf6) border-box;
+  background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--grad) border-box;
   opacity: 0;
   animation: splash-ring 2.2s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
 }
@@ -876,14 +763,14 @@ summary {
   width: 7.5rem;
   overflow: hidden;
   border-radius: 9999px;
-  background: rgba(120, 160, 255, 0.18);
+  background: var(--border);
   animation: splash-up 600ms ease 600ms both;
 }
 .splash-bar > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6);
+  background: var(--grad);
   transform-origin: left;
   animation: splash-load 0.85s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
 }
@@ -891,10 +778,6 @@ summary {
   0% { transform: scale(0.45); opacity: 0; }
   25% { opacity: 0.55; }
   100% { transform: scale(1.7); opacity: 0; }
-}
-@keyframes splash-logo {
-  from { opacity: 0; transform: scale(0.6) rotate(-12deg); filter: blur(8px); }
-  to { opacity: 1; transform: none; filter: blur(0); }
 }
 @keyframes splash-up {
   from { opacity: 0; transform: translateY(10px); }
@@ -1174,3 +1057,92 @@ html {
 .refresh-bar::after { content: ''; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, var(--cyan), var(--accent-2), transparent); transform: translateX(-100%); animation: refresh-sweep 1s ease-in-out infinite; }
 @keyframes refresh-sweep { to { transform: translateX(260%); } }
 .tx-list > li { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+
+/* ------------------------------------------------------------------------------------------------------------
+   Institutional finish. One restrained blue accent, solid surfaces, hairline borders, quiet motion.
+   Everything below softens or removes decoration from earlier rules, in both themes.
+   ------------------------------------------------------------------------------------------------------------ */
+:root { accent-color: var(--accent-btn); }
+::selection { background: var(--glow); color: var(--ink); }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* No decorative light shows: rings, glows, sweeps and pulses are gone. */
+.hero-ring, .aura, .logo-pulse, .tile-wave, .page-title::before { display: none !important; }
+.qp-mark, .qp-mark * { animation: none !important; filter: none !important; }
+.gradient-flow { animation: none !important; }
+.hover-lift:hover { transform: none; border-color: var(--border-strong); }
+a.card:hover, button.card:hover { border-color: var(--border-strong); transform: none; }
+.tile { border-radius: 0.75rem; background: var(--surface); }
+.tile:hover { background: var(--surface-strong); box-shadow: none; }
+.tile:hover .tile-icon svg, .tile:active .tile-icon svg { animation: none; }
+.tile-icon { border-radius: 0.6rem; }
+.tile:active { transform: scale(0.985); }
+.tile:active .tile-icon { transform: none; }
+.card, .glass, .inner { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* Status, motion and data surfaces stay calm. */
+.skeleton { background: linear-gradient(90deg, var(--surface-muted), var(--surface-strong), var(--surface-muted)); background-size: 200% 100%; }
+.refresh-bar::after { background: var(--accent); width: 30%; }
+.flow-line::before { background: var(--accent); }
+.flow-line[data-active='true']::after { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 60%, #fff), transparent); }
+.scan-bracket { filter: none; border-width: 2px; border-color: var(--accent); }
+.scan-line { background: linear-gradient(180deg, transparent 0%, transparent 92%, color-mix(in srgb, var(--accent) 45%, transparent) 99%, var(--accent) 100%); }
+.mnav-pill > span { box-shadow: none; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.page-in { animation-duration: 160ms; }
+@keyframes page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Launch screen: the mark fades in over the page colour, nothing else moves. */
+.splash { background: var(--bg); animation-duration: 320ms; animation-delay: 0.7s; }
+.splash-ring { display: none; }
+.splash-bar > span { background: var(--accent); animation-duration: 0.6s; }
+@keyframes splash-logo { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Tables (History on wide screens). */
+.tx-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.tx-table th { padding: 0.65rem 0.9rem; text-align: left; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--subtle); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tx-table th.num, .tx-table td.num { text-align: right; }
+.tx-table td { padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tx-table tbody tr { cursor: pointer; transition: background-color 120ms ease; }
+.tx-table tbody tr:hover { background: var(--surface-muted); }
+.tx-table tbody tr:last-child td { border-bottom: 0; }
+.tx-table tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.display.font-bold { font-weight: 600; }
+.bar-grow { transform-origin: bottom; animation: bar-grow 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes bar-grow { from { transform: scaleY(0); } to { transform: none; } }
+
+/* ---- Premium light finish: spacious, white, soft tints for status and the balance card. ---- */
+.pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.18rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; background: var(--pill-bg, var(--surface-strong)); color: var(--pill-fg, var(--muted)); white-space: nowrap; }
+.pill[data-tone='success'] { --pill-bg: var(--emerald-soft); --pill-fg: var(--success); }
+.pill[data-tone='warn'] { --pill-bg: var(--warn-soft); --pill-fg: var(--warn); }
+.pill[data-tone='danger'] { --pill-bg: var(--danger-soft); --pill-fg: var(--danger); }
+.pill[data-tone='info'] { --pill-bg: var(--blue-soft); --pill-fg: var(--accent); }
+.card-hero { border-top: 2px solid var(--accent); }
+.header-card-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.stat-icon { display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border-radius: 0.6rem; background: var(--blue-soft); color: var(--accent); }
+.stat-icon[data-tone='success'] { background: var(--emerald-soft); color: var(--success); }
+.nav-link { border-radius: 0.65rem; }
+.tx-table th { background: var(--surface-muted); }
+.tx-table th:first-child { border-top-left-radius: 0.5rem; }
+.tx-table th:last-child { border-top-right-radius: 0.5rem; }
+.tx-table td { padding-top: 1rem; padding-bottom: 1rem; }
+
+/* ---- Swap and Bridge branding: logos in one consistent badge, and a clear selection state. ---- */
+.chain-badge, .token-badge { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border-radius: 9999px; background: var(--surface); box-shadow: 0 0 0 1px var(--border); }
+.chain-badge > svg, .token-badge > svg, .chain-badge > img { width: 100%; height: 100%; display: block; }
+.provider-logo { flex-shrink: 0; border-radius: 0.5rem; object-fit: cover; box-shadow: 0 0 0 1px var(--border); background: var(--surface); }
+.net-card { border-left: 3px solid var(--accent); }
+.net-chip { display: inline-flex; min-height: 44px; max-width: 100%; align-items: center; gap: 0.6rem; border-radius: 0.75rem; border: 1px solid var(--border); background: var(--surface); padding: 0.35rem 0.7rem 0.35rem 0.4rem; font-size: 0.9rem; color: var(--ink); transition: border-color 140ms ease, background-color 140ms ease; }
+.net-chip:hover { border-color: var(--border-strong); background: var(--surface-muted); }
+.net-chip[aria-expanded='true'] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+.net-menu { position: absolute; right: 0; top: calc(100% + 0.5rem); z-index: 40; width: min(20rem, calc(100vw - 2rem)); overflow: hidden; padding: 0; }
+.net-option { display: flex; min-height: 48px; cursor: pointer; align-items: center; gap: 0.75rem; border-radius: 0.65rem; padding: 0.4rem 0.7rem; color: var(--ink); }
+.net-option[data-active='true'] { background: var(--surface-strong); }
+.net-option[data-selected='true'] { background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.provider-tab { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.route-pair { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.route-end { display: flex; min-width: 0; flex: 1; align-items: center; gap: 0.6rem; }
+.route-end[data-end='to'] { justify-content: flex-end; text-align: right; }
+.route-arrow { height: 1px; flex: 0 0 1.5rem; background: var(--border-strong); position: relative; }
+.route-arrow::after { content: ''; position: absolute; right: 0; top: -3px; width: 6px; height: 6px; border-top: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); transform: rotate(45deg); }
+.pick-row[data-selected='true'] { background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--accent); }

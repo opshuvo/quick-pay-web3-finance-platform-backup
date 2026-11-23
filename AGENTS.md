@@ -122,3 +122,8 @@ All transaction and address links use Arc's official explorer (`https://explorer
 - `src/hooks/useHistory.ts`: `historyQueryOptions` is the single read definition. The last confirmed first page per wallet and view is kept in localStorage (`quickpay.history.v1:<wallet>`, 12 views max, never pending rows) and shown while the live read runs. Switching tabs shows the matching rows of the previous view (`narrowRows`) instead of a blank list.
 - `TransferExplorer` prefetches the next page and the other tabs; `AppShell` prefetches History, Sent and Received when a wallet connects. Search applies itself after a 300 ms pause.
 - Server: `getHead` falls back to the newest indexed block when Arc is unreachable, so History keeps answering from the database. `server/rpc.ts` re-reads a quoted `.env` correctly after a 401.
+
+## Visual design
+- Institutional look (Stripe and Circle in spirit): navy dark, white light, one blue accent (`--accent`, `--accent-btn` for button fills), Inter for text and JetBrains Mono for addresses. No gradients, glass, blur or glow: surfaces are solid with 1px borders, motion is quiet (fades under 300 ms, bars growing in).
+- All colours are tokens at the top of `src/index.css` (`:root` and `[data-theme='light']`); old names such as `--cyan` and `--glow` map to the accent or a quiet tint. `tests/theme.test.ts` checks contrast in both themes and that buttons and accents stay solid.
+- History uses `TxTable` on wide screens and `TxRow` list on phones (same data).

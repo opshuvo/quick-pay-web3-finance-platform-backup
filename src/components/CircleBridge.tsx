@@ -3,7 +3,7 @@ import { createPublicClient, erc20Abi, http, isAddress, parseUnits, zeroAddress,
 import { useAccount, useBalance, useReadContract, useSwitchChain } from 'wagmi'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, RefreshCw } from 'lucide-react'
-import { BridgeAmount, NetworkRow, ReverseButton } from '@/components/BridgeCard'
+import { BridgeAmount, NetworkRow, ReverseButton, RoutePair } from '@/components/BridgeCard'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TxProgress } from '@/components/TxProgress'
 import { Field, Notice, Row, Skeleton, Spinner } from '@/components/ui'
@@ -153,7 +153,7 @@ export function CircleBridge({ onStarted, disabled }: { onStarted: () => void; d
 
   return (
     <div className="card space-y-4 p-5">
-      <div data-theme="dark" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-white shadow-xl">
+      <div className="inner p-4">
         <NetworkRow label="FROM" value={origin} options={originOptions} loading={chains.isLoading} className="mb-3" onChange={(v) => { setOrigin(v); if (v === destination) setDestination(v === ARC_CHAIN_ID ? 1 : ARC_CHAIN_ID) }} />
         <ReverseButton onClick={() => { setOrigin(destination); setDestination(origin); setAmount('') }} disabled={!canReverse} title={canReverse ? 'Swap From and To' : 'Bridging from that network is not available in this wallet'} />
         <NetworkRow label="TO" value={destination} options={destinationOptions} loading={chains.isLoading} className="mb-4 mt-1" onChange={setDestination} />
@@ -214,7 +214,7 @@ export function CircleBridge({ onStarted, disabled }: { onStarted: () => void; d
         {est && from && to && amountRaw !== undefined && netReceive !== undefined && (
           <div>
             <p className="display text-center text-3xl font-bold tabular-nums">{displayUnits(amountRaw, USDC_DECIMALS, 2, 6)} USDC</p>
-            <p className="mb-3 text-center text-sm" style={{ color: 'var(--muted)' }}>{from.name} → {to.name}</p>
+            <RoutePair fromId={from.chainId} fromName={from.name} toId={to.chainId} toName={to.name} provider="circle" />
             <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
               <Row label="Receive about">{displayUnits(netReceive, USDC_DECIMALS, 2, 6)} USDC</Row>
               <Row label="Recipient"><span className="mono break-all text-xs">{recipientAddress}</span></Row>

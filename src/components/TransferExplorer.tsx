@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { HistoryHint } from '@/components/Coverage'
 import { TxDetailSheet } from '@/components/TxDetailSheet'
 import { TxRow } from '@/components/TxRow'
+import { TxTable } from '@/components/TxTable'
 import { EmptyState, ErrorState, Notice, PageHeader, Skeleton, Spinner } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
@@ -215,9 +216,12 @@ export function TransferExplorer({ title, subtitle, lockedTab }: Props) {
             body={data.coverage.status === 'complete' ? 'No USDC token transfers match these filters for this wallet. Pending and failed transactions are listed under their own tabs.' : 'The indexer is still scanning older blocks. Matching transactions may appear as the backfill progresses.'}
           />
         ) : (
-          <ul className="tx-list divide-y" style={{ borderColor: 'var(--border)' }}>
-            {data?.rows.map((row) => <TxRow key={`${row.txHash}-${row.logIndex}`} row={row} onSelect={setSelected} />)}
-          </ul>
+          <>
+            <div className="hidden md:block"><TxTable rows={data?.rows ?? []} onSelect={setSelected} /></div>
+            <ul className="tx-list divide-y md:hidden" style={{ borderColor: 'var(--border)' }}>
+              {data?.rows.map((row) => <TxRow key={`${row.txHash}-${row.logIndex}`} row={row} onSelect={setSelected} />)}
+            </ul>
+          </>
         )}
       </div>
 

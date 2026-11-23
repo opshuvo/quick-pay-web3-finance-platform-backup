@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { isAddress, type Address } from 'viem'
-import { ChevronDown, Plus, ShieldCheck, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { TokenIcon } from '@/components/TokenIcon'
 import { Notice, Skeleton } from '@/components/ui'
@@ -66,7 +66,9 @@ export function TokenPicker({ label, value, tokens, unavailable = [], loading, e
                     type="button"
                     disabled={blocked}
                     onClick={() => { onChange(t.address); setOpen(false) }}
-                    className="flex min-h-[56px] flex-1 items-center gap-3 rounded-2xl px-2 text-left hover:bg-[var(--surface-strong)] disabled:opacity-40"
+                    className="pick-row flex min-h-[56px] flex-1 items-center gap-3 rounded-xl px-2 text-left hover:bg-[var(--surface-strong)] disabled:opacity-40"
+                    data-selected={value?.toLowerCase() === t.address.toLowerCase()}
+                    aria-current={value?.toLowerCase() === t.address.toLowerCase() ? 'true' : undefined}
                   >
                     <TokenIcon symbol={t.symbol} address={t.address} size={34} />
                     <span className="min-w-0 flex-1">
@@ -77,6 +79,7 @@ export function TokenPicker({ label, value, tokens, unavailable = [], loading, e
                       <span className="block truncate text-xs" style={{ color: 'var(--muted)' }}>{t.name} · {shortAddress(t.address, 6, 4)}</span>
                     </span>
                     <span className="text-right text-sm font-semibold tabular-nums">{t.balance !== undefined ? formatTokenAmount(t.balance, t.decimals, { maxFrac: 4 }) : '—'}</span>
+                    {value?.toLowerCase() === t.address.toLowerCase() && <Check className="size-4 shrink-0" aria-hidden style={{ color: 'var(--accent)' }} />}
                   </button>
                   {!t.preset && (
                     <button type="button" aria-label={`Remove ${t.symbol}`} onClick={() => onRemove(t.address)} className="inline-flex size-10 items-center justify-center rounded-xl" style={{ color: 'var(--muted)' }}>

@@ -11,27 +11,16 @@ import type { HistoryRow } from '@/hooks/useHistory'
 
 const muted: CSSProperties = { color: 'var(--muted)' }
 const subtle: CSSProperties = { color: 'var(--subtle)' }
-const PRESS = 'transition-all duration-200 hover:scale-[1.04] active:scale-95'
+const PRESS = 'transition-colors duration-150 active:scale-[0.97]'
 
 /** Staggered entrance: `i` is the position in the sequence. */
 export const rise = (i: number): CSSProperties => ({ ['--i' as string]: i })
-
-/** Soft colour behind the dashboard. Radial gradients, not blurred elements: they cost almost nothing to paint. */
-export function GlowBlobs() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="aura -left-24 -top-24 size-[30rem]" style={{ background: 'radial-gradient(closest-side, var(--glow-2), transparent)' }} />
-      <div className="aura -right-20 top-40 size-[28rem]" style={{ background: 'radial-gradient(closest-side, var(--glow), transparent)' }} />
-    </div>
-  )
-}
 
 export function NetworkBadge({ wrongNetwork }: { wrongNetwork: boolean }) {
   const color = wrongNetwork ? 'var(--warn)' : 'var(--success)'
   return (
     <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--ink-2)' }}>
       <span className="relative flex size-2">
-        <span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: color }} />
         <span className="relative inline-flex size-2 rounded-full" style={{ background: color }} />
       </span>
       {wrongNetwork ? 'Wallet on another network' : 'Arc Mainnet'}
@@ -120,20 +109,36 @@ function Sparkline({ trend }: { trend: Trend }) {
   return (
     <svg key={drawKey} viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Balance over the last 24 hours" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`${id}-s`} x1="0" x2="1"><stop offset="0" stopColor="var(--accent-2)" /><stop offset="1" stopColor="var(--accent)" /></linearGradient>
-        <linearGradient id={`${id}-f`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity="0.28" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient>
+                <linearGradient id={`${id}-f`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity="0.1" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient>
       </defs>
       <path d={area} fill={`url(#${id}-f)`} className="fade-area" />
-      <path d={path} pathLength={1} fill="none" stroke={`url(#${id}-s)`} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="draw" />
+      <path d={path} pathLength={1} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="draw" />
       <circle cx={last[0]} cy={last[1]} r="4" fill="var(--accent)" className="fade-area" />
     </svg>
   )
 }
 
+/** The 24-hour trend, rebuilt from confirmed transfers and the live balance. Null when there is nothing real to show. */
+export function useBalanceTrend(rows: HistoryRow[] | undefined, balanceRaw: bigint | undefined, connected: boolean, pageSize: number): Trend | null {
+  const now = useNow(60_000, connected)
+  return useMemo(() => (rows && balanceRaw !== undefined ? balanceTrend(rows, balanceRaw, ARC_USDC, now, pageSize) : null), [rows, balanceRaw, pageSize, now])
+}
+
+/** 24-hour change as a soft pill: emerald when up, red when down. Hidden when balances are hidden. */
+export function ChangePill({ trend, hidden }: { trend: Trend | null; hidden: boolean }) {
+  if (!trend) return null
+  const up = trend.change >= 0n
+  const amount = displayUsdc(trend.change < 0n ? -trend.change : trend.change)
+  return (
+    <span className="pill" data-tone={up ? 'success' : 'danger'} title={trend.truncated ? 'Starts at the oldest transfer read. Network fees are not included.' : 'Rebuilt from confirmed USDC transfers. Network fees are not included.'}>
+      {hidden ? '••••' : `${up ? '+' : '−'}${amount} USDC`} <span style={{ opacity: 0.75 }}>24h</span>
+    </span>
+  )
+}
+
 /** 24-hour USDC balance trend, rebuilt from confirmed transfers and the live balance. Never invented. */
 export function TrendCard({ rows, balanceRaw, loading, connected, hidden, pageSize, style }: { rows: HistoryRow[] | undefined; balanceRaw: bigint | undefined; loading: boolean; connected: boolean; hidden: boolean; pageSize: number; style?: CSSProperties }) {
-  const now = useNow(60_000, connected)
-  const trend = useMemo(() => (rows && balanceRaw !== undefined ? balanceTrend(rows, balanceRaw, ARC_USDC, now, pageSize) : null), [rows, balanceRaw, pageSize, now])
+  const trend = useBalanceTrend(rows, balanceRaw, connected, pageSize)
   const up = trend ? trend.change >= 0n : true
   let body: ReactNode
   if (!connected) body = <p className="py-6 text-sm" style={muted}>Connect a wallet to see your balance trend.</p>
@@ -141,7 +146,7 @@ export function TrendCard({ rows, balanceRaw, loading, connected, hidden, pageSi
   else if (!trend) body = <p className="py-6 text-sm" style={muted}>No confirmed USDC transfers in the last 24 hours, so there is no trend to draw yet.</p>
   else body = <Sparkline trend={trend} />
   return (
-    <section className="glass glass-lift rise p-5" style={style} aria-label="24 hour balance trend">
+    <section className="card rise p-5" style={style} aria-label="24 hour balance trend">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <p className="label">24h balance trend</p>
@@ -166,13 +171,13 @@ export function TrendCard({ rows, balanceRaw, loading, connected, hidden, pageSi
 /** Compact scrollable feed of recent activity, newest first. */
 export function ActivityFeed({ address, rows, loading, connected, error, onSelect, style }: { address?: string; rows: HistoryRow[] | undefined; loading: boolean; connected: boolean; error: boolean; onSelect: (row: HistoryRow) => void; style?: CSSProperties }) {
   return (
-    <section className="glass rise p-4 sm:p-5" style={style} aria-label="Recent activity">
+    <section className="card rise p-4 sm:p-5" style={style} aria-label="Recent activity">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="display text-lg font-semibold">Recent activity</h2>
         <Link to="/history" className="text-sm font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--accent)' }}>View all</Link>
       </div>
       {address && (
-        <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mb-2 flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all duration-200 hover:scale-[1.015] active:scale-95" style={{ borderColor: 'var(--border-strong)', background: 'linear-gradient(90deg, var(--glow-2), var(--glow))', color: 'var(--ink)' }}>
+        <a href={arcAddressUrl(address)} target="_blank" rel="noopener noreferrer" className="mb-2 flex min-h-[44px] items-center justify-between gap-3 rounded-xl border px-4 text-sm font-semibold transition-colors duration-150 hover:bg-[var(--surface-strong)]" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--ink)' }}>
           <span className="min-w-0 truncate">View full address history on Arc Explorer</span>
           <ExternalLink className="size-4 shrink-0" aria-hidden />
         </a>

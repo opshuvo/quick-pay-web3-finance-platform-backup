@@ -1,4 +1,6 @@
+import NetworkArc from '@web3icons/react/icons/networks/NetworkArc'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
+import { TokenIcon } from '@/components/TokenIcon'
 import { TxProgress } from '@/components/TxProgress'
 import { Notice, Row, Spinner } from '@/components/ui'
 import type { ListedToken } from '@/hooks/useTokenList'
@@ -39,9 +41,9 @@ export function SwapReviewSheet({ open, onClose, view, tokenIn, tokenOut, slippa
     <ConfirmSheet open={open && Boolean(view)} onClose={onClose} title="Confirm swap" locked={busy}>
       {view && tokenIn && tokenOut && (
         <div>
-          <p className="display text-center text-3xl font-bold tabular-nums">{formatTokenAmount(view.amountIn, tokenIn.decimals)} {tokenIn.symbol}</p>
+          <p className="display flex items-center justify-center gap-2.5 text-3xl font-bold tabular-nums"><TokenIcon symbol={tokenIn.symbol} address={tokenIn.address} size={34} />{formatTokenAmount(view.amountIn, tokenIn.decimals)} {tokenIn.symbol}</p>
           <p className="my-1 text-center text-sm" style={{ color: 'var(--muted)' }}>for at least</p>
-          <p className="display mb-3 text-center text-3xl font-bold tabular-nums">{formatTokenAmount(view.minOut, tokenOut.decimals)} {tokenOut.symbol}</p>
+          <p className="display mb-3 flex items-center justify-center gap-2.5 text-3xl font-bold tabular-nums"><TokenIcon symbol={tokenOut.symbol} address={tokenOut.address} size={34} />{formatTokenAmount(view.minOut, tokenOut.decimals)} {tokenOut.symbol}</p>
           <div className="inner divide-y px-4" style={{ borderColor: 'var(--border)' }}>
             <Row label="Engine">{view.engine === 'uniswap-api' ? 'Uniswap Trading API' : 'Uniswap pools, direct on-chain'}</Row>
             <Row label="Route">{view.route}</Row>
@@ -50,7 +52,7 @@ export function SwapReviewSheet({ open, onClose, view, tokenIn, tokenOut, slippa
             <Row label="Slippage">{(slippageBps / 100).toFixed(2)}%</Row>
             <Row label="Network fee (est.)">{view.gasUsdc === null ? 'Shown by your wallet' : `≈ ${displayUnits(view.gasUsdc, 6, 4, 6)} USDC`}</Row>
             <Row label="Steps">{needsApproval ? 'Approve exact amount, sign permission, swap' : 'Sign permission, swap'}</Row>
-            <Row label="Network">Arc Mainnet</Row>
+            <Row label="Network"><span className="inline-flex items-center gap-2"><span className="chain-badge" style={{ width: 20, height: 20 }} role="img" aria-label="Arc logo"><NetworkArc variant="branded" size={20} /></span>Arc Mainnet</span></Row>
           </div>
           <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>
             Real funds. Nothing is sent until you confirm each step in your wallet. The quote is re-checked first; if the price got worse than what you see here, the swap is not sent.

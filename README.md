@@ -19,6 +19,10 @@ Built with [Arc Studio](https://studio.arc.io)
 - Analytics from your indexed history, with clear notes when history is still being backfilled
 - A payment request and receipt contract (not deployed by default; the Smart Contracts page shows "Not Deployed" until you configure a real deployment)
 
+## Appearance
+
+Dark (navy) and Light (white), with one restrained blue accent, solid surfaces and hairline borders. The theme follows your device by default; choose System, Dark or Light from the top bar or Settings and the choice is remembered.
+
 ## Tech stack
 
 React, Vite, TypeScript, Tailwind CSS, wagmi and viem, a Bun backend with PostgreSQL, Solidity with Foundry.

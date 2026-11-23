@@ -49,7 +49,7 @@ export default function Payments() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {TILES.map(({ to, title, body, icon: Icon }) => (
           <Link key={to} to={to} className="card hover-lift flex flex-col gap-3 p-4">
-            <span className="flex size-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, var(--glow), var(--glow-2))', boxShadow: 'inset 0 0 0 1px var(--border)' }}>
+            <span className="flex size-10 items-center justify-center rounded-xl" style={{ background: 'var(--surface-strong)', boxShadow: 'inset 0 0 0 1px var(--border)' }}>
               <Icon className="size-5" style={{ color: 'var(--cyan)' }} aria-hidden />
             </span>
             <span>

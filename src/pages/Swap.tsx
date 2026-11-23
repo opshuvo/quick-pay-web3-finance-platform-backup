@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowDownUp, RefreshCw, ShieldCheck } from 'lucide-react
 import { ActivityList } from '@/components/ActivityList'
 import { AmountInput } from '@/components/AmountInput'
 import { SwapReviewSheet } from '@/components/SwapReviewSheet'
+import NetworkArc from '@web3icons/react/icons/networks/NetworkArc'
 import { TokenPicker } from '@/components/TokenPicker'
 import { Notice, PageHeader, Row, Skeleton, Spinner, StatusBadge } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
@@ -184,7 +185,10 @@ export default function Swap() {
       <div>
         <PageHeader title="Swap" subtitle="Trade tokens on Arc Mainnet through Uniswap. Quotes, routes and balances are live; nothing is estimated or assumed." />
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <StatusBadge tone="neutral">Arc Mainnet · 5042</StatusBadge>
+          <span className="inline-flex items-center gap-2 rounded-full border py-1 pl-1.5 pr-3 text-xs font-semibold" style={{ borderColor: 'var(--border)', background: 'var(--surface-muted)', color: 'var(--ink-2)' }}>
+            <span className="chain-badge" style={{ width: 20, height: 20 }} role="img" aria-label="Arc logo"><NetworkArc variant="branded" size={20} /></span>
+            Arc Mainnet · 5042
+          </span>
           {status ? (
             q?.engine === 'uniswap-api' || (!q && status.configured && status.chainSupported && status.routerVerified) ? (
               <StatusBadge tone="success"><ShieldCheck className="mr-1 inline size-3" aria-hidden />Uniswap Trading API</StatusBadge>
