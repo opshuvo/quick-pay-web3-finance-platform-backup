@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { LogoMark } from '@/components/Logo'
+import { OrbitalRings } from '@/components/OrbitalRings'
 
 const KEY = 'quickpay.splash.v1'
-const SHOW_MS = 1500
+/** The launch animation plays for this long, then fades out. Tapping it skips it. */
+const LEAVE_AT_MS = 2700
+const GONE_AT_MS = 3200
 
-/** Shown once per browser session. Tapping it skips it; it never blocks the app, which loads underneath. */
+/** Shown once per browser session. It never blocks the app, which loads underneath it. */
 function alreadyShown(): boolean {
   try {
     return sessionStorage.getItem(KEY) === '1'
@@ -24,9 +27,10 @@ export function Splash() {
     } catch {
       /* private mode: the splash simply shows again next visit */
     }
+    // With reduced motion the finished frame (mark, name, tagline) is shown straight away and leaves quickly.
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const leave = setTimeout(() => setLeaving(true), reduced ? 400 : 1050)
-    const done = setTimeout(() => setVisible(false), reduced ? 700 : SHOW_MS)
+    const leave = setTimeout(() => setLeaving(true), reduced ? 700 : LEAVE_AT_MS)
+    const done = setTimeout(() => setVisible(false), reduced ? 1000 : GONE_AT_MS)
     return () => {
       clearTimeout(leave)
       clearTimeout(done)
@@ -35,15 +39,21 @@ export function Splash() {
 
   if (!visible) return null
   return (
-    <div className="splash" data-leaving={leaving} role="status" aria-label="Quick Pay is loading" onClick={() => setVisible(false)}>
-      <div className="splash-stage" aria-hidden>
-                <span className="splash-logo"><LogoMark size={84} /></span>
+    <div className="splash" data-leaving={leaving} data-testid="splash" role="status" aria-label="Quick Pay is loading" onClick={() => setVisible(false)}>
+      <span className="sp-wave sp-wave-1" aria-hidden />
+      <span className="sp-wave sp-wave-2" aria-hidden />
+      <OrbitalRings />
+      <div className="sp-center">
+        <div className="sp-logo" aria-hidden>
+          <span className="sp-glow" />
+          <LogoMark size={104} />
+        </div>
+        <div className="sp-word">
+          <p className="sp-name display">Quick<span>Pay</span></p>
+          <p className="sp-tag">USDC payments on Arc</p>
+        </div>
       </div>
-      <div className="splash-word text-center">
-        <p className="display text-3xl font-bold tracking-tight">Quick<span className="gradient-text">Pay</span></p>
-        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--muted)' }}>USDC payments on Arc</p>
-      </div>
-      <div className="splash-bar" aria-hidden><span /></div>
+      <div className="sp-line" aria-hidden><span /></div>
     </div>
   )
 }

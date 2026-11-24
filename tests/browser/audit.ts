@@ -30,7 +30,7 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
 for (const vp of VIEWPORTS) {
   for (const theme of THEMES) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: vp.deviceScaleFactor, colorScheme: theme })
-    await ctx.addInitScript(() => { try { sessionStorage.setItem('qp-splash', '1') } catch { /* ignore */ } })
+    await ctx.addInitScript(() => { try { sessionStorage.setItem('quickpay.splash.v1', '1') } catch { /* ignore */ } })
     for (const route of ROUTES) {
       const page = await ctx.newPage()
       await instrument(page)

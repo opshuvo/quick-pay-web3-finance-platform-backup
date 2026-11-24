@@ -10,6 +10,8 @@ import { ChainIcon, NetworkRow, RoutePair, type ChainOption } from '../src/compo
 import { ProviderLogo } from '../src/components/ProviderLogo'
 import { TokenIcon } from '../src/components/TokenIcon'
 import { usePresence } from '../src/hooks/usePresence'
+import { LogoMark } from '../src/components/Logo'
+import { Splash } from '../src/components/Splash'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -139,5 +141,37 @@ describe('menu presence', () => {
     act(() => root?.render(<Panel open />))
     await act(async () => { await new Promise((r) => setTimeout(r, 200)) })
     expect(host.querySelector('p')?.getAttribute('data-state')).toBe('open')
+  })
+})
+
+describe('brand mark and launch screen', () => {
+  test('the mark combines the Circle ring, the two Arc arches, the payment node and a spark', () => {
+    const host = mount(<LogoMark size={64} />)
+    expect(host.querySelectorAll('.qp-outer circle').length).toBe(1)
+    expect(host.querySelectorAll('.qp-arch').length).toBe(2)
+    expect(host.querySelectorAll('.qp-tail').length).toBe(1)
+    expect(host.querySelectorAll('.qp-node').length).toBe(1)
+    expect(host.querySelectorAll('.qp-spark').length).toBe(1)
+    expect(host.querySelector('svg')?.getAttribute('aria-label')).toBe('Quick Pay')
+  })
+
+  test('the favicon is the same mark', () => {
+    const svg = readFileSync(new URL('../public/favicon.svg', import.meta.url), 'utf8')
+    expect(svg.match(/M23\.5 40V32a8\.5 8\.5 0 0 1 17 0v8/)).not.toBeNull()
+    expect(svg).toContain('r="3.2"')
+    expect(svg).toContain('#38d3ee')
+    expect(svg.length).toBeLessThan(2500)
+  })
+
+  test('the launch screen shows the wordmark, the tagline, the rings and a loading line', () => {
+    try { sessionStorage.removeItem('quickpay.splash.v1') } catch { /* ignore */ }
+    const host = mount(<Splash />)
+    const splash = host.querySelector('[data-testid="splash"]')
+    expect(splash).not.toBeNull()
+    expect(splash?.textContent).toContain('QuickPay')
+    expect(splash?.textContent).toContain('USDC payments on Arc')
+    expect(host.querySelector('[data-testid="orbital-rings"]')).not.toBeNull()
+    expect(host.querySelector('.sp-line > span')).not.toBeNull()
+    expect(splash?.getAttribute('role')).toBe('status')
   })
 })

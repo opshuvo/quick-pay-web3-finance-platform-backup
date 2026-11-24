@@ -9,6 +9,7 @@ import { FlowCard, RouterCard } from '@/components/dashboard'
 import { MonthlyChart } from '@/components/MonthlyChart'
 import { ActivityFeed, AddressRow, ChangePill, NetworkBadge, PrimaryActions, rise, SecondaryActions, TrendCard, useBalanceTrend, VisibilityToggle } from '@/components/neon'
 import { StatTile } from '@/components/StatTile'
+import { TokenBalances } from '@/components/TokenBalances'
 import { TxDetailSheet } from '@/components/TxDetailSheet'
 import { EmptyState, Skeleton, StatusBadge } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
@@ -107,6 +108,8 @@ export default function Overview() {
               <SecondaryActions actions={SECONDARY} />
             </div>
           </section>
+
+          {wallet.isConnected && !wallet.wrongNetwork && <TokenBalances hidden={hidden} style={rise(1)} />}
 
           <TrendCard rows={history.data?.rows} balanceRaw={wallet.balanceRaw} loading={wallet.isConnected && (history.isLoading || wallet.balanceLoading)} connected={wallet.isConnected} hidden={hidden} pageSize={FEED_SIZE} style={rise(1)} />
 

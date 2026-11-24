@@ -42,7 +42,7 @@ for (const vp of [{ name: 'phone', width: 390, height: 844, mobile: true }, { na
   log(`\n== ${vp.name} ==`)
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.mobile, hasTouch: vp.mobile, deviceScaleFactor: vp.mobile ? 2 : 1, colorScheme: 'light' })
   await ctx.addInitScript(() => {
-    sessionStorage.setItem('qp-splash', '1')
+    sessionStorage.setItem('quickpay.splash.v1', '1')
     const w = window as unknown as { __cls: number; __lt: number[] }
     w.__cls = 0; w.__lt = []
     try { new PerformanceObserver((l) => { for (const e of l.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!e.hadRecentInput) w.__cls += e.value }).observe({ type: 'layout-shift', buffered: true }) } catch { /* ignore */ }
@@ -66,6 +66,23 @@ for (const vp of [{ name: 'phone', width: 390, height: 844, mobile: true }, { na
   const text = await page.evaluate(() => document.body.innerText)
   check(/Available balance/i.test(text), 'dashboard shows the balance card')
   check(!/NaN|undefined|\[object/.test(text), 'no NaN / undefined / [object] text on the dashboard')
+  // "Your tokens": every listed token's balance must equal what Arc itself returns for the address.
+  const rpcBalance = async (token: string, decimals: number) => {
+    const data = '0x70a08231' + ADDRESS.slice(2).padStart(64, '0')
+    const r = await fetch('https://rpc.mainnet.arc.io/', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: token, data }, 'latest'] }) })
+    const j = (await r.json()) as { result: string }
+    return Number(BigInt(j.result)) / 10 ** decimals
+  }
+  const tokenRows = await page.evaluate(() => [...document.querySelectorAll('[aria-label="Token balances"] li')].map((li) => ({ sym: li.querySelector('span.text-sm')?.textContent?.trim() ?? '', bal: li.querySelector('[aria-label$="balance"]')?.textContent?.trim() ?? '' })))
+  check(tokenRows.length >= 2 && tokenRows.some((r) => r.sym === 'USDC') && tokenRows.some((r) => r.sym === 'EURC'), `"Your tokens" lists ${tokenRows.map((r) => r.sym).join(', ')}`)
+  const USDC = '0x3600000000000000000000000000000000000000'
+  const EURC = '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1'
+  const usdcRow = Number((tokenRows.find((r) => r.sym === 'USDC')?.bal ?? '').replace(/,/g, ''))
+  const eurcRow = Number((tokenRows.find((r) => r.sym === 'EURC')?.bal ?? '').replace(/,/g, ''))
+  check(Math.abs(usdcRow - (await rpcBalance(USDC, 6))) < 0.000002, `USDC row (${usdcRow}) equals Arc's own balanceOf`)
+  check(Math.abs(eurcRow - (await rpcBalance(EURC, 6))) < 0.000002, `EURC row (${eurcRow}) equals Arc's own balanceOf`)
+  const heroBal = await page.evaluate(() => Number((document.querySelector('.value-tick')?.textContent ?? '').replace(/,/g, '')))
+  check(Math.abs(heroBal - usdcRow) < 0.000002, `the balance card (${heroBal}) and the token list (${usdcRow}) show the same USDC, counted once`)
   const before = reqs.length
   await page.waitForTimeout(12_000)
   const idle = reqs.slice(before)

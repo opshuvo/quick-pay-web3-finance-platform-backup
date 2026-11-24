@@ -14,7 +14,7 @@ let total = 0
 let bad = 0
 for (const theme of ['light', 'dark'] as const) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: theme })
-  await ctx.addInitScript(() => sessionStorage.setItem('qp-splash', '1'))
+  await ctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
   await installReadOnlyWallet(ctx, ADDRESS)
   const page = await ctx.newPage()
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })

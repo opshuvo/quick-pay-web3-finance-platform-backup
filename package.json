@@ -23,7 +23,7 @@
     "test:smoke": "bun run tests/api.smoke.ts",
     "test:bridge-live": "bun run tests/bridge.live.ts",
     "test:history-live": "bun run tests/history.live.ts",
-    "test:browser": "bun tests/browser/audit.ts && bun tests/browser/interactions.ts && bun tests/browser/connected.ts && bun tests/browser/contrast.ts"
+    "test:browser": "bun tests/browser/splash.ts && bun tests/browser/audit.ts && bun tests/browser/interactions.ts && bun tests/browser/connected.ts && bun tests/browser/contrast.ts"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.19.2",

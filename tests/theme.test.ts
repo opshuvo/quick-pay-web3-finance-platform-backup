@@ -198,3 +198,26 @@ describe('reference dashboard', () => {
     expect(bar).toMatch(/border-radius:\s*1\.5rem/)
   })
 })
+
+describe('launch screen', () => {
+  test('every launch animation moves only transform, opacity and clip-path', () => {
+    for (const name of ['sp-in', 'sp-out', 'sp-drift-a', 'sp-drift-b', 'sp-logo', 'sp-glow', 'sp-node', 'sp-reveal', 'sp-rise', 'sp-fill', 'sp-shine']) {
+      const start = css.indexOf(`@keyframes ${name}`)
+      expect(start).toBeGreaterThan(-1)
+      let depth = 0
+      let end = start
+      for (let i = css.indexOf('{', start); i < css.length; i++) {
+        if (css[i] === '{') depth++
+        if (css[i] === '}' && --depth === 0) { end = i; break }
+      }
+      const props = [...css.slice(css.indexOf('{', start) + 1, end).matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1])
+      for (const prop of props) expect(['transform', 'opacity', 'clip-path', 'visibility']).toContain(prop)
+    }
+  })
+
+  test('the launch screen is a deep navy field in both themes', () => {
+    const block = css.slice(css.lastIndexOf('.splash {'), css.lastIndexOf('.splash {') + 700)
+    expect(block).toContain('radial-gradient')
+    expect(block).toMatch(/#0d2552|#07142e|#040b1b/i)
+  })
+})

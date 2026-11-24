@@ -43,7 +43,7 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
 // ---- phone ------------------------------------------------------------------------------------------------------------------
 {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, colorScheme: 'light' })
-  await ctx.addInitScript(() => sessionStorage.setItem('qp-splash', '1'))
+  await ctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
   const page = await ctx.newPage()
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -89,6 +89,14 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   check(sheet.left === '12px' && parseFloat(sheet.nav) >= 20, `bottom navigation floats inset ${sheet.left} with ${sheet.nav} corners`)
   const contentClear = await page.evaluate(() => { const nav = document.querySelector('.mnav')!.getBoundingClientRect(); const main = document.querySelector('main')!; return parseFloat(getComputedStyle(main).paddingBottom) >= window.innerHeight - nav.top })
   check(contentClear, 'page content keeps clear of the floating bottom navigation')
+
+  const logo = await page.evaluate(() => {
+    const svg = document.querySelector<SVGElement>('.logo-live > svg')
+    const host = document.querySelector<HTMLElement>('.logo-live')
+    if (!svg || !host) return null
+    return { breathe: getComputedStyle(svg).animationName, ring: getComputedStyle(host, '::before').animationName, ripple: getComputedStyle(host, '::after').animationName }
+  })
+  check(logo !== null && logo.breathe !== 'none' && logo.ring !== 'none' && logo.ripple !== 'none', `header logo is alive: breathing (${logo?.breathe}), orbit ring (${logo?.ring}), ripple (${logo?.ripple})`)
 
   // Bottom navigation and More sheet.
   const nav = await page.locator('nav a, nav button').count()
@@ -162,7 +170,7 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
 // ---- desktop -----------------------------------------------------------------------------------------------------------------
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' })
-  await ctx.addInitScript(() => sessionStorage.setItem('qp-splash', '1'))
+  await ctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
   const page = await ctx.newPage()
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
