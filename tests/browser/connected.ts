@@ -94,7 +94,7 @@ for (const vp of [{ name: 'phone', width: 390, height: 844, mobile: true }, { na
   log(`INFO  history reads by URL: ${[...dupes.values()].join(', ') || 'none'}`)
 
   // Per-route: load, no errors, no horizontal scroll, CLS.
-  for (const route of ['/', '/send', '/receive', '/scan', '/split', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings']) {
+  for (const route of ['/', '/send', '/receive', '/scan', '/split', '/payroll', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings']) {
     const n0 = reqs.length
     const t0 = Date.now()
     await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle' })

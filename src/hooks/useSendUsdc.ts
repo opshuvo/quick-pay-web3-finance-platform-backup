@@ -12,6 +12,7 @@ import { confirmTx, receiptHasTransfer, TxFlowError, TxReplacedError } from '@/l
 import { PaymentParseError, validateRecipient } from '@/lib/payments'
 import { ledgerAdd, ledgerRehash, ledgerSetStatus } from '@/lib/txLedger'
 import { runUsdcSend, SingleFlight, type SendStage, type SendState } from '@/lib/sendFlow'
+import { isUsdcToken, type PayTokenInfo } from '@/lib/payTokens'
 
 export type { SendStage, SendState }
 
@@ -33,14 +34,18 @@ export function useSendUsdc() {
   }, [])
 
   const send = useCallback(
-    async (to: Address, amount: bigint): Promise<`0x${string}` | null> => {
+    async (to: Address, amount: bigint, token?: PayTokenInfo): Promise<`0x${string}` | null> => {
       if (!publicClient || !address) return null
+      // USDC goes through the Quick Pay contract when it is verified. Any other token (EURC) is always a plain, direct token transfer.
+      const direct = Boolean(token && !isUsdcToken(token))
+      const sent = token ?? { symbol: 'USDC' as const, address: ARC_USDC, decimals: 6 }
       const hash = await flight.current.run(() =>
         runUsdcSend({
           onState: setState,
+          symbol: sent.symbol,
           submit: async () => {
             // The owner's contract is configured but could not be verified: never fall back to a plain transfer silently.
-            if (routerConfigured && !router && (routerLoading || routerProblem === 'unreachable')) throw new TxFlowError('The Quick Pay contract could not be verified yet. Try again in a moment. Nothing was sent.')
+            if (!direct && routerConfigured && !router && (routerLoading || routerProblem === 'unreachable')) throw new TxFlowError('The Quick Pay contract could not be verified yet. Try again in a moment. Nothing was sent.')
             // Last line of defence: whatever called this, never sign an empty amount or a lost-funds recipient.
             if (amount <= 0n) throw new TxFlowError('Amount must be greater than zero.')
             try {
@@ -52,11 +57,11 @@ export function useSendUsdc() {
             const fees = await arcFeeParams(publicClient)
             // The wallet signed: keep the payment in History as pending until Arc's receipt says what happened.
             const remember = (hash: `0x${string}`, target: Address) => {
-              ledgerAdd({ hash, wallet: address, kind: 'send', to: target, token: ARC_USDC, amount: amount.toString(), symbol: 'USDC', decimals: 6 })
+              ledgerAdd({ hash, wallet: address, kind: 'send', to: target, token: sent.address, amount: amount.toString(), symbol: sent.symbol, decimals: sent.decimals })
               return hash
             }
-            if (!router) {
-              return remember(await writeContractAsync({ address: ARC_USDC, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees }), to)
+            if (direct || !router) {
+              return remember(await writeContractAsync({ address: sent.address, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chainId: ARC_CHAIN_ID, ...fees }), to)
             }
             // Through the Quick Pay router: approve the exact amount only (never unlimited), wait for it, then pay.
             if ((await routerAllowance(publicClient, address, router)) < amount) {
@@ -79,7 +84,7 @@ export function useSendUsdc() {
             ledgerRehash(address, h, mined)
             ledgerSetStatus(address, mined, receipt.status === 'success' ? 'confirmed' : 'failed')
             // Success needs the receipt AND the exact USDC transfer (right payer, recipient and amount) inside it.
-            return { status: receipt.status, hash: mined, verified: receiptHasTransfer(receipt.logs, ARC_USDC, address, to, amount) }
+            return { status: receipt.status, hash: mined, verified: receiptHasTransfer(receipt.logs, sent.address, address, to, amount) }
           },
         }),
       )

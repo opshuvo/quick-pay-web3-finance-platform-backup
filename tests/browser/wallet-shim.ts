@@ -5,8 +5,8 @@
  */
 import type { BrowserContext } from 'playwright-core'
 
-export async function installReadOnlyWallet(ctx: BrowserContext, address: string, rpcUrl = 'https://rpc.mainnet.arc.io/') {
-  await ctx.addInitScript(([addr, rpc]) => {
+export async function installReadOnlyWallet(ctx: BrowserContext, address: string, rpcUrl = 'https://rpc.mainnet.arc.io/', options: { atomic?: boolean } = {}) {
+  await ctx.addInitScript(([addr, rpc, atomic]) => {
     const provider = {
       isMetaMask: true,
       request: async ({ method, params }: { method: string; params?: unknown[] }) => {
@@ -15,7 +15,7 @@ export async function installReadOnlyWallet(ctx: BrowserContext, address: string
         if (method === 'net_version') return '5042'
         if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain' || method === 'wallet_revokePermissions') return null
         if (method === 'wallet_requestPermissions' || method === 'wallet_getPermissions') return [{ parentCapability: 'eth_accounts' }]
-        if (method === 'wallet_getCapabilities') return {}
+        if (method === 'wallet_getCapabilities') return atomic ? { '0x13b2': { atomic: { status: 'supported' } } } : {}
         if (/^(eth_sendTransaction|eth_sendRawTransaction|personal_sign|eth_sign|eth_signTypedData|wallet_)/.test(method)) {
           throw Object.assign(new Error('User rejected the request.'), { code: 4001 })
         }
@@ -28,5 +28,5 @@ export async function installReadOnlyWallet(ctx: BrowserContext, address: string
       removeListener: () => undefined,
     }
     ;(window as unknown as { ethereum: unknown }).ethereum = provider
-  }, [address, rpcUrl])
+  }, [address, rpcUrl, Boolean(options.atomic)] as const)
 }

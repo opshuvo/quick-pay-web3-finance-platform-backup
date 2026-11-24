@@ -60,3 +60,21 @@ describe('parsePaymentContent', () => {
     expect(Object.keys(parsed).sort()).toEqual(['kind', 'to'])
   })
 })
+
+describe('EURC and USDC amounts and recipients', () => {
+  test('a token amount is exact, in six decimals, and above zero', async () => {
+    const { validateTokenAmount } = await import('../src/lib/payments')
+    expect(validateTokenAmount('12.5', 'EURC')).toBe(12_500_000n)
+    expect(validateTokenAmount('0.000001', 'EURC')).toBe(1n)
+    expect(() => validateTokenAmount('0.0000001', 'EURC')).toThrow('EURC supports at most 6 decimal places')
+    expect(() => validateTokenAmount('0', 'USDC')).toThrow('greater than zero')
+    expect(() => validateTokenAmount('1e3', 'USDC')).toThrow('numbers only')
+    expect(() => validateTokenAmount('5', 'EURC', 6, 4_999_999n)).toThrow('larger than your available balance')
+    expect(validateTokenAmount('5', 'EURC', 6, 5_000_000n)).toBe(5_000_000n)
+  })
+  test('the EURC token contract is refused as a recipient, like the USDC contract', async () => {
+    const { validateRecipient } = await import('../src/lib/payments')
+    expect(() => validateRecipient('0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1')).toThrow('EURC token contract')
+    expect(() => validateRecipient('0x3600000000000000000000000000000000000000')).toThrow('USDC token contract')
+  })
+})

@@ -132,6 +132,9 @@ export async function migrate(): Promise<void> {
     on conflict do nothing`
   await sql`create index if not exists defi_activity_wallet_idx on defi_activity (wallet, block_time desc)`
   await sql`create index if not exists defi_activity_dest_idx on defi_activity (destination_tx_hash)`
+  // Requests can ask for USDC or EURC and carry a short reference. Existing rows are USDC with no reference.
+  await sql.unsafe("alter table payment_requests add column if not exists token text not null default 'USDC'")
+  await sql.unsafe("alter table payment_requests add column if not exists reference text not null default ''")
   await sql`create index if not exists payment_requests_recipient_idx on payment_requests (recipient, created_at desc)`
   // Keyset pagination: (block, log index) descending per wallet side, so the newest rows are an index walk, never a sort.
   await sql`create index if not exists transfers_chain_from_keyset_idx on transfers (chain_id, from_addr, block_number desc, log_index desc)`

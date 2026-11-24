@@ -17,6 +17,7 @@ export const ROUTE_LOADERS: Record<string, Loader> = {
   '/contracts': () => import('@/pages/Contracts'),
   '/settings': () => import('@/pages/Settings'),
   '/split': () => import('@/pages/Split'),
+  '/payroll': () => import('@/pages/Payroll'),
   '/profile': () => import('@/pages/Profile'),
   '/sent': () => import('@/pages/Sent'),
   '/received': () => import('@/pages/Received'),
@@ -43,7 +44,7 @@ const frugal = () => {
 /** The screens in the bottom bar. They are fetched together, right after the first paint, so none of them ever waits on a download. */
 const PRIMARY_ROUTES = ['/send', '/swap', '/bridge', '/receive', '/history']
 /** The rest, most used first. Every screen is small, so they are fetched quietly one by one while the browser is idle. */
-const PREFETCH_ORDER = ['/scan', '/payments', '/requests', '/sent', '/received', '/analytics', '/split', '/settings', '/contracts', '/profile']
+const PREFETCH_ORDER = ['/scan', '/payments', '/requests', '/sent', '/received', '/analytics', '/split', '/payroll', '/settings', '/contracts', '/profile']
 
 let prefetchAll: Promise<void> | undefined
 /**

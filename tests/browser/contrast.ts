@@ -7,7 +7,7 @@ import { installReadOnlyWallet } from './wallet-shim'
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:4173'
 const ADDRESS = process.env.AUDIT_ADDRESS ?? '0x26eff17acb6932f197adbc1aa493b9bf64c04968'
-const ROUTES = ['/', '/send', '/receive', '/scan', '/split', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings']
+const ROUTES = ['/', '/send', '/receive', '/scan', '/split', '/payroll', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings']
 
 const browser = await chromium.launch({ args: ['--disable-gpu'] })
 let total = 0

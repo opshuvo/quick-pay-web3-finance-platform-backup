@@ -11,9 +11,10 @@ import { useArcWallet } from '@/hooks/useArcWallet'
 import { loadSession, useSession } from '@/hooks/useSession'
 import { isServiceDown, ApiError } from '@/lib/api'
 import { displayUsdc, formatDateTime } from '@/lib/format'
-import { PaymentParseError, validateAmount } from '@/lib/payments'
+import { PaymentParseError, validateTokenAmount } from '@/lib/payments'
 import { requestsApi, STATUS_LABEL, STATUS_TONE, type RequestDto } from '@/lib/requests'
 import { REQUEST_LIMITS, type SessionToken } from '../../shared/session'
+import { PAY_TOKENS, type PayToken } from '../../shared/tokens'
 
 const EXPIRY: { label: string; ms: number | null }[] = [
   { label: 'No expiry', ms: null },
@@ -29,6 +30,8 @@ export default function Requests() {
   const queryClient = useQueryClient()
   const [signedToken, setToken] = useState<SessionToken | null>(null)
   const [amount, setAmount] = useState('')
+  const [token_, setPayToken] = useState<PayToken>('USDC')
+  const [reference, setReference] = useState('')
   const [description, setDescription] = useState('')
   const [expiry, setExpiry] = useState(0)
   const [createdFor, setCreated] = useState<{ address: string; request: RequestDto } | null>(null)
@@ -41,11 +44,13 @@ export default function Requests() {
   const parsed = useMemo(() => {
     if (!amount) return { error: null as string | null, raw: undefined as bigint | undefined }
     try {
-      return { raw: validateAmount(amount, REQUEST_LIMITS.maxAmountRaw), error: null }
+      const raw = validateTokenAmount(amount, token_)
+      if (raw > REQUEST_LIMITS.maxAmountRaw) throw new PaymentParseError('Amount is above the limit for one request.')
+      return { raw, error: null }
     } catch (e) {
       return { raw: undefined, error: e instanceof PaymentParseError ? e.message : 'Invalid amount' }
     }
-  }, [amount])
+  }, [amount, token_])
 
   const list = useQuery({
     queryKey: ['requests', address, token?.signature],
@@ -62,6 +67,8 @@ export default function Requests() {
       const ms = EXPIRY[expiry].ms
       return requestsApi.create(session, {
         amount: (parsed.raw as bigint).toString(),
+        token: token_,
+        reference: reference.trim() || undefined,
         description,
         expiresAt: ms ? new Date(Date.now() + ms).toISOString() : undefined,
       })
@@ -69,6 +76,7 @@ export default function Requests() {
     onSuccess: (request) => {
       if (address) setCreated({ address, request })
       setAmount('')
+      setReference('')
       setDescription('')
       void queryClient.invalidateQueries({ queryKey: ['requests'] })
       toast.success('Payment request created')
@@ -91,7 +99,7 @@ export default function Requests() {
   if (!isConnected || !address) {
     return (
       <div>
-        <PageHeader title="Payment Requests" subtitle="Ask someone to pay you a set amount of USDC with a shareable link or QR." />
+        <PageHeader title="Payment Requests" subtitle="Ask someone to pay you a set amount of USDC or EURC with a shareable link or QR." />
         <div className="card"><EmptyState title="Connect a wallet" body="Requests are created for your wallet address and require a free signature to manage." action={<WalletButton />} /></div>
       </div>
     )
@@ -100,7 +108,7 @@ export default function Requests() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
       <div className="lg:col-span-2">
-        <PageHeader title="Payment Requests" subtitle="Create a link or QR that asks someone to pay you a set amount of USDC." />
+        <PageHeader title="Payment Requests" subtitle="Create a link or QR that asks someone to pay you a set amount of USDC or EURC." />
         <Notice tone="info">
           A request is an <strong>off-chain record</strong> kept by Quick Pay. It does not move any money. Funds move only when someone pays it and confirms in their own wallet, and a request turns Paid only after the payment is found on Arc.
         </Notice>
@@ -108,8 +116,19 @@ export default function Requests() {
 
       <section className="card space-y-4 p-5 self-start">
         <h2 className="display text-lg font-semibold">New request</h2>
-        <AmountInput value={amount} onChange={setAmount} />
+        <div>
+          <span className="label mb-1.5 block">Token</span>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Token to request">
+            {PAY_TOKENS.map((s) => (
+              <button key={s} type="button" role="radio" aria-checked={token_ === s} onClick={() => setPayToken(s)} className="chip min-h-[44px] justify-center font-semibold" style={token_ === s ? { borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--blue-soft)' } : undefined}>{s}</button>
+            ))}
+          </div>
+        </div>
+        <AmountInput value={amount} onChange={setAmount} symbol={token_} />
         {parsed.error && <p role="alert" className="-mt-2 text-xs" style={{ color: 'var(--danger)' }}>{parsed.error}</p>}
+        <Field label="Reference (optional)" hint="An order or invoice number. Shown to the payer and kept with the request.">
+          <input className="field" maxLength={40} placeholder="INV-1042" value={reference} onChange={(e) => setReference(e.target.value)} />
+        </Field>
         <Field label="Description (optional)" hint={`${description.length}/${REQUEST_LIMITS.descriptionMax}`}>
           <input className="field" maxLength={REQUEST_LIMITS.descriptionMax} placeholder="Invoice #1042, lunch, design work…" value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
@@ -131,7 +150,7 @@ export default function Requests() {
               <h2 className="display text-lg font-semibold">Share this request</h2>
               <StatusBadge tone="warn">Unpaid</StatusBadge>
             </div>
-            <p className="mb-3 text-sm" style={{ color: 'var(--muted)' }}>{displayUsdc(BigInt(created.amount))} USDC{created.description ? ` · ${created.description}` : ''}</p>
+            <p className="mb-3 text-sm" style={{ color: 'var(--muted)' }}>{displayUsdc(BigInt(created.amount))} {created.token}{created.reference ? ` · ${created.reference}` : ''}{created.description ? ` · ${created.description}` : ''}</p>
             <RequestShare id={created.id} />
           </div>
         )}
@@ -155,8 +174,8 @@ export default function Requests() {
               {list.data?.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="display font-bold tabular-nums">{displayUsdc(BigInt(r.amount))} USDC</p>
-                    <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>{r.description || 'No description'} · {formatDateTime(r.createdAt)}</p>
+                    <p className="display font-bold tabular-nums">{displayUsdc(BigInt(r.amount))} {r.token}</p>
+                    <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>{r.reference ? `${r.reference} · ` : ''}{r.description || 'No description'} · {formatDateTime(r.createdAt)}</p>
                   </div>
                   <StatusBadge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</StatusBadge>
                   <div className="flex gap-2">
@@ -175,7 +194,7 @@ export default function Requests() {
       <ConfirmSheet open={Boolean(shown)} onClose={() => setShown(null)} title="Payment request">
         {shown && (
           <div>
-            <p className="mb-3 text-sm" style={{ color: 'var(--muted)' }}>{displayUsdc(BigInt(shown.amount))} USDC · {STATUS_LABEL[shown.status]}</p>
+            <p className="mb-3 text-sm" style={{ color: 'var(--muted)' }}>{displayUsdc(BigInt(shown.amount))} {shown.token}{shown.reference ? ` · ${shown.reference}` : ''} · {STATUS_LABEL[shown.status]}</p>
             <RequestShare id={shown.id} />
           </div>
         )}

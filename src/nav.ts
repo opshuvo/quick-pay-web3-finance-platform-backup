@@ -5,6 +5,7 @@ import {
   BarChart3,
   FileCode2,
   FileText,
+  Users,
   History,
   LayoutDashboard,
   Landmark,
@@ -48,7 +49,13 @@ export const MORE_GROUPS: NavGroup[] = [
     items: [
       { to: '/', label: 'Overview', icon: LayoutDashboard },
       { to: '/payments', label: 'Payments', icon: Landmark },
+    ],
+  },
+  {
+    title: 'Links & Payroll',
+    items: [
       { to: '/requests', label: 'Payment Requests', icon: FileText },
+      { to: '/payroll', label: 'Batch Payouts', icon: Users },
     ],
   },
   {
@@ -68,6 +75,20 @@ export const MORE_GROUPS: NavGroup[] = [
       { to: '/settings', label: 'Settings', icon: Settings },
     ],
   },
+]
+
+/**
+ * The desktop sidebar, grouped by what people are trying to do. Every page is listed once; the mobile bottom bar keeps the
+ * six most-used pages and the More sheet holds the rest (MORE_GROUPS).
+ */
+const byRoute = (routes: string[]): NavItem[] => routes.map((to) => [...PRIMARY_NAV, ...MORE_GROUPS.flatMap((g) => g.items)].find((i) => i.to === to) as NavItem)
+export const SIDEBAR_SECTIONS: NavGroup[] = [
+  { title: 'Instant Pay', items: byRoute(['/send', '/receive', '/scan']) },
+  { title: 'Payment Links', items: byRoute(['/requests', '/payments']) },
+  { title: 'Payroll', items: byRoute(['/split', '/payroll']) },
+  { title: 'Swap & Bridge', items: byRoute(['/swap', '/bridge']) },
+  { title: 'Activity', items: byRoute(['/history', '/sent', '/received', '/analytics']) },
+  { title: 'Account', items: byRoute(['/', '/contracts', '/profile', '/settings']) },
 ]
 
 /** Flat list of every page, once each (used by search). */

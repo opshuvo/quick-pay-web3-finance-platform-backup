@@ -1,5 +1,6 @@
 import { isHash, type Hex } from 'viem'
 import { REQUEST_LIMITS } from '../shared/session'
+import { isPayToken, type PayToken } from '../shared/tokens'
 import type { RequestDto } from '../shared/api-types'
 
 export type { RequestDto }
@@ -17,6 +18,8 @@ interface Row {
   id: string
   recipient: string
   amount: string
+  token: PayToken
+  reference: string
   description: string
   expires_at: Date | null
   created_at: Date
@@ -27,7 +30,7 @@ interface Row {
   cancelled_at: Date | null
 }
 
-const COLUMNS = 'id, recipient, amount::text as amount, description, expires_at, created_at, status, paid_tx_hash, paid_by, paid_at, cancelled_at'
+const COLUMNS = 'id, recipient, amount::text as amount, token, reference, description, expires_at, created_at, status, paid_tx_hash, paid_by, paid_at, cancelled_at'
 const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null)
 
 function toDto(r: Row): RequestDto {
@@ -36,6 +39,8 @@ function toDto(r: Row): RequestDto {
     id: r.id,
     recipient: r.recipient,
     amount: r.amount,
+    token: isPayToken(r.token) ? r.token : 'USDC',
+    reference: r.reference ?? '',
     description: r.description,
     expiresAt: iso(r.expires_at),
     createdAt: new Date(r.created_at).toISOString(),
@@ -56,11 +61,17 @@ function newId(): string {
 const cleanText = (value: unknown, max: number) =>
   typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : ''
 
-export async function createRequest(recipient: string, body: { amount?: unknown; description?: unknown; expiresAt?: unknown }): Promise<RequestDto> {
+const cleanReference = (value: unknown) => (typeof value === 'string' ? value.replace(/[^\w\-. #/]/g, '').trim().slice(0, 40) : '')
+const tokenAddress = (token: PayToken) => (token === 'EURC' ? config.eurc : config.usdc)
+
+export async function createRequest(recipient: string, body: { amount?: unknown; token?: unknown; reference?: unknown; description?: unknown; expiresAt?: unknown }): Promise<RequestDto> {
   rateLimit(`create:${recipient}`, 30, 60 * 60_000)
   if (typeof body.amount !== 'string' || !/^\d{1,20}$/.test(body.amount)) throw new HttpError(400, 'bad_amount', 'Amount must be a whole number of USDC base units.')
   const amount = BigInt(body.amount)
   if (amount <= 0n || amount > REQUEST_LIMITS.maxAmountRaw) throw new HttpError(400, 'bad_amount', 'Amount is out of range.')
+  const token: PayToken = body.token === undefined || body.token === null || body.token === '' ? 'USDC' : (body.token as PayToken)
+  if (!isPayToken(token)) throw new HttpError(400, 'bad_token', 'Requests can ask for USDC or EURC.')
+  const reference = cleanReference(body.reference)
   const description = cleanText(body.description, REQUEST_LIMITS.descriptionMax)
   let expiresAt: Date | null = null
   if (body.expiresAt !== undefined && body.expiresAt !== null && body.expiresAt !== '') {
@@ -73,8 +84,8 @@ export async function createRequest(recipient: string, body: { amount?: unknown;
   const db = requireDb()
   const id = newId()
   const rows = (await db.unsafe(
-    `insert into payment_requests (id, recipient, amount, description, expires_at) values ($1, $2, $3, $4, $5) returning ${COLUMNS}`,
-    [id, recipient, amount.toString(), description, expiresAt],
+    `insert into payment_requests (id, recipient, amount, token, reference, description, expires_at) values ($1, $2, $3, $4, $5, $6, $7) returning ${COLUMNS}`,
+    [id, recipient, amount.toString(), token, reference, description, expiresAt],
   )) as Row[]
   return toDto(rows[0])
 }
@@ -128,13 +139,13 @@ export async function verifyPayment(id: string, txHash: unknown, clientKey: stri
   const needed = BigInt(request.amount)
   const match = receipt.logs.find(
     (log) =>
-      log.address.toLowerCase() === config.usdc &&
+      log.address.toLowerCase() === tokenAddress(request.token) &&
       log.topics[0] === TRANSFER_TOPIC &&
       log.topics.length === 3 &&
       `0x${(log.topics[2] as string).slice(26)}`.toLowerCase() === request.recipient &&
       BigInt(log.data) >= needed,
   )
-  if (!match) throw new HttpError(422, 'no_matching_transfer', 'No USDC transfer to the recipient for the requested amount was found in that transaction.')
+  if (!match) throw new HttpError(422, 'no_matching_transfer', `No ${request.token} transfer to the recipient for the requested amount was found in that transaction.`)
   const payer = `0x${(match.topics[1] as string).slice(26)}`.toLowerCase()
   const db = requireDb()
   try {

@@ -1,11 +1,12 @@
 import type { RequestDto } from '../../shared/api-types'
 import type { SessionToken } from '../../shared/session'
+import type { PayToken } from '../../shared/tokens'
 import { api, ApiError, isServiceDown } from '@/lib/api'
 
 export type { RequestDto }
 
 export const requestsApi = {
-  create: (token: SessionToken, body: { amount: string; description: string; expiresAt?: string }) =>
+  create: (token: SessionToken, body: { amount: string; token?: PayToken; reference?: string; description: string; expiresAt?: string }) =>
     api<RequestDto>('/requests', { method: 'POST', body, token }),
   list: (token: SessionToken) => api<{ requests: RequestDto[] }>('/requests', { token }),
   get: (id: string) => api<RequestDto>(`/requests/${id}`),

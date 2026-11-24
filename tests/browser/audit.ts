@@ -6,7 +6,7 @@
 import { chromium, type Page } from 'playwright-core'
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:4173'
-const ROUTES = (process.env.ROUTES ? process.env.ROUTES.split(',') : ['/', '/send', '/receive', '/scan', '/split', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings', '/contracts', '/profile'])
+const ROUTES = (process.env.ROUTES ? process.env.ROUTES.split(',') : ['/', '/send', '/receive', '/scan', '/split', '/payroll', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings', '/contracts', '/profile'])
 const VIEWPORTS = [
   { name: 'mobile', width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'desktop', width: 1280, height: 800, isMobile: false, hasTouch: false, deviceScaleFactor: 1 },

@@ -6,6 +6,8 @@ import { PaymentConfirm } from '@/components/PaymentConfirm'
 import { AddressChip, ErrorState, ExplorerLink, Field, Notice, PageHeader, Row, Skeleton, Spinner, StatusBadge } from '@/components/ui'
 import { WalletButton } from '@/components/WalletButton'
 import { useArcWallet } from '@/hooks/useArcWallet'
+import { useTokenList } from '@/hooks/useTokenList'
+import { payTokenInfo } from '@/lib/payTokens'
 import { ApiError } from '@/lib/api'
 import { arcTxUrl } from '@/lib/arc'
 import { displayUsdc, formatDateTime } from '@/lib/format'
@@ -15,6 +17,7 @@ import { getAddress } from 'viem'
 export default function PayRequest() {
   const { id = '' } = useParams()
   const wallet = useArcWallet()
+  const tokenList = useTokenList()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [manualHash, setManualHash] = useState('')
@@ -51,17 +54,21 @@ export default function PayRequest() {
   const amount = BigInt(r.amount)
   const recipient = getAddress(r.recipient)
   const isRecipient = wallet.address?.toLowerCase() === r.recipient
-  const canPay = r.status === 'unpaid' && wallet.isConnected && !isRecipient
+  const listedToken = tokenList.tokens.find((t) => t.address.toLowerCase() === payTokenInfo(r.token).address.toLowerCase())
+  // A request in another token can only be paid once that token's contract has been verified on Arc.
+  const tokenReady = r.token === 'USDC' || Boolean(listedToken)
+  const canPay = r.status === 'unpaid' && wallet.isConnected && !isRecipient && tokenReady
 
   return (
     <div className="mx-auto max-w-lg">
-      <PageHeader title="Payment request" subtitle="Someone is asking you to pay in USDC on Arc Mainnet." />
+      <PageHeader title="Payment request" subtitle={`Someone is asking you to pay in ${r.token} on Arc Mainnet.`} />
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
           <StatusBadge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</StatusBadge>
           <span className="chip">Off-chain request</span>
         </div>
-        <p className="display text-4xl font-bold tabular-nums">{displayUsdc(amount)} <span className="text-lg" style={{ color: 'var(--subtle)' }}>USDC</span></p>
+        <p className="display text-4xl font-bold tabular-nums">{displayUsdc(amount)} <span className="text-lg" style={{ color: 'var(--subtle)' }}>{r.token}</span></p>
+        {r.reference && <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>Ref {r.reference}</p>}
         {r.description && <p className="mt-1 text-pretty text-sm" style={{ color: 'var(--ink-2)' }}>{r.description}</p>}
         <div className="mt-4 divide-y" style={{ borderColor: 'var(--border)' }}>
           <Row label="Pay to"><AddressChip address={recipient} /></Row>
@@ -126,6 +133,7 @@ export default function PayRequest() {
           onClose={() => setOpen(false)}
           to={recipient}
           amount={amount}
+          token={{ ...payTokenInfo(r.token), balance: r.token === 'USDC' ? wallet.balanceRaw : listedToken?.balance }}
           title="Pay request"
           note="After your payment confirms, Quick Pay checks it on Arc and marks the request paid."
           onSuccess={(hash) => {

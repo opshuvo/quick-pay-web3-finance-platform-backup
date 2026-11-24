@@ -36,13 +36,15 @@ export interface SendDeps {
    */
   waitForReceipt: (hash: `0x${string}`) => Promise<{ status: 'success' | 'reverted'; hash?: `0x${string}`; verified?: boolean }>
   onState: (state: SendState) => void
+  /** Token being sent, for messages. Defaults to USDC. */
+  symbol?: string
 }
 
 /**
  * The payment lifecycle. Success is reported only for a mined receipt with status success. A rejected
  * wallet prompt, a revert, and "broadcast but not confirmed" are three different outcomes and are never mixed up.
  */
-export async function runUsdcSend({ submit, waitForReceipt, onState }: SendDeps): Promise<`0x${string}` | null> {
+export async function runUsdcSend({ submit, waitForReceipt, onState, symbol = 'USDC' }: SendDeps): Promise<`0x${string}` | null> {
   let submitted: `0x${string}` | undefined
   try {
     onState({ stage: 'wallet' })
@@ -56,7 +58,7 @@ export async function runUsdcSend({ submit, waitForReceipt, onState }: SendDeps)
       return null
     }
     if (receipt.verified === false) {
-      onState({ stage: 'error', hash: mined, error: 'The transaction was mined, but the expected USDC transfer is not in it. Check the transaction on the explorer before sending again.' })
+      onState({ stage: 'error', hash: mined, error: `The transaction was mined, but the expected ${symbol} transfer is not in it. Check the transaction on the explorer before sending again.` })
       return null
     }
     onState({ stage: 'success', hash: mined })

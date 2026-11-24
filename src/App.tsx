@@ -17,6 +17,7 @@ const Analytics = lazyRoute('/analytics')
 const Contracts = lazyRoute('/contracts')
 const Settings = lazyRoute('/settings')
 const Split = lazyRoute('/split')
+const Payroll = lazyRoute('/payroll')
 const SplitDetail = lazy(() => import('@/pages/SplitDetail'))
 const Profile = lazyRoute('/profile')
 const Sent = lazyRoute('/sent')
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="contracts" element={<Contracts />} />
           <Route path="settings" element={<Settings />} />
           <Route path="split" element={<Split />} />
+          <Route path="payroll" element={<Payroll />} />
           <Route path="split/:id" element={<SplitDetail />} />
           <Route path="profile" element={<Profile />} />
           <Route path="sent" element={<Sent />} />

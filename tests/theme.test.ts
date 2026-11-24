@@ -221,3 +221,27 @@ describe('launch screen', () => {
     expect(block).toMatch(/#0d2552|#07142e|#040b1b/i)
   })
 })
+
+describe('dark glass', () => {
+  const darkOnly = css.slice(css.lastIndexOf(' * Dark glass.'))
+  test('glass tokens and rules exist only for Dark, so Light stays flat and white', () => {
+    expect(darkOnly).toMatch(/\[data-theme='dark'\] \{[^}]*--glass: rgba/)
+    expect(css).not.toMatch(/\[data-theme='light'\] \{[^}]*--glass/)
+    expect(css.slice(0, css.lastIndexOf(' * Dark glass.'))).not.toMatch(/\[data-theme='light'\][^{]*\{[^}]*backdrop-filter/)
+    for (const rule of darkOnly.split('}')) if (/glass|backdrop-filter/.test(rule) && rule.includes('{')) expect(/\[data-theme='dark'\]|@media|@supports/.test(rule)).toBe(true)
+  })
+  test('the live blur is limited to wide screens with a mouse', () => {
+    const blurAt = [...darkOnly.matchAll(/backdrop-filter:\s*blur/g)].map((m) => m.index as number)
+    expect(blurAt.length).toBeGreaterThan(0)
+    const wide = darkOnly.indexOf('@media (min-width: 1024px) and (hover: hover)')
+    expect(wide).toBeGreaterThan(-1)
+    for (const at of blurAt) expect(at).toBeGreaterThan(wide)
+  })
+  test('text stays readable on the glass over the darkest and lightest canvas behind it', () => {
+    for (const canvas of [dark.bg, dark['bg-2']]) {
+      expect(contrast(dark.ink, canvas)).toBeGreaterThanOrEqual(7)
+      expect(contrast(dark.muted, canvas)).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(dark.subtle, canvas)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})

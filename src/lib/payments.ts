@@ -6,6 +6,7 @@ import { getAddress, isAddress, type Address } from 'viem'
 import { ARC_CHAIN_ID, ARC_USDC } from '@/lib/arc'
 import { env } from '@/lib/env'
 import { formatUsdc, parseUsdc } from '@/onchain-money'
+import { OFFICIAL_ARC_TOKENS } from '@/lib/arcTokens'
 import { NATIVE_TRANSFER_EMITTER } from '../../shared/swapLegs'
 
 export type ParsedPayment =
@@ -24,6 +25,8 @@ export function validateRecipient(value: string, sender?: string): Address {
   if (!isAddress(v, { strict: false })) throw new PaymentParseError('Enter a valid 0x wallet address.')
   if (isZero(v)) throw new PaymentParseError('The zero address cannot receive funds.')
   if (v.toLowerCase() === ARC_USDC.toLowerCase()) throw new PaymentParseError('That is the USDC token contract. Funds sent there are lost.')
+  const tokenContract = OFFICIAL_ARC_TOKENS.find((t) => t.address.toLowerCase() === v.toLowerCase())
+  if (tokenContract) throw new PaymentParseError(`That is the ${tokenContract.label} token contract. Funds sent there are lost.`)
   if (env.routerAddress && v.toLowerCase() === env.routerAddress.toLowerCase()) throw new PaymentParseError('That is the Quick Pay payment contract. USDC sent to it would be stranded.')
   if (v.toLowerCase() === NATIVE_TRANSFER_EMITTER || v.toLowerCase() === SYSTEM_BLOCKLIST) throw new PaymentParseError('That is an Arc system address, not a wallet.')
   // Reject mixed-case addresses with a bad checksum; all-lowercase is accepted.
@@ -88,4 +91,17 @@ export function parsePaymentContent(input: string): ParsedPayment {
     return { kind: 'address', to: validateRecipient(target) }
   }
   throw new PaymentParseError('Not a wallet address or Quick Pay payment code.')
+}
+
+/** Parses a user-typed amount of a 6-decimal stablecoin (USDC or EURC) into base units. */
+export function validateTokenAmount(value: string, symbol: string, decimals = 6, max?: bigint): bigint {
+  const v = value.trim()
+  if (!v) throw new PaymentParseError('Enter an amount.')
+  if (!/^\d*\.?\d*$/.test(v) || v === '.') throw new PaymentParseError('Use numbers only.')
+  if ((v.split('.')[1]?.length ?? 0) > decimals) throw new PaymentParseError(`${symbol} supports at most ${decimals} decimal places.`)
+  const [whole = '0', frac = ''] = v.split('.')
+  const raw = BigInt(whole || '0') * 10n ** BigInt(decimals) + BigInt(frac.padEnd(decimals, '0') || '0')
+  if (raw <= 0n) throw new PaymentParseError('Amount must be greater than zero.')
+  if (max !== undefined && raw > max) throw new PaymentParseError('Amount is larger than your available balance.')
+  return raw
 }

@@ -1333,3 +1333,50 @@ body::before {
   .sp-wave-2 { display: none; }
   .sp-logo .qp-mark { width: 92px; height: 92px; }
 }
+
+/* ================================================================================================
+ * Dark glass. Translucent navy panels with a thin glowing edge and a soft focus glow. It exists in Dark only: Light stays
+ * flat and white. The edge is a masked gradient (painted once, never animated) and the real blur is limited to wide screens,
+ * where it is cheap, so phones keep solid-feeling panels without a live blur under every card.
+ * ============================================================================================== */
+[data-theme='dark'] {
+  --glass: rgba(17, 32, 61, 0.62);
+  --glass-strong: rgba(22, 42, 78, 0.72);
+  --glass-edge-a: rgba(122, 164, 255, 0.55);
+  --glass-edge-b: rgba(56, 211, 238, 0.2);
+  --glass-edge-c: rgba(122, 164, 255, 0.1);
+}
+/* A card that is already positioned (a menu, a sheet, a sticky panel) keeps its own positioning; the rest become the edge's anchor. */
+[data-theme='dark'] .card:not(.absolute):not(.fixed):not(.sticky):not(.relative):not(.net-menu) { position: relative; }
+[data-theme='dark'] .card,
+[data-theme='dark'] .tile {
+  background: var(--glass);
+  border-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 44px -26px rgba(0, 0, 0, 0.7);
+}
+[data-theme='dark'] .card::before,
+[data-theme='dark'] .tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--glass-edge-a), var(--glass-edge-b) 38%, var(--glass-edge-c) 68%, var(--glass-edge-a));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+[data-theme='dark'] .card-hero { background: linear-gradient(160deg, rgba(24, 46, 88, 0.78), rgba(12, 24, 46, 0.7)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 60px -30px rgba(60, 110, 255, 0.45); }
+[data-theme='dark'] .inner { background: rgba(255, 255, 255, 0.035); border-color: rgba(122, 164, 255, 0.14); }
+[data-theme='dark'] .app-header { background: rgba(10, 18, 34, 0.82); }
+[data-theme='dark'] .field:focus,
+[data-theme='dark'] .field:focus-visible { border-color: rgba(122, 164, 255, 0.8); box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.22), 0 0 22px -4px rgba(79, 140, 255, 0.45); }
+[data-theme='dark'] .net-menu, [data-theme='dark'] .card.pop { background: var(--glass-strong) !important; }
+@media (min-width: 1024px) and (hover: hover) {
+  @supports (backdrop-filter: blur(1px)) {
+    [data-theme='dark'] .card, [data-theme='dark'] .tile { backdrop-filter: blur(14px) saturate(1.25); -webkit-backdrop-filter: blur(14px) saturate(1.25); }
+    [data-theme='dark'] .app-header { backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); }
+  }
+}

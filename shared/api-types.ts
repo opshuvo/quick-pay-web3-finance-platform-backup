@@ -1,3 +1,4 @@
+import type { PayToken } from './tokens'
 /** Response shapes shared by the Quick Pay server and the browser. Types only, no runtime code. */
 import type { RequestStatus } from './session'
 
@@ -67,7 +68,11 @@ export interface Coverage {
 export interface RequestDto {
   id: string
   recipient: string
+  /** Base units of `token` (both supported tokens have 6 decimals). */
   amount: string
+  token: PayToken
+  /** Optional short reference the recipient attached (an order or invoice number). */
+  reference: string
   description: string
   expiresAt: string | null
   createdAt: string

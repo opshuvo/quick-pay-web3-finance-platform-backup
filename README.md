@@ -9,13 +9,15 @@ Built with [Arc Studio](https://studio.arc.io)
 ## Features
 
 - Wallet connection with wrong-network guidance for Arc Mainnet (chain ID 5042)
-- Send USDC with a preview and explicit confirmation before every payment
+- Send USDC or EURC with a preview and explicit confirmation before every payment. USDC goes through the Quick Pay contract when it is verified; EURC is a direct token transfer. Gas on Arc is always paid in USDC and is shown before you confirm
 - Receive with a QR code, and scan a QR code or paste a code to fill in payment details (scanning never sends anything)
-- Payment requests with shareable links, plus split payments built on them
+- Payment links: requests in USDC or EURC with an optional reference, a shareable link and QR, and a Paid status that appears only after the payment is proven on Arc
+- Batch payouts: paste or enter up to 50 recipients, review the total, and pay them one by one (each approved in your wallet) or, when your wallet reports it can, with a single approval. Every row shows Waiting, Pending, Confirmed, Failed or Unverified from Arc's receipt, a paused batch can be resumed without sending anything twice, and saved lists stay on your device
+- Split payments built on payment requests
 - Swap tokens on Arc through Uniswap, with live quotes, route, price impact, minimum received, slippage, exact approvals and quote expiry
 - Bridge between Arc and other networks with Across, LI.FI or Circle's official USDC bridge (you pick the provider), using only routes the provider reports as available, with live fee estimates, arrival times and a progress tracker that shows Complete only after delivery is read back from the destination chain. A Circle transfer that stops part-way can be resumed from Bridge progress without burning twice. Without a Quick Pay backend, Across and LI.FI are reached directly from the browser
 - Transaction history with Sent, Received, Pending and Failed tabs, search, filters, CSV export and verified Swap and Bridge categories
-- Midnight Glass look in dark and light themes: midnight navy canvas, electric blue, cyan and violet light, an animated splash, animated transaction states and bridge progress, and reduced-motion support
+- Navigation grouped as Instant Pay, Payment Links, Payroll, Swap & Bridge and Activity; a dark theme with glass panels and glowing edges, a flat white light theme, an animated splash, animated transaction states and bridge progress, and reduced-motion support
 - Analytics from your indexed history, with clear notes when history is still being backfilled
 - A payment request and receipt contract (not deployed by default; the Smart Contracts page shows "Not Deployed" until you configure a real deployment)
 
@@ -54,7 +56,7 @@ Server only (never exposed to the browser):
 
 Public (shipped to the browser, so never put secrets here):
 
-- `VITE_EURC_ADDRESS` Optional override for the EURC address in Swap. By default Swap lists USDC, EURC, cirBTC and WETH using Circle's published Arc Mainnet addresses, each checked against its own contract
+- `VITE_EURC_ADDRESS` Optional override for the EURC address (Swap, Send, payment links and the backend's payment checks). By default Swap lists USDC, EURC, cirBTC and WETH using Circle's published Arc Mainnet addresses, each checked against its own contract
 - `VITE_QUICKPAY_REGISTRY_ADDRESS` Address of your deployed QuickPayRegistry. Leave unset until a real deployment exists
 - `VITE_QUICKPAY_ROUTER_ADDRESS` Address of your deployed QuickPayRouter. When set and confirmed on Arc, sends go through it (the explorer shows the Quick Pay contract); otherwise sends are plain USDC transfers
 - `VITE_WALLETCONNECT_PROJECT_ID` Optional, enables WalletConnect
@@ -70,6 +72,7 @@ Public (shipped to the browser, so never put secrets here):
 - `bun run perf:report [dir]` prints first-visit download size of a production build (run `bunx vite build` first)
 - `bun run test:smoke` live checks against a running backend (uses the real Arc RPC and Across API)
 - `bun run test:history-live` live checks of history speed, cursor pagination, pending reconciliation and duplicates against a running backend and database
+- `bun run test:payments-live` checks USDC and EURC payment requests against the running backend and settles one from a real EURC transfer on Arc, and proves the batch-payout receipt matching on a real Arc receipt (read-only)
 - `bun run test:browser` drives the production build in a real Chromium on a phone and a desktop viewport, in light and dark: console errors, layout shift, tap sizes, text contrast, animation frame pacing, and a connected-wallet walk-through with a read-only wallet stand-in that rejects every signature. Needs `bunx vite preview --port 4173`, the backend on :3001 for the connected run, and Playwright's Chromium (`bunx playwright install chromium`)
 - `bun run test:bridge-live` read-only live checks of Across, LI.FI and Circle against Arc Mainnet (sends nothing, needs no wallet)
 - `bun run backend:url https://your-backend` points the production `/api/*` at your hosted backend (see `docs/history-deployment.md`)

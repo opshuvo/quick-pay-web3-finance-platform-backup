@@ -2,6 +2,7 @@
  * Server configuration. Bun loads `.env` automatically; nothing here is ever sent to the browser.
  */
 import { getUsdc, requireChain } from '../src/onchain-facts'
+import { EURC_DEFAULT_ADDRESS } from '../shared/tokens'
 
 const ARC_CHAIN_ID = 5042
 const arc = requireChain(ARC_CHAIN_ID)
@@ -32,6 +33,8 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL?.trim() || undefined,
   chainId: ARC_CHAIN_ID,
   usdc: usdc.address.toLowerCase(),
+  /** EURC on Arc (Circle's published address unless a deployment overrides it). */
+  eurc: (process.env.VITE_EURC_ADDRESS?.trim() || EURC_DEFAULT_ADDRESS).toLowerCase(),
   rpcUrl: rpc.url,
   rpcSource: rpc.source,
   explorerBase: arc.explorerBase,

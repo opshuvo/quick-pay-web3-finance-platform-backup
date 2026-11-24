@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { DEFAULT_FILTERS, prefetchHistory } from '@/hooks/useHistory'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { prefetchAllRoutes, prefetchRoute } from '@/routes'
-import { ChevronDown, ExternalLink, MoreHorizontal, ShieldAlert } from 'lucide-react'
+import { ExternalLink, ShieldAlert } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Avatar } from '@/components/Avatar'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
@@ -20,7 +20,7 @@ import { useArcWallet } from '@/hooks/useArcWallet'
 import { ThemeMenu } from '@/components/ThemeMenu'
 import { ARC_EXPLORER } from '@/lib/arc'
 import { useProfile } from '@/lib/profile'
-import { MORE_GROUPS, PRIMARY_NAV } from '@/nav'
+import { MORE_GROUPS, SIDEBAR_SECTIONS } from '@/nav'
 
 function ProfileLink() {
   const { address } = useArcWallet()
@@ -43,7 +43,6 @@ function prefetchFromEvent(event: { target: EventTarget }) {
 export function AppShell() {
   useSegmentedThumb()
   const [more, setMore] = useState(false)
-  const [sidebarMore, setSidebarMore] = useState(false)
   const location = useLocation()
   const wallet = useArcWallet()
   const queryClient = useQueryClient()
@@ -58,7 +57,6 @@ export function AppShell() {
     prefetchHistory(queryClient, wallet.address, { ...DEFAULT_FILTERS, direction: 'in', status: 'confirmed' })
   }, [wallet.address, queryClient])
   const moreActive = MORE_GROUPS.some((g) => g.items.some((i) => (i.to === '/' ? location.pathname === '/' : location.pathname === i.to || location.pathname.startsWith(`${i.to}/`))))
-  const sidebarMoreOpen = sidebarMore || moreActive
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[272px_minmax(0,1fr)]" onPointerOver={prefetchFromEvent} onTouchStart={prefetchFromEvent} onFocus={prefetchFromEvent}>
@@ -66,39 +64,20 @@ export function AppShell() {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-5 border-r px-5 py-5 lg:flex" style={{ borderColor: 'var(--border)', background: 'var(--sidebar)', backdropFilter: 'blur(20px)' }}>
         <Link to="/" aria-label="Quick Pay home" className="px-1"><Logo /></Link>
-        <nav aria-label="Main" className="-mr-2 flex flex-1 flex-col gap-5 overflow-y-auto pr-2">
-          <div className="flex flex-col gap-0.5 pl-2">
-            {PRIMARY_NAV.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} className={navClass}>
-                <Icon className="size-[18px] shrink-0" aria-hidden />
-                <span className="truncate">{label}</span>
-              </NavLink>
-            ))}
-          </div>
-          <div>
-            <button type="button" onClick={() => setSidebarMore((v) => !v)} aria-expanded={sidebarMoreOpen} aria-controls="sidebar-more" className="nav-link w-full">
-              <MoreHorizontal className="size-[18px] shrink-0" aria-hidden />
-              <span className="flex-1 truncate text-left">More</span>
-              <ChevronDown className={clsx('size-4 shrink-0 transition-transform', sidebarMoreOpen && 'rotate-180')} aria-hidden />
-            </button>
-            {sidebarMoreOpen && (
-              <div id="sidebar-more" className="mt-3 flex flex-col gap-4">
-                {MORE_GROUPS.map((group) => (
-                  <div key={group.title}>
-                    <p className="label mb-1.5 px-3">{group.title}</p>
-                    <div className="flex flex-col gap-0.5 pl-2">
-                      {group.items.map(({ to, label, icon: Icon }) => (
-                        <NavLink key={to} to={to} end={to === '/'} className={navClass}>
-                          <Icon className="size-[18px] shrink-0" aria-hidden />
-                          <span className="truncate">{label}</span>
-                        </NavLink>
-                      ))}
-                    </div>
-                  </div>
+        <nav aria-label="Main" className="-mr-2 flex flex-1 flex-col gap-4 overflow-y-auto pr-2">
+          {SIDEBAR_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <p className="label mb-1.5 px-3">{section.title}</p>
+              <div className="flex flex-col gap-0.5 pl-2">
+                {section.items.map(({ to, label, icon: Icon }) => (
+                  <NavLink key={to} to={to} end={to === '/'} className={navClass}>
+                    <Icon className="size-[18px] shrink-0" aria-hidden />
+                    <span className="truncate">{label}</span>
+                  </NavLink>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          ))}
         </nav>
         <div className="inner flex items-start gap-2 p-3 text-xs" style={{ color: 'var(--muted)' }}>
           <ShieldAlert className="mt-0.5 size-4 shrink-0" style={{ color: 'var(--warn)' }} aria-hidden />
