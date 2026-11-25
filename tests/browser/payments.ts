@@ -26,8 +26,9 @@ const check = (ok: boolean, s: string) => {
 async function connect(page: Page) {
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /connect/i }).first().click()
-  await page.getByText('Browser Wallet').first().click()
+  await page.getByText('Browser Wallet', { exact: true }).first().click()
   await page.waitForFunction(() => /0x26.{1,4}4968/i.test(document.body.innerText), undefined, { timeout: 15000 }).catch(() => undefined)
+  await page.waitForSelector('.ln', { state: 'detached', timeout: 5000 }).catch(() => undefined)
 }
 const eurcBalance = async () => {
   const data = '0x70a08231' + ADDRESS.slice(2).padStart(64, '0')
@@ -49,7 +50,7 @@ async function context(opts: { mobile: boolean; atomic?: boolean }): Promise<Bro
 {
   const ctx = await context({ mobile: false })
   const page = await ctx.newPage()
-  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/send`, { waitUntil: 'networkidle' })
   const titles = await page.locator('aside nav p.label').allTextContents()
   check(['Instant Pay', 'Payment Links', 'Payroll', 'Swap & Bridge', 'Activity'].every((t, i) => titles[i]?.trim() === t), `desktop sidebar sections: ${titles.map((t) => t.trim()).join(' | ')}`)
   const payroll = page.locator('aside nav a', { hasText: 'Batch Payouts' })

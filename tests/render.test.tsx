@@ -16,7 +16,7 @@ import App from '../src/App'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const SCREENS: [string, RegExp][] = [
-  ['/', /Nothing to show yet|No wallet connected/],
+  ['/', /USDC payments, built for Arc/],
   ['/payments', /Move USDC, request it, split it/],
   ['/send', /Send USDC/],
   ['/receive', /Receive USDC/],

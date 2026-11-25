@@ -113,13 +113,22 @@ describe('System is the default and a choice is remembered', () => {
 
 describe('no screen is locked to one theme', () => {
   const files = (dir: string): string[] => readdirSync(dir).flatMap((f: string) => { const p = `${dir}/${f}`; return statSync(p).isDirectory() ? files(p) : p.endsWith('.tsx') ? [p] : [] })
+  // The landing page is deliberately always dark (a marketing page, signed out). It, and the blank canvas shown while it loads,
+  // are the only places allowed to fix the theme; no screen of the app itself may.
+  const LANDING_ONLY = ['/src/pages/Landing.tsx', '/src/App.tsx']
   test('no forced dark island and no fixed light-on-dark or dark-on-light colour classes', () => {
     const offenders: string[] = []
     for (const file of files(new URL('../src', import.meta.url).pathname)) {
       const text = readFileSync(file, 'utf8')
-      if (/data-theme="dark"|data-theme='dark'|\b(?:bg|text|border)-(?:slate|indigo|gray|zinc)-\d/.test(text)) offenders.push(file)
+      if (/\b(?:bg|text|border)-(?:slate|indigo|gray|zinc)-\d/.test(text)) offenders.push(file)
+      if (/data-theme="dark"|data-theme='dark'/.test(text) && !LANDING_ONLY.some((f) => file.endsWith(f))) offenders.push(file)
     }
     expect(offenders).toEqual([])
+  })
+  test('only the landing page fixes the theme, and it fixes it to dark', () => {
+    const landing = readFileSync(new URL('../src/pages/Landing.tsx', import.meta.url), 'utf8')
+    expect(landing).toContain('data-theme="dark"')
+    expect(landing).not.toContain('data-theme="light"')
   })
 })
 

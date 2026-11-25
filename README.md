@@ -8,6 +8,8 @@ Built with [Arc Studio](https://studio.arc.io)
 
 ## Features
 
+- A landing page at the home address while no wallet is connected: what Quick Pay does, how it works, what it can and cannot guarantee, and a Connect wallet button that opens the normal wallet picker and then the dashboard. Every other address (including shared payment links) opens the app directly
+
 - Wallet connection with wrong-network guidance for Arc Mainnet (chain ID 5042)
 - Send USDC or EURC with a preview and explicit confirmation before every payment. USDC goes through the Quick Pay contract when it is verified; EURC is a direct token transfer. Gas on Arc is always paid in USDC and is shown before you confirm
 - Receive with a QR code, and scan a QR code or paste a code to fill in payment details (scanning never sends anything)
@@ -56,6 +58,7 @@ Server only (never exposed to the browser):
 
 Public (shipped to the browser, so never put secrets here):
 
+- `VITE_GITHUB_URL`, `VITE_SOCIAL_X_URL`, `VITE_SOCIAL_DISCORD_URL`, `VITE_SOCIAL_TELEGRAM_URL` Optional https links shown in the landing page footer. A link appears only if its variable is set to a valid https URL. The GitHub link defaults to this project's repository and the X link defaults to https://x.com/quickpayxyz
 - `VITE_EURC_ADDRESS` Optional override for the EURC address (Swap, Send, payment links and the backend's payment checks). By default Swap lists USDC, EURC, cirBTC and WETH using Circle's published Arc Mainnet addresses, each checked against its own contract
 - `VITE_QUICKPAY_REGISTRY_ADDRESS` Address of your deployed QuickPayRegistry. Leave unset until a real deployment exists
 - `VITE_QUICKPAY_ROUTER_ADDRESS` Address of your deployed QuickPayRouter. When set and confirmed on Arc, sends go through it (the explorer shows the Quick Pay contract); otherwise sends are plain USDC transfers

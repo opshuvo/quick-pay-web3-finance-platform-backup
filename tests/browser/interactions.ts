@@ -2,8 +2,10 @@
  * Interaction audit in a real browser: how long a tap takes to reach the screen, frame pacing during motion,
  * tap-target size on a phone, and that the controls respond. Run after `bunx vite preview --port 4173`.
  */
+import { installReadOnlyWallet } from './wallet-shim'
 import { chromium, type Page } from 'playwright-core'
 
+const ADDRESS = process.env.AUDIT_ADDRESS ?? '0x26eff17acb6932f197adbc1aa493b9bf64c04968'
 const BASE = process.argv[2] ?? 'http://127.0.0.1:4173'
 const out: string[] = []
 const fail: string[] = []
@@ -49,7 +51,7 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   page.on('pageerror', (e) => errors.push(e.message))
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 140)) })
 
-  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/send`, { waitUntil: 'networkidle' })
   // Theme menu: open, choose Dark, theme applies in one frame, and no element is still transitioning colours.
   let ms = await tapToPaint(page, 'button[aria-label^="Theme:"]')
   check(ms >= 0 && ms < 100, `theme menu opens and paints in ${ms.toFixed(0)}ms (< 100)`)
@@ -71,8 +73,19 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   await page.reload({ waitUntil: 'networkidle' })
   check((await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'saved theme is applied before first paint after reload')
 
+  // The dashboard itself only shows once a wallet is connected, so these checks use the read-only wallet stand-in.
+  {
+    const dctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })
+    await dctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
+    await installReadOnlyWallet(dctx, ADDRESS, 'https://rpc.mainnet.arc.io/')
+    const dpage = await dctx.newPage()
+    await dpage.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+    await dpage.getByRole('button', { name: /connect wallet/i }).first().click()
+    await dpage.getByText('Browser Wallet', { exact: true }).first().click()
+    await dpage.waitForFunction(() => /Available balance/.test(document.body.innerText), undefined, { timeout: 15000 }).catch(() => undefined)
+    await dpage.waitForTimeout(900)
   // Orbital background: present, animating, cheap, and stopped by reduced motion.
-  const orbit = await page.evaluate(() => {
+  const orbit = await dpage.evaluate(() => {
     const root = document.querySelector('[data-testid="orbital-rings"]')
     if (!root) return null
     const items = [...root.querySelectorAll<HTMLElement>('.orbit-ring, .orbit-wave, .orbit-flow')]
@@ -82,21 +95,24 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   })
   check(orbit !== null && orbit.running >= 4 && orbit.hidden === 'true' && orbit.pointer === 'none', `orbital rings render and animate on the phone dashboard (${orbit?.running}/${orbit?.total} layers running, decorative, no pointer events)`)
   check(orbit !== null && orbit.width >= orbit.vw, `orbital layer spans the screen width (${orbit?.width}px of ${orbit?.vw}px)`)
-  const orbitPace = await framePacing(page, 1500)
+  const orbitPace = await framePacing(dpage, 1500)
   check(orbitPace.worst < 100 && orbitPace.slow <= 6, `dashboard with rings animating: worst frame ${orbitPace.worst.toFixed(0)}ms, ${orbitPace.slow} slow of ${orbitPace.frames} (software-rendered, no GPU)`)
-  const sheet = await page.evaluate(() => ({ send: getComputedStyle(document.querySelector('.act-send') as Element).backgroundImage.slice(0, 30), receive: getComputedStyle(document.querySelector('.act-receive') as Element).backgroundImage.slice(0, 30), nav: getComputedStyle(document.querySelector('.mnav') as Element).borderRadius, left: getComputedStyle(document.querySelector('.mnav') as Element).left }))
+  const sheet = await dpage.evaluate(() => ({ send: getComputedStyle(document.querySelector('.act-send') as Element).backgroundImage.slice(0, 30), receive: getComputedStyle(document.querySelector('.act-receive') as Element).backgroundImage.slice(0, 30), nav: getComputedStyle(document.querySelector('.mnav') as Element).borderRadius, left: getComputedStyle(document.querySelector('.mnav') as Element).left }))
   check(sheet.send.startsWith('linear-gradient') && sheet.receive.startsWith('linear-gradient'), `Send and Receive are gradient buttons (${sheet.send} / ${sheet.receive})`)
   check(sheet.left === '12px' && parseFloat(sheet.nav) >= 20, `bottom navigation floats inset ${sheet.left} with ${sheet.nav} corners`)
-  const contentClear = await page.evaluate(() => { const nav = document.querySelector('.mnav')!.getBoundingClientRect(); const main = document.querySelector('main')!; return parseFloat(getComputedStyle(main).paddingBottom) >= window.innerHeight - nav.top })
-  check(contentClear, 'page content keeps clear of the floating bottom navigation')
+  const contentClear = await dpage.evaluate(() => { const nav = document.querySelector('.mnav')!.getBoundingClientRect(); const main = document.querySelector('main')!; return parseFloat(getComputedStyle(main).paddingBottom) >= window.innerHeight - nav.top })
+  check(contentClear, 'dpage content keeps clear of the floating bottom navigation')
 
-  const logo = await page.evaluate(() => {
+  const logo = await dpage.evaluate(() => {
     const svg = document.querySelector<SVGElement>('.logo-live > svg')
     const host = document.querySelector<HTMLElement>('.logo-live')
     if (!svg || !host) return null
     return { breathe: getComputedStyle(svg).animationName, ring: getComputedStyle(host, '::before').animationName, ripple: getComputedStyle(host, '::after').animationName }
   })
   check(logo !== null && logo.breathe !== 'none' && logo.ring !== 'none' && logo.ripple !== 'none', `header logo is alive: breathing (${logo?.breathe}), orbit ring (${logo?.ring}), ripple (${logo?.ripple})`)
+
+    await dctx.close()
+  }
 
   // Bottom navigation and More sheet.
   const nav = await page.locator('nav a, nav button').count()
@@ -175,7 +191,7 @@ const browser = await chromium.launch({ args: ['--disable-gpu'] })
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 140)) })
-  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/send`, { waitUntil: 'networkidle' })
   check((await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'System theme follows the dark device preference by default')
   check((await page.evaluate(() => document.documentElement.dataset.themePref)) === 'system', 'preference is "system" until the user chooses')
   // Switching device preference while on System updates the page live.

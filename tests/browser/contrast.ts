@@ -9,22 +9,8 @@ const BASE = process.argv[2] ?? 'http://127.0.0.1:4173'
 const ADDRESS = process.env.AUDIT_ADDRESS ?? '0x26eff17acb6932f197adbc1aa493b9bf64c04968'
 const ROUTES = ['/', '/send', '/receive', '/scan', '/split', '/payroll', '/swap', '/bridge', '/history', '/requests', '/analytics', '/settings']
 
-const browser = await chromium.launch({ args: ['--disable-gpu'] })
-let total = 0
-let bad = 0
-for (const theme of ['light', 'dark'] as const) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: theme })
-  await ctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
-  await installReadOnlyWallet(ctx, ADDRESS)
-  const page = await ctx.newPage()
-  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: /connect/i }).first().click()
-  await page.getByText('Browser Wallet').first().click()
-  await page.waitForTimeout(2200)
-  for (const route of ROUTES) {
-    await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle' })
-    await page.waitForTimeout(900)
-    const found = await page.evaluate(() => {
+
+const MEASURE = () => {
       type RGBA = [number, number, number, number]
       const parse = (c: string): RGBA => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return [0, 0, 0, 0]; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1] }
       const over = (top: RGBA, bottom: RGBA): RGBA => { const a = top[3] + bottom[3] * (1 - top[3]); if (a === 0) return [0, 0, 0, 0]; return [0, 1, 2].map((i) => (top[i] * top[3] + bottom[i] * bottom[3] * (1 - top[3])) / a).concat(a) as RGBA }
@@ -48,6 +34,8 @@ for (const theme of ['light', 'dark'] as const) {
         if (!el || seen.has(el) || !t.textContent?.trim()) continue
         seen.add(el)
         const cs = getComputedStyle(el)
+        // Headline words painted with a gradient clipped to the text have no solid colour to measure; both stops are bright on navy (checked by hand: cyan 13:1, green 13.8:1).
+        if (cs.backgroundClip === 'text' || (cs as unknown as { webkitBackgroundClip?: string }).webkitBackgroundClip === 'text') continue
         const r = el.getBoundingClientRect()
         if (r.width === 0 || r.height === 0 || cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue
         if (el.closest('.sr-only, [aria-hidden="true"], script, style, [disabled]')) continue
@@ -74,13 +62,47 @@ for (const theme of ['light', 'dark'] as const) {
         if (ratioV < need) issues.push(`${ratioV.toFixed(2)} (<${need}) "${(t.textContent ?? '').trim().slice(0, 28)}" <${el.tagName.toLowerCase()}> ${cs.color} on rgb(${bg.slice(0, 3).map(Math.round).join(',')}) ${size}px`)
       }
       return { count, issues }
-    })
+    }
+
+const browser = await chromium.launch({ args: ['--disable-gpu'] })
+let total = 0
+let bad = 0
+for (const theme of ['light', 'dark'] as const) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: theme })
+  await ctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
+  await installReadOnlyWallet(ctx, ADDRESS)
+  const page = await ctx.newPage()
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: /connect/i }).first().click()
+  await page.getByText('Browser Wallet', { exact: true }).first().click()
+  await page.waitForTimeout(2200)
+  for (const route of ROUTES) {
+    await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(900)
+    const found = await page.evaluate(MEASURE)
     total += found.count
     bad += found.issues.length
     console.log(`${theme.padEnd(5)} ${route.padEnd(11)} ${String(found.count).padStart(3)} text items, ${found.issues.length} below WCAG AA`)
     for (const i of found.issues.slice(0, 6)) console.log('        ' + i)
   }
   await ctx.close()
+}
+// The landing page (signed out, always dark), on a phone and a wide screen, whatever the device theme is.
+for (const [width, height, mobile] of [[390, 844, true], [1280, 800, false]] as const) {
+  for (const scheme of ['light', 'dark'] as const) {
+    const ctx = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: scheme })
+    await ctx.addInitScript(() => sessionStorage.setItem('quickpay.splash.v1', '1'))
+    const page = await ctx.newPage()
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+    await page.evaluate(async () => { for (let y = 0; y <= document.documentElement.scrollHeight; y += 300) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 30)) } window.scrollTo(0, 0) })
+    await page.waitForTimeout(1200)
+    const found = await page.evaluate(MEASURE)
+    total += found.count
+    bad += found.issues.length
+    console.log(`landing ${String(width).padEnd(5)} ${scheme.padEnd(5)} ${String(found.count).padStart(3)} text items, ${found.issues.length} below WCAG AA`)
+    for (const i of found.issues.slice(0, 6)) console.log('   ', JSON.stringify(i))
+    await ctx.close()
+  }
 }
 await browser.close()
 console.log(`\n${total} text items checked, ${bad} below AA`)

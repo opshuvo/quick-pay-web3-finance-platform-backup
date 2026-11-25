@@ -16,8 +16,9 @@ const check = (ok: boolean, s: string) => { log(`${ok ? 'PASS' : 'FAIL'}  ${s}`)
 async function connect(page: Page) {
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /connect/i }).first().click()
-  await page.getByText('Browser Wallet').first().click()
+  await page.getByText('Browser Wallet', { exact: true }).first().click()
   await page.waitForFunction(() => /0x26.{1,4}4968/i.test(document.body.innerText), undefined, { timeout: 15000 }).catch(() => undefined)
+  await page.waitForSelector('.ln', { state: 'detached', timeout: 5000 }).catch(() => undefined)
 }
 const pacing = (page: Page, ms: number) => page.evaluate((span) => new Promise<{ worst: number; slow: number; frames: number }>((resolve) => {
   const gaps: number[] = []
